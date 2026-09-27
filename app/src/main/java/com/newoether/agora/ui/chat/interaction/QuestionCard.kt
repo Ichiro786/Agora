@@ -50,6 +50,14 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.toRect
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.newoether.agora.R
 import com.newoether.agora.ui.motion.LocalAgoraMotionPolicy
@@ -303,6 +311,19 @@ private fun QuestionPage(
     }
 }
 
+/**
+ * A single-line option reads as a capsule; a taller, wrapped option keeps a 24 dp corner so its
+ * highlight does not turn into a lozenge.
+ */
+internal val OptionShape: Shape = object : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val radius = minOf(size.height / 2f, with(density) { OptionMaxCornerRadius.toPx() })
+        return Outline.Rounded(RoundRect(size.toRect(), CornerRadius(radius, radius)))
+    }
+}
+
+private val OptionMaxCornerRadius = 24.dp
+
 @Composable
 private fun OptionRow(
     option: String,
@@ -313,7 +334,7 @@ private fun OptionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(OptionShape)
             .clickable(onClick = onToggle)
             // Inset so the rounded highlight never cuts into the control.
             .padding(horizontal = 8.dp),
