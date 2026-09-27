@@ -115,37 +115,39 @@ internal class NativeConversationGraphSource private constructor(
             }
         }
         private val GRAPH_FIELDS = listOf("conversations", "runs", "messages", "loops", "tasks")
+        // The readers below are not closed: the caller owns the stream, and reading it to its end
+        // after the parse is what verifies an archive entry.
         private fun splitItem(stream: InputStream, writers: Map<String, JsonWriter>) {
-            JsonReader(InputStreamReader(stream, Charsets.UTF_8)).use { reader ->
-                reader.beginObject()
-                while (reader.hasNext()) {
-                    val name = reader.nextName()
-                    val writer = writers[name]?.takeIf { name != "tasks" }
-                    if (writer == null) {
-                        reader.skipValue()
-                        continue
-                    }
+            val reader = JsonReader(InputStreamReader(stream, Charsets.UTF_8))
+            reader.beginObject()
+            while (reader.hasNext()) {
+                val name = reader.nextName()
+                val writer = writers[name]?.takeIf { name != "tasks" }
+                if (writer == null) {
+                    reader.skipValue()
+                    continue
+                }
+                reader.beginArray()
+                while (reader.hasNext()) copyValue(reader, writer)
+                reader.endArray()
+            }
+            reader.endObject()
+            stream.readToEnd()
+        }
+        private fun copyArrayField(stream: InputStream, field: String, writer: JsonWriter) {
+            val reader = JsonReader(InputStreamReader(stream, Charsets.UTF_8))
+            reader.beginObject()
+            while (reader.hasNext()) {
+                if (reader.nextName() == field) {
                     reader.beginArray()
                     while (reader.hasNext()) copyValue(reader, writer)
                     reader.endArray()
+                } else {
+                    reader.skipValue()
                 }
-                reader.endObject()
             }
-        }
-        private fun copyArrayField(stream: InputStream, field: String, writer: JsonWriter) {
-            JsonReader(InputStreamReader(stream, Charsets.UTF_8)).use { reader ->
-                reader.beginObject()
-                while (reader.hasNext()) {
-                    if (reader.nextName() == field) {
-                        reader.beginArray()
-                        while (reader.hasNext()) copyValue(reader, writer)
-                        reader.endArray()
-                    } else {
-                        reader.skipValue()
-                    }
-                }
-                reader.endObject()
-            }
+            reader.endObject()
+            stream.readToEnd()
         }
 
         private fun copyValue(reader: JsonReader, writer: JsonWriter) {

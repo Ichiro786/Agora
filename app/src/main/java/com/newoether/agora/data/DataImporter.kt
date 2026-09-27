@@ -338,12 +338,18 @@ class DataImporter(
             val source = NativeConversationGraphSource.open(archive, version, context.cacheDir)
             graphSource = source
             val headers = source.open().use { stream ->
-                conversationGraphImporter.readConversationGraphHeaders(
-                    stream = stream,
+                // The parser closes what it reads, so it gets a view that leaves the stream open;
+                // reading the rest afterwards verifies a legacy conversations.json.
+                val parsed = conversationGraphImporter.readConversationGraphHeaders(
+                    stream = object : java.io.FilterInputStream(stream) {
+                        override fun close() = Unit
+                    },
                     strategy = strategy,
                     restoredMedia = restored,
                     resolveSystemPromptId = prompts::resolve,
                 )
+                stream.readToEnd()
+                parsed
             }
             return StagedConversationGraph(source, restored, headers)
         } catch (error: Throwable) {
@@ -555,7 +561,11 @@ class DataImporter(
                 }
                 if (memDecision != null && memDecision != ImportStrategy.SKIP) {
                     try {
-                        val memNames = opened.names().filter { it.startsWith("memories/") }
+                        // Every entry is read before REPLACE deletes anything, so an unreadable
+                        // archive leaves the existing memories and skills in place.
+                        val memEntries = opened.names()
+                            .filter { it.startsWith("memories/") }
+                            .mapNotNull { path -> opened.bytes(path)?.let { path to it.decodeToString() } }
                         if (memDecision == ImportStrategy.REPLACE) {
                             memoryManager.listFiles().forEach { memoryManager.deleteFile(it.name) }
                             skillManager.listFiles().forEach { skillManager.deleteFile(it.name) }
@@ -565,8 +575,7 @@ class DataImporter(
                         }
                         val existingNames = memoryManager.listFiles().map { it.name }.toSet()
                         val existingSkillNames = skillManager.listFiles().map { it.name }.toSet()
-                        for (path in memNames) {
-                            val text = opened.bytes(path)?.decodeToString() ?: continue
+                        for ((path, text) in memEntries) {
                             when {
                                 path == "memories/active_memory.md" && text.isNotBlank() -> {
                                     if (

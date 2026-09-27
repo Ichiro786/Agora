@@ -18,9 +18,9 @@ import org.apache.commons.compress.archivers.zip.ZipFile as CommonsZipFile
 /**
  * On-demand reader over a validated backup ZIP. Opening checks the whole central directory and
  * byte-verifies the small in-memory metadata, so a preview never has to decompress the archive.
- * Streamed payloads carry no fixed size cap and are byte-verified as they are read: [stream] fails
- * on a size or CRC mismatch by the time it is closed. Resources are capacity-checked before import
- * and verified while they are copied.
+ * Streamed payloads carry no fixed size cap and are byte-verified as they are read: a [stream]
+ * that is read to its end fails on a size or CRC mismatch. Resources are capacity-checked before
+ * import and verified while they are copied.
  */
 internal class NativeBackupArchive private constructor(
     private val zip: CommonsZipFile,
@@ -93,7 +93,19 @@ internal class NativeBackupArchive private constructor(
             }
             if (fontEntry != null) selected += fontEntry
         }
-        val requiredBytes = selected.fold(0L) { total, entry ->
+        // A v5 import spools every conversation item and the task list to local storage first.
+        val spooledEntries = if (conversationsSelected && archiveVersion >= 5) {
+            entries.values.filter { entry ->
+                entry.name == NativeBackupFormat.TASKS_ENTRY ||
+                    entry.name.startsWith(NativeBackupFormat.CONVERSATION_ENTRY_PREFIX)
+            }
+        } else {
+            emptyList()
+        }
+        val spoolBytes = spooledEntries.fold(0L) { total, entry ->
+            checkedAdd(total, entry.size, "Conversation data size is too large")
+        }
+        val requiredBytes = selected.fold(spoolBytes) { total, entry ->
             val extractedSize = if (
                 isLegacyCustomFont(entry.name) && entry.size > customFontLimitBytes
             ) {
@@ -493,10 +505,16 @@ internal class NativeBackupArchive private constructor(
     }
 }
 
+/** Reads the rest of this stream, so a checked archive stream verifies its size and CRC. */
+internal fun InputStream.readToEnd() {
+    val buffer = ByteArray(8192)
+    while (read(buffer, 0, buffer.size) >= 0) Unit
+}
+
 /**
- * Reads one streamed payload while checking it against its ZIP record. A mismatch surfaces at the
- * end of the data, and closing early drains the rest first, so a caller that parsed only part of
- * the payload still learns that the entry was damaged.
+ * Reads one streamed payload while checking it against its ZIP record. A mismatch surfaces when
+ * the end of the data is reached. Closing early only closes: an aborted or cancelled import must
+ * not wait for gigabytes to be read, and a reader that needs the check calls [readToEnd].
  */
 private class CheckedEntryStream(
     input: InputStream,
@@ -533,17 +551,6 @@ private class CheckedEntryStream(
     }
 
     override fun markSupported(): Boolean = false
-
-    override fun close() {
-        try {
-            if (!verified) {
-                val buffer = ByteArray(8192)
-                while (read(buffer, 0, buffer.size) >= 0) Unit
-            }
-        } finally {
-            super.close()
-        }
-    }
 
     private inline fun record(bytes: Int, update: () -> Unit) {
         total += bytes

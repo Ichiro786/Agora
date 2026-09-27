@@ -185,14 +185,19 @@ class NativeBackupArchiveTest {
         )
 
         // Opening only reads the directory, so a preview stays cheap; the damage shows up once the
-        // payload is read, whether the reader drains it or stops early.
+        // payload is read to its end.
         NativeBackupArchive.open(file).use { archive ->
             assertThrows(IOException::class.java) {
                 archive.stream(NativeBackupFormat.CONVERSATIONS_ENTRY)!!.use { it.readBytes() }
             }
             assertThrows(IOException::class.java) {
-                archive.stream(NativeBackupFormat.CONVERSATIONS_ENTRY)!!.use { it.read() }
+                archive.stream(NativeBackupFormat.CONVERSATIONS_ENTRY)!!.use {
+                    it.read()
+                    it.readToEnd()
+                }
             }
+            // Closing after a partial read only closes, so an aborted import does not read the rest.
+            archive.stream(NativeBackupFormat.CONVERSATIONS_ENTRY)!!.use { it.read() }
         }
         assertFalse(file.exists())
     }
@@ -208,6 +213,38 @@ class NativeBackupArchiveTest {
         assertFalse(file.exists())
     }
 
+    @Test
+    fun v5PreflightCountsSpooledConversationData() {
+        val file = rawZip(
+            "spool-space.zip",
+            listOf(
+                RawEntry(NativeBackupFormat.conversationEntry("one"), ByteArray(10)),
+                RawEntry(NativeBackupFormat.TASKS_ENTRY, ByteArray(4)),
+                RawEntry("media/images/item", ByteArray(6)),
+            ),
+        )
+        NativeBackupArchive.open(file).use { archive ->
+            assertEquals(
+                20L,
+                archive.preflightImportResources(
+                    conversationsSelected = true,
+                    settingsSelected = false,
+                    archiveVersion = NativeBackupFormat.CURRENT_VERSION,
+                    destinationRoot = temporaryFolder.root,
+                    availableBytes = { 20L },
+                ),
+            )
+            assertThrows(IOException::class.java) {
+                archive.preflightImportResources(
+                    conversationsSelected = true,
+                    settingsSelected = false,
+                    archiveVersion = NativeBackupFormat.CURRENT_VERSION,
+                    destinationRoot = temporaryFolder.root,
+                    availableBytes = { 19L },
+                )
+            }
+        }
+    }
     @Test
     fun selectedResourcePreflightRejectsInsufficientSpace() {
         val file = rawZip(
