@@ -172,7 +172,7 @@ class NativeBackupArchiveTest {
     }
 
     @Test
-    fun rejectsCorruptStreamedConversationCrcAndDeletesTemporaryArchive() {
+    fun rejectsCorruptStreamedConversationCrcWhenItIsRead() {
         val file = rawZip(
             "bad-conversation-crc.zip",
             listOf(
@@ -184,7 +184,16 @@ class NativeBackupArchiveTest {
             ),
         )
 
-        assertThrows(IOException::class.java) { NativeBackupArchive.open(file) }
+        // Opening only reads the directory, so a preview stays cheap; the damage shows up once the
+        // payload is read, whether the reader drains it or stops early.
+        NativeBackupArchive.open(file).use { archive ->
+            assertThrows(IOException::class.java) {
+                archive.stream(NativeBackupFormat.CONVERSATIONS_ENTRY)!!.use { it.readBytes() }
+            }
+            assertThrows(IOException::class.java) {
+                archive.stream(NativeBackupFormat.CONVERSATIONS_ENTRY)!!.use { it.read() }
+            }
+        }
         assertFalse(file.exists())
     }
 

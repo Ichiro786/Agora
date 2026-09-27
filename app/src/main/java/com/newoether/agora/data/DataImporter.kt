@@ -149,14 +149,13 @@ class DataImporter(
         val manifest: ImportManifest,
         val conversationCount: Int = 0,
         val taskCount: Int = 0,
-        val loopCount: Int = 0,
         val memoryCount: Int = 0,
         val systemPromptCount: Int = 0,
         val settingsPresent: Boolean = false,
         val apiKeysPresent: Boolean = false
     ) {
         val hasConversationGraph: Boolean
-            get() = conversationCount > 0 || taskCount > 0 || loopCount > 0
+            get() = conversationCount > 0 || taskCount > 0
         val hasImportableData: Boolean
             get() = hasConversationGraph || memoryCount > 0 || systemPromptCount > 0 ||
                 settingsPresent || apiKeysPresent
@@ -184,74 +183,69 @@ class DataImporter(
             id?.let { original -> idMap[original] ?: original.takeIf(availableIds::contains) }
     }
 
-    suspend fun readManifest(uri: Uri): ImportManifest? {
-        return withContext(Dispatchers.IO) {
-            NativeBackupArchive.open(context, uri)?.use { archive ->
-                val manifestJson = archive[NativeBackupFormat.MANIFEST_ENTRY]
-                    ?.decodeToString() ?: return@use null
-                try {
-                    importJson.decodeFromString<ImportManifest>(manifestJson)
-                } catch (_: Exception) {
-                    null
-                }
-            }
-        }
-    }
-
-    @OptIn(ExperimentalSerializationApi::class)
+    /**
+     * Reads what the import dialog shows without decompressing conversation content. A v5 archive
+     * answers from its conversation index and task list; an older archive has only one
+     * conversations.json, which is streamed once to count it. A missing or unreadable manifest
+     * yields version 0.
+     */
     suspend fun preview(uri: Uri): ImportPreview {
         return withContext(Dispatchers.IO) {
-            val empty = ImportPreview(ImportManifest(version = 0))
-            val archive = NativeBackupArchive.open(context, uri) ?: return@withContext empty
-            archive.use {
-                val manifestJson = archive[NativeBackupFormat.MANIFEST_ENTRY]
-                    ?.decodeToString() ?: return@use empty
-                val manifest = try {
-                    importJson.decodeFromString<ImportManifest>(manifestJson)
-                } catch (_: Exception) {
-                    return@use empty
-                }
-
-                var conversationCount = 0
-                var taskCount = 0
-                var loopCount = 0
-                var systemPromptCount = 0
-                val memoryCount = archive.names().count { it.startsWith("memories/") }
-                val settingsPresent = archive.has(NativeBackupFormat.SETTINGS_ENTRY)
-                val apiKeysPresent = archive.has(NativeBackupFormat.SECRETS_ENTRY)
-
-                try {
-                    NativeConversationGraphSource.open(
-                        archive = archive,
-                        version = manifest.version,
-                        cacheDir = context.cacheDir,
-                    ).use { graphSource ->
-                        val counts = conversationGraphImporter.countConversationGraph(graphSource.open())
-                        conversationCount = counts.conversations
-                        taskCount = counts.tasks
-                        loopCount = counts.loops
-                    }
-                } catch (e: Exception) { DebugLog.e("DataImporter", "Failed to parse conversation graph", e) }
-
-                archive[NativeBackupFormat.SYSTEM_PROMPTS_ENTRY]?.let { json ->
-                    try {
-                        val data = importJson.decodeFromString<List<SystemPromptEntry>>(json.decodeToString())
-                        systemPromptCount = data.size
-                    } catch (e: Exception) { DebugLog.e("DataImporter", "Failed to parse system_prompts.json", e) }
-                }
-
-                ImportPreview(
-                    manifest = manifest,
-                    conversationCount = conversationCount,
-                    taskCount = taskCount,
-                    loopCount = loopCount,
-                    memoryCount = memoryCount,
-                    systemPromptCount = systemPromptCount,
-                    settingsPresent = settingsPresent,
-                    apiKeysPresent = apiKeysPresent
-                )
-            }
+            NativeBackupArchive.open(context, uri)?.use { preview(it) }
+                ?: ImportPreview(ImportManifest(version = 0))
         }
+    }
+    internal fun preview(archive: NativeBackupArchive): ImportPreview {
+        val empty = ImportPreview(ImportManifest(version = 0))
+        val manifestJson = archive[NativeBackupFormat.MANIFEST_ENTRY]
+            ?.decodeToString() ?: return empty
+        val manifest = try {
+            importJson.decodeFromString<ImportManifest>(manifestJson)
+        } catch (_: Exception) {
+            return empty
+        }
+
+        var conversationCount = 0
+        var taskCount = 0
+        var systemPromptCount = 0
+        val memoryCount = archive.names().count { it.startsWith("memories/") }
+        val settingsPresent = archive.has(NativeBackupFormat.SETTINGS_ENTRY)
+        val apiKeysPresent = archive.has(NativeBackupFormat.SECRETS_ENTRY)
+
+        try {
+            if (manifest.version >= 5) {
+                conversationCount = archive[NativeBackupFormat.CONVERSATION_INDEX_ENTRY]
+                    ?.decodeToString()
+                    ?.let { importJson.decodeFromString<NativeConversationIndex>(it) }
+                    ?.conversations?.size ?: 0
+                taskCount = archive.stream(NativeBackupFormat.TASKS_ENTRY)?.use {
+                    conversationGraphImporter.countConversationGraph(it).tasks
+                } ?: 0
+            } else if (archive.has(NativeBackupFormat.CONVERSATIONS_ENTRY)) {
+                val counts = archive.stream(NativeBackupFormat.CONVERSATIONS_ENTRY)!!.use {
+                    conversationGraphImporter.countConversationGraph(it)
+                }
+                conversationCount = counts.conversations
+                taskCount = counts.tasks
+            }
+        } catch (e: Exception) { DebugLog.e("DataImporter", "Failed to count conversation graph", e) }
+
+        archive[NativeBackupFormat.SYSTEM_PROMPTS_ENTRY]?.let { json ->
+            try {
+                val data = importJson.decodeFromString<List<SystemPromptEntry>>(json.decodeToString())
+                systemPromptCount = data.size
+            } catch (e: Exception) { DebugLog.e("DataImporter", "Failed to parse system_prompts.json", e) }
+        }
+
+        return ImportPreview(
+            manifest = manifest,
+            conversationCount = conversationCount,
+            taskCount = taskCount,
+            memoryCount = memoryCount,
+            systemPromptCount = systemPromptCount,
+            settingsPresent = settingsPresent,
+            apiKeysPresent = apiKeysPresent
+        )
     }
 
     private suspend fun importSystemPrompts(

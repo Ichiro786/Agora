@@ -7,6 +7,7 @@ import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.File
 import java.io.FileInputStream
+import java.io.FilterInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.nio.channels.SeekableByteChannel
@@ -15,8 +16,11 @@ import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipFile as CommonsZipFile
 
 /**
- * On-demand reader over a validated backup ZIP. In-memory metadata is bounded, streamed payloads are
- * byte-verified without a fixed size cap, and resources are capacity-checked before import.
+ * On-demand reader over a validated backup ZIP. Opening checks the whole central directory and
+ * byte-verifies the small in-memory metadata, so a preview never has to decompress the archive.
+ * Streamed payloads carry no fixed size cap and are byte-verified as they are read: [stream] fails
+ * on a size or CRC mismatch by the time it is closed. Resources are capacity-checked before import
+ * and verified while they are copied.
  */
 internal class NativeBackupArchive private constructor(
     private val zip: CommonsZipFile,
@@ -49,7 +53,7 @@ internal class NativeBackupArchive private constructor(
         if (isResourceEntry(name)) {
             throw IOException("Resource entry must be copied to storage: $name")
         }
-        return zip.getInputStream(entry)
+        return CheckedEntryStream(zip.getInputStream(entry), entry.size, entry.crc, name)
     }
 
     fun prefix(name: String, byteCount: Int): ByteArray? {
@@ -344,21 +348,13 @@ internal class NativeBackupArchive private constructor(
                     slash = parent.lastIndexOf('/')
                 }
             }
+            // Streamed payloads are the bulk of a large backup; they are verified where they are read
+            // instead of costing a full extra pass here.
             files.values.asSequence()
-                .filterNot { isResourceEntry(it.name) }
+                .filter { isInMemoryMetadata(it.name) }
                 .forEach { entry ->
                     zip.getInputStream(entry).use { input ->
-                        consumeChecked(
-                            input,
-                            entry.size,
-                            entry.crc,
-                            if (isInMemoryMetadata(entry.name)) {
-                                metadataLimitBytes
-                            } else {
-                                Long.MAX_VALUE
-                            },
-                            entry.name,
-                        )
+                        consumeChecked(input, entry.size, entry.crc, metadataLimitBytes, entry.name)
                     }
                 }
             return files
@@ -498,5 +494,77 @@ internal class NativeBackupArchive private constructor(
             } catch (_: ArithmeticException) {
                 throw IOException(message)
             }
+    }
+}
+
+/**
+ * Reads one streamed payload while checking it against its ZIP record. A mismatch surfaces at the
+ * end of the data, and closing early drains the rest first, so a caller that parsed only part of
+ * the payload still learns that the entry was damaged.
+ */
+private class CheckedEntryStream(
+    input: InputStream,
+    private val declaredSize: Long,
+    private val expectedCrc: Long,
+    private val sourceName: String,
+) : FilterInputStream(input) {
+    private val crc = CRC32()
+    private var total = 0L
+    private var verified = false
+
+    override fun read(): Int {
+        val value = super.read()
+        if (value < 0) verify() else record(1) { crc.update(value) }
+        return value
+    }
+
+    override fun read(b: ByteArray, off: Int, len: Int): Int {
+        val count = super.read(b, off, len)
+        if (count < 0) verify() else record(count) { crc.update(b, off, count) }
+        return count
+    }
+
+    override fun skip(n: Long): Long {
+        // Skipped bytes still have to be checked, so they are read rather than passed over.
+        val buffer = ByteArray(minOf(n, 8192L).toInt().coerceAtLeast(1))
+        var skipped = 0L
+        while (skipped < n) {
+            val count = read(buffer, 0, minOf(buffer.size.toLong(), n - skipped).toInt())
+            if (count < 0) break
+            skipped += count
+        }
+        return skipped
+    }
+
+    override fun markSupported(): Boolean = false
+
+    override fun close() {
+        try {
+            if (!verified) {
+                val buffer = ByteArray(8192)
+                while (read(buffer, 0, buffer.size) >= 0) Unit
+            }
+        } finally {
+            super.close()
+        }
+    }
+
+    private inline fun record(bytes: Int, update: () -> Unit) {
+        total += bytes
+        if (declaredSize >= 0L && total > declaredSize) {
+            throw IOException("$sourceName size mismatch: declared $declaredSize bytes, read more")
+        }
+        update()
+    }
+
+    private fun verify() {
+        if (verified) return
+        verified = true
+        if (declaredSize >= 0L && total != declaredSize) {
+            throw IOException("$sourceName size mismatch: declared $declaredSize bytes, read $total")
+        }
+        if (expectedCrc >= 0L && crc.value != expectedCrc) {
+            throw IOException("$sourceName CRC mismatch")
+        }
     }
 }
