@@ -54,10 +54,11 @@ internal fun BoxScope.ChatUserInteractionBar(
         if (interactions.isEmpty()) minimizedIn = minimizedIn - minimizedKey
     }
     UserInteractionBar(
+        conversationId = minimizedKey,
         interactions = interactions,
-        minimized = minimizedKey in minimizedIn,
-        onMinimizedChange = { folded ->
-            minimizedIn = if (folded) minimizedIn + minimizedKey else minimizedIn - minimizedKey
+        minimizedIn = minimizedIn,
+        onMinimizedChange = { owner, folded ->
+            minimizedIn = if (folded) minimizedIn + owner else minimizedIn - owner
         },
         autoWrapCodeBlocks = autoWrapCodeBlocks,
         onAnswerQuestion = { id, choices, text -> viewModel.askUser.submit(id, choices, text) },

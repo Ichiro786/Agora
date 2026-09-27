@@ -1,14 +1,14 @@
 package com.newoether.agora.ui.chat.interaction
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -86,7 +86,8 @@ private sealed interface DeckPage {
 private val BottomOrigin = TransformOrigin(0.5f, 1f)
 
 /**
- * Bottom bar that answers the requests in [interactions] without covering the conversation.
+ * Bottom bar that answers the requests in [interactions] of [conversationId] without covering the
+ * conversation.
  *
  * Everything waiting is one card with one page per request and a "current / total" count in the
  * header: the shell confirmation first, because a command is held until it is decided, then every
@@ -96,51 +97,73 @@ private val BottomOrigin = TransformOrigin(0.5f, 1f)
  * security gate.
  *
  * The card can be folded into a capsule so the conversation behind it can be read; tapping the
- * capsule opens it again. Folding never answers anything. The host owns [minimized] per
- * conversation, so switching away and back keeps it.
+ * capsule opens it again. Folding never answers anything. The host owns the folded set
+ * [minimizedIn] per conversation, so switching away and back keeps it.
+ *
+ * Each conversation gets its own card. Switching to another conversation that is also waiting
+ * lets the old card leave first and then brings the new one in, so it never looks like paging
+ * inside one card. A leaving card keeps its own requests and folded state until it is gone.
  *
  * [onHeightChanged] reports the measured height in pixels so the host can lift whatever sits above
  * the composer, and reports zero when there is nothing to answer.
  */
 @Composable
 internal fun UserInteractionBar(
+    conversationId: String,
     interactions: List<UserInteraction>,
     autoWrapCodeBlocks: Boolean,
     onAnswerQuestion: (Long, List<String>, String?) -> Unit,
     onSkipQuestion: (Long) -> Unit,
     onShellDecision: (Long, Boolean, Boolean) -> Unit,
     onHeightChanged: (Float) -> Unit,
-    minimized: Boolean,
-    onMinimizedChange: (Boolean) -> Unit,
+    minimizedIn: Set<String>,
+    onMinimizedChange: (String, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val motionPolicy = LocalAgoraMotionPolicy.current
     val visible = interactions.isNotEmpty()
-    // The exit animation still needs a card to draw, so the last non-empty list stays around.
-    var shown by remember { mutableStateOf(interactions) }
-    if (visible) shown = interactions
     // The measured height never reaches zero on its own, because the bar leaves by scaling rather
     // than shrinking. Reporting zero here is what lets the host drop its lifted controls back down.
     LaunchedEffect(visible) {
         if (!visible) onHeightChanged(0f)
     }
-    val spec = if (motionPolicy.allowContinuousMotion) tween<Float>(AppearDurationMs) else snap()
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(spec) + scaleIn(spec, initialScale = 0.9f, transformOrigin = BottomOrigin),
-        exit = fadeOut(spec) + scaleOut(spec, targetScale = 0.9f, transformOrigin = BottomOrigin),
+    AnimatedContent(
+        targetState = conversationId to interactions,
+        // One card per conversation; an empty list is no card at all.
+        contentKey = { (owner, waiting) -> owner.takeIf { waiting.isNotEmpty() } },
+        transitionSpec = {
+            if (!motionPolicy.allowContinuousMotion) {
+                EnterTransition.None togetherWith ExitTransition.None using null
+            } else {
+                // A card replacing another waits until the old one has gone.
+                val delay = if (initialState.second.isEmpty()) 0 else AppearDurationMs
+                val enterSpec = tween<Float>(AppearDurationMs, delayMillis = delay)
+                val exitSpec = tween<Float>(AppearDurationMs)
+                (
+                    fadeIn(enterSpec) +
+                        scaleIn(enterSpec, initialScale = 0.9f, transformOrigin = BottomOrigin)
+                    ) togetherWith (
+                    fadeOut(exitSpec) +
+                        scaleOut(exitSpec, targetScale = 0.9f, transformOrigin = BottomOrigin)
+                    ) using null
+            }
+        },
+        contentAlignment = Alignment.BottomCenter,
         modifier = modifier.fillMaxWidth(),
-    ) {
-        InteractionDeck(
-            interactions = shown,
-            autoWrapCodeBlocks = autoWrapCodeBlocks,
-            onAnswerQuestion = onAnswerQuestion,
-            onSkipQuestion = onSkipQuestion,
-            onShellDecision = onShellDecision,
-            onHeightChanged = onHeightChanged,
-            minimized = minimized,
-            onMinimizedChange = onMinimizedChange,
-        )
+        label = "interaction-card",
+    ) { (owner, waiting) ->
+        if (waiting.isNotEmpty()) {
+            InteractionDeck(
+                interactions = waiting,
+                autoWrapCodeBlocks = autoWrapCodeBlocks,
+                onAnswerQuestion = onAnswerQuestion,
+                onSkipQuestion = onSkipQuestion,
+                onShellDecision = onShellDecision,
+                onHeightChanged = onHeightChanged,
+                minimized = owner in minimizedIn,
+                onMinimizedChange = { folded -> onMinimizedChange(owner, folded) },
+            )
+        }
     }
 }
 
@@ -197,11 +220,15 @@ private fun InteractionDeck(
                             val forward = from < 0 || to >= from
                             val sign = (if (forward) 1 else -1) * (if (rtl) -1 else 1)
                             (
-                                slideInHorizontally(tween(PageDurationMs)) { sign * it / 5 } +
-                                    fadeIn(tween(PageDurationMs))
+                                // The new page arrives fast and settles; the old one
+                                // starts slowly and speeds away.
+                                slideInHorizontally(tween(PageDurationMs, easing = LinearOutSlowInEasing)) {
+                                    sign * it / 5
+                                } + fadeIn(tween(PageDurationMs, easing = LinearOutSlowInEasing))
                                 ) togetherWith (
-                                slideOutHorizontally(tween(PageDurationMs)) { -sign * it / 5 } +
-                                    fadeOut(tween(PageFadeOutMs))
+                                slideOutHorizontally(tween(PageDurationMs, easing = FastOutLinearInEasing)) {
+                                    -sign * it / 5
+                                } + fadeOut(tween(PageFadeOutMs, easing = FastOutLinearInEasing))
                                 ) using SizeTransform(clip = false) { _, _ ->
                                 tween<IntSize>(PageDurationMs)
                             }

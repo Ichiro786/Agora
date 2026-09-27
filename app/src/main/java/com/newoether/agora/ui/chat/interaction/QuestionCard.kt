@@ -1,6 +1,8 @@
 package com.newoether.agora.ui.chat.interaction
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,9 +25,11 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -139,6 +143,16 @@ private fun QuestionPage(
     draft: QuestionDraft,
 ) {
     val hasOptions = request.options.isNotEmpty()
+    // The field lives inside the scrolling content, so choosing to type can land it below the
+    // visible part; [revealed] marks that choice so the field is scrolled up once it is placed.
+    val field = remember { BringIntoViewRequester() }
+    var revealed by remember { mutableStateOf(false) }
+    LaunchedEffect(revealed) {
+        if (revealed) {
+            field.bringIntoView()
+            revealed = false
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -175,26 +189,29 @@ private fun QuestionPage(
                 allowMultiple = request.allowMultiple,
                 onToggle = {
                     draft.ownAnswer = if (request.allowMultiple) !draft.ownAnswer else true
+                    revealed = draft.ownAnswer
                     if (!request.allowMultiple) draft.selected = emptySet()
                 },
             )
         }
-    }
-    if (draft.ownAnswer) {
-        Spacer(Modifier.height(10.dp))
-        OutlinedTextField(
-            value = draft.typed,
-            onValueChange = { draft.typed = it },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = if (hasOptions) {
-                null
-            } else {
-                { Text(stringResource(R.string.ask_user_custom_answer)) }
-            },
-            textStyle = MaterialTheme.typography.bodyMedium,
-            shape = RoundedCornerShape(16.dp),
-            maxLines = 4,
-        )
+        if (draft.ownAnswer) {
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = draft.typed,
+                onValueChange = { draft.typed = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bringIntoViewRequester(field),
+                placeholder = if (hasOptions) {
+                    null
+                } else {
+                    { Text(stringResource(R.string.ask_user_custom_answer)) }
+                },
+                textStyle = MaterialTheme.typography.bodyMedium,
+                shape = RoundedCornerShape(16.dp),
+                maxLines = 4,
+            )
+        }
     }
 }
 
