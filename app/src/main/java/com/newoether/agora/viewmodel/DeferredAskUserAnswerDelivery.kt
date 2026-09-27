@@ -1,5 +1,6 @@
 package com.newoether.agora.viewmodel
 
+import com.newoether.agora.util.DebugLog
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,11 +35,17 @@ internal class DeferredAskUserAnswerDelivery(
     }
 
     private suspend fun deliver(answer: AskUserController.DeferredAnswer) {
-        // Fail loudly rather than queueing a send no provider can admit: without a model the drain
-        // would reject the batch and the answer would vanish silently.
+        // Without a model the drain would reject the batch, so the send is not queued at all. The
+        // answer is dropped in that case; record it instead of losing it without a trace.
         val modelId = conversationModelId(answer.conversationId)?.takeIf { it.isNotBlank() }
             ?: fallbackModelId()?.takeIf { it.isNotBlank() }
-            ?: return
+            ?: run {
+                DebugLog.w(
+                    "AskUser",
+                    "Dropped a deferred answer for ${answer.conversationId}: no model is selected",
+                )
+                return
+            }
         val state = registry.getOrCreate(answer.conversationId)
         state.queueMutationMutex.withLock {
             state.enqueueSend(
