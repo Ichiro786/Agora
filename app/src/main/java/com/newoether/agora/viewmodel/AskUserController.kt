@@ -68,7 +68,7 @@ class AskUserController {
     private val _deferredAnswers = MutableSharedFlow<DeferredAnswer>(extraBufferCapacity = 32)
 
     /**
-     * Answers to non-blocking requests. The chat runtime collects this and sends each one through
+     * Answers to non-blocking requests. The process container's one delivery collects this and sends each one through
      * the queue, so an answer given while the model is still working lands in the next turn.
      */
     val deferredAnswers: SharedFlow<DeferredAnswer> = _deferredAnswers.asSharedFlow()
