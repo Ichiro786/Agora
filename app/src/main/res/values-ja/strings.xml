@@ -735,6 +735,7 @@
     <string name="generation_error_network">ネットワークエラー：%1$s</string>
     <string name="generation_error_network_http">ネットワークエラー（%1$d）：%2$s</string>
     <string name="generation_error_sse_parse">サーバー応答を読み取れませんでした。</string>
+    <string name="generation_error_malformed_tool_call">モデルが返したツール呼び出しを使用できません：%1$s</string>
     <string name="generation_error_incomplete_stream">%1$s が応答を途中で終了しました。完了信号がないため、返信は不完全です。</string>
     <string name="generation_error_incomplete_tool_stream">%1$s がツール呼び出しの書き込み中に応答を終了しました。完了信号がないため、返信は不完全です。</string>
     <string name="generation_error_incomplete_stream_reason">%1$s が停止理由 %2$s の後に、完了信号なしで応答を終了しました。</string>

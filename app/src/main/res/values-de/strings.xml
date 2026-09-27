@@ -735,6 +735,7 @@
     <string name="generation_error_network">Netzwerkfehler: %1$s</string>
     <string name="generation_error_network_http">Netzwerkfehler (%1$d): %2$s</string>
     <string name="generation_error_sse_parse">Die Serverantwort konnte nicht gelesen werden.</string>
+    <string name="generation_error_malformed_tool_call">Das Modell hat einen unbrauchbaren Tool-Aufruf zurückgegeben: %1$s</string>
     <string name="generation_error_incomplete_stream">%1$s hat die Antwort vorzeitig beendet. Da kein Abschlusssignal empfangen wurde, ist die Antwort unvollständig.</string>
     <string name="generation_error_incomplete_tool_stream">%1$s hat die Antwort während eines Werkzeugaufrufs beendet. Da kein Abschlusssignal empfangen wurde, ist die Antwort unvollständig.</string>
     <string name="generation_error_incomplete_stream_reason">%1$s hat die Antwort nach dem Stoppgrund %2$s ohne Abschlusssignal beendet.</string>

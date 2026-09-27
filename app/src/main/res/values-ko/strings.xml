@@ -735,6 +735,7 @@
     <string name="generation_error_network">네트워크 오류: %1$s</string>
     <string name="generation_error_network_http">네트워크 오류(%1$d): %2$s</string>
     <string name="generation_error_sse_parse">서버 응답을 읽을 수 없습니다.</string>
+    <string name="generation_error_malformed_tool_call">모델이 반환한 도구 호출을 사용할 수 없습니다: %1$s</string>
     <string name="generation_error_incomplete_stream">%1$s에서 응답을 일찍 종료했습니다. 완료 신호가 없어 답변이 완전하지 않습니다.</string>
     <string name="generation_error_incomplete_tool_stream">%1$s에서 도구 호출을 작성하는 중 응답을 종료했습니다. 완료 신호가 없어 답변이 완전하지 않습니다.</string>
     <string name="generation_error_incomplete_stream_reason">%1$s에서 완료 신호 없이 중지 이유 %2$s 이후 응답을 종료했습니다.</string>

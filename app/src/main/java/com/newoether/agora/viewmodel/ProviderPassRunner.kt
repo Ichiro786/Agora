@@ -180,7 +180,7 @@ internal class ProviderPassRunner(
             // conditions that make a tool result impossible to pair remain fatal here.
             else -> null
         } ?: return null
-        return GenerationError.SseParse(rawLine = "tool_calls", cause = invalidCause)
+        return GenerationError.MalformedToolCall(cause = invalidCause)
     }
 
     private fun errorOutcome(

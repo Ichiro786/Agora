@@ -735,6 +735,7 @@
     <string name="generation_error_network">Erreur réseau : %1$s</string>
     <string name="generation_error_network_http">Erreur réseau (%1$d) : %2$s</string>
     <string name="generation_error_sse_parse">Impossible de lire la réponse du serveur.</string>
+    <string name="generation_error_malformed_tool_call">Le modèle a renvoyé un appel d’outil inutilisable : %1$s</string>
     <string name="generation_error_incomplete_stream">%1$s a interrompu la réponse trop tôt. Aucun signal de fin n’a été reçu, la réponse est donc incomplète.</string>
     <string name="generation_error_incomplete_tool_stream">%1$s a interrompu la réponse pendant l’écriture d’un appel d’outil. Sans signal de fin, la réponse est incomplète.</string>
     <string name="generation_error_incomplete_stream_reason">%1$s a interrompu la réponse après le motif d’arrêt %2$s, sans signal de fin.</string>

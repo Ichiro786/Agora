@@ -735,6 +735,7 @@
     <string name="generation_error_network">Ошибка сети: %1$s</string>
     <string name="generation_error_network_http">Ошибка сети (%1$d): %2$s</string>
     <string name="generation_error_sse_parse">Не удалось прочитать ответ сервера.</string>
+    <string name="generation_error_malformed_tool_call">Модель вернула вызов инструмента, который нельзя использовать: %1$s</string>
     <string name="generation_error_incomplete_stream">%1$s преждевременно завершил ответ. Сигнал завершения не получен, поэтому ответ неполный.</string>
     <string name="generation_error_incomplete_tool_stream">%1$s завершил ответ во время записи вызова инструмента. Сигнал завершения не получен, поэтому ответ неполный.</string>
     <string name="generation_error_incomplete_stream_reason">%1$s завершил ответ после причины остановки %2$s без сигнала завершения.</string>

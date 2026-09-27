@@ -735,6 +735,7 @@
     <string name="generation_error_network">Erro de rede: %1$s</string>
     <string name="generation_error_network_http">Erro de rede (%1$d): %2$s</string>
     <string name="generation_error_sse_parse">Não foi possível ler a resposta do servidor.</string>
+    <string name="generation_error_malformed_tool_call">O modelo retornou uma chamada de ferramenta que não pode ser usada: %1$s</string>
     <string name="generation_error_incomplete_stream">%1$s encerrou a resposta antes da hora. Nenhum sinal de conclusão chegou, então a resposta está incompleta.</string>
     <string name="generation_error_incomplete_tool_stream">%1$s encerrou a resposta durante uma chamada de ferramenta. Sem sinal de conclusão, a resposta está incompleta.</string>
     <string name="generation_error_incomplete_stream_reason">%1$s encerrou a resposta após o motivo de parada %2$s, sem sinal de conclusão.</string>

@@ -738,6 +738,7 @@
     <string name="generation_error_network">網路錯誤：%1$s</string>
     <string name="generation_error_network_http">網路錯誤（%1$d）：%2$s</string>
     <string name="generation_error_sse_parse">無法讀取伺服器回應。</string>
+    <string name="generation_error_malformed_tool_call">模型傳回的工具呼叫無法使用：%1$s</string>
     <string name="generation_error_incomplete_stream">%1$s 提前結束回應。未收到完成訊號，因此回覆不完整。</string>
     <string name="generation_error_incomplete_tool_stream">%1$s 在工具呼叫仍在寫入時提前結束回應。未收到完成訊號，因此回覆不完整。</string>
     <string name="generation_error_incomplete_stream_reason">%1$s 在停止原因為 %2$s 後提前結束回應，且未收到完成訊號。</string>

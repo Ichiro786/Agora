@@ -729,6 +729,7 @@
     <string name="generation_error_network">网络错误：%1$s</string>
     <string name="generation_error_network_http">网络错误（%1$d）：%2$s</string>
     <string name="generation_error_sse_parse">无法读取服务器响应。</string>
+    <string name="generation_error_malformed_tool_call">模型返回的工具调用无法使用：%1$s</string>
     <string name="generation_error_incomplete_stream">%1$s 提前结束了响应。未收到完成信号，因此回复不完整。</string>
     <string name="generation_error_incomplete_tool_stream">%1$s 在工具调用仍在生成时提前结束了响应。未收到完成信号，因此回复不完整。</string>
     <string name="generation_error_incomplete_stream_reason">%1$s 在停止原因为 %2$s 后提前结束了响应，且未收到完成信号。</string>

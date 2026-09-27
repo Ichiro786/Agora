@@ -735,6 +735,7 @@
     <string name="generation_error_network">خطأ في الشبكة: %1$s</string>
     <string name="generation_error_network_http">خطأ في الشبكة (%1$d): %2$s</string>
     <string name="generation_error_sse_parse">تعذرت قراءة استجابة الخادم.</string>
+    <string name="generation_error_malformed_tool_call">أعاد النموذج استدعاء أداة لا يمكن استخدامه: %1$s</string>
     <string name="generation_error_incomplete_stream">أنهى %1$s الاستجابة مبكرا. لم تصل إشارة إكمال، لذا فالرد غير مكتمل.</string>
     <string name="generation_error_incomplete_tool_stream">أنهى %1$s الاستجابة أثناء كتابة استدعاء أداة. لم تصل إشارة إكمال، لذا فالرد غير مكتمل.</string>
     <string name="generation_error_incomplete_stream_reason">أنهى %1$s الاستجابة بعد سبب الإيقاف %2$s من دون إشارة إكمال.</string>

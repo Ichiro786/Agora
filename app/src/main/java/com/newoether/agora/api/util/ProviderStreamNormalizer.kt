@@ -403,12 +403,7 @@ internal class ProviderStreamNormalizer(
         if (malformedTextTool) return
         malformedTextTool = true
         downstream(
-            StreamEvent.Error(
-                GenerationError.SseParse(
-                    rawLine = "text_tool_call",
-                    cause = cause,
-                )
-            )
+            StreamEvent.Error(GenerationError.MalformedToolCall(cause = cause))
         )
     }
 

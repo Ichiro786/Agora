@@ -741,6 +741,7 @@
     <string name="generation_error_network">Lỗi mạng: %1$s</string>
     <string name="generation_error_network_http">Lỗi mạng (%1$d): %2$s</string>
     <string name="generation_error_sse_parse">Không thể đọc phản hồi từ máy chủ.</string>
+    <string name="generation_error_malformed_tool_call">Mô hình trả về lệnh gọi công cụ không dùng được: %1$s</string>
     <string name="generation_error_incomplete_stream">%1$s đã kết thúc phản hồi sớm. Không có tín hiệu hoàn tất nên câu trả lời chưa đầy đủ.</string>
     <string name="generation_error_incomplete_tool_stream">%1$s đã kết thúc phản hồi khi lệnh gọi công cụ vẫn đang được ghi. Không có tín hiệu hoàn tất nên câu trả lời chưa đầy đủ.</string>
     <string name="generation_error_incomplete_stream_reason">%1$s đã kết thúc phản hồi sau lý do dừng %2$s mà không có tín hiệu hoàn tất.</string>

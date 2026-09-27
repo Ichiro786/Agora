@@ -726,6 +726,7 @@
     <string name="generation_error_network">Network error: %1$s</string>
     <string name="generation_error_network_http">Network error (%1$d): %2$s</string>
     <string name="generation_error_sse_parse">The server response could not be read.</string>
+    <string name="generation_error_malformed_tool_call">The model returned a tool call that could not be used: %1$s</string>
     <string name="generation_error_incomplete_stream">%1$s ended the response early. No completion signal arrived, so the reply is incomplete.</string>
     <string name="generation_error_incomplete_tool_stream">%1$s ended the response early while a tool call was still being written. No completion signal arrived, so the reply is incomplete.</string>
     <string name="generation_error_incomplete_stream_reason">%1$s ended the response early after stop reason %2$s, without a completion signal.</string>

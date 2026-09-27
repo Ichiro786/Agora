@@ -141,7 +141,9 @@ class ProviderPassRunnerTest {
             )
 
             assertTrue(outcome is ProviderPassOutcome.Failed)
-            assertTrue((outcome as ProviderPassOutcome.Failed).error is GenerationError.SseParse)
+            assertTrue(
+                (outcome as ProviderPassOutcome.Failed).error is GenerationError.MalformedToolCall,
+            )
             assertTrue(forwarded.last() is StreamEvent.Error)
         }
     }
