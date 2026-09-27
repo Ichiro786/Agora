@@ -160,7 +160,12 @@ class DataExporter(
     )
 
     /** Captured JSONL spool file plus the byte-slice index describing its layout. */
-    private class ExportedSpool(val file: File, val index: ExportSpoolIndex) {
+    private class ExportedSpool(
+        val file: File,
+        val index: ExportSpoolIndex,
+        /** Conversations whose baseline item is copied as is; the spool holds only their header. */
+        val reusedConversationIds: Set<String>,
+    ) {
         fun delete() {
             file.delete()
         }
@@ -227,11 +232,21 @@ class DataExporter(
 
     private suspend fun captureConversationSnapshot(
         conversationSettings: Map<String, ConversationSettings>,
+        baseline: NativeBackupV5Baseline?,
     ): ExportedSpool {
         val spool = File.createTempFile(SNAPSHOT_PREFIX, SNAPSHOT_SUFFIX, context.cacheDir)
+        val reused = mutableSetOf<String>()
         try {
             val index = ExportSpoolWriter(spool).use { writer ->
-                ConversationExportSnapshotReader(context).readSnapshot { record ->
+                // A conversation whose intact baseline item matches its dataChangedAt is copied from
+                // the baseline, so its runs, messages and loops are not read from the database.
+                ConversationExportSnapshotReader(context).readSnapshot(
+                    includeBody = { conversation ->
+                        val reuse = baseline?.canReuse(conversation.id, conversation.dataChangedAt) == true
+                        if (reuse) reused += conversation.id
+                        !reuse
+                    },
+                ) { record ->
                     when (record) {
                         is SnapshotRecord.Conversation -> {
                             val conversation = record.entity
@@ -349,7 +364,7 @@ class DataExporter(
                 }
                 writer.finish()
             }
-            return ExportedSpool(spool, index)
+            return ExportedSpool(spool, index, reused)
         } catch (error: Throwable) {
             spool.delete()
             throw error
@@ -365,7 +380,6 @@ class DataExporter(
         zip: ZipArchiveOutputStream,
         spool: ExportedSpool,
         baseline: NativeBackupV5Baseline?,
-        unchangedConversationIds: Set<String>,
     ): ExportResult {
         val spoolReader = ExportSpoolReader(spool.file)
         val sourceToArchiveEntry = mutableMapOf<String, String>()
@@ -409,7 +423,7 @@ class DataExporter(
         for (conversation in spool.index.conversations) {
             currentCoroutineContext().ensureActive()
             val baselineEntry = baseline?.indexEntry(conversation.id)
-                ?.takeIf { conversation.id in unchangedConversationIds }
+                ?.takeIf { conversation.id in spool.reusedConversationIds }
             if (baselineEntry != null) {
                 indexEntries += NativeBackupV5Writer.copyConversationFromBaseline(
                     zip = zip,
@@ -591,15 +605,20 @@ class DataExporter(
         var completed = 0
         fun step() { completed++; onProgress(completed.toFloat() / totalSteps) }
 
-        val conversationSpool = if (ExportCategory.CONVERSATIONS in categories) {
-            captureConversationSnapshot(settingsManager.conversationSettings.first())
-        } else {
-            null
-        }
-        val baseline = if (conversationSpool != null) {
+        val baseline = if (ExportCategory.CONVERSATIONS in categories) {
             NativeBackupV5Baseline.openOrNull(baselineFile)
         } else {
             null
+        }
+        val conversationSpool = try {
+            if (ExportCategory.CONVERSATIONS in categories) {
+                captureConversationSnapshot(settingsManager.conversationSettings.first(), baseline)
+            } else {
+                null
+            }
+        } catch (error: Throwable) {
+            baseline?.close()
+            throw error
         }
         try {
             val rawOutput = context.contentResolver.openOutputStream(uri)
@@ -615,14 +634,10 @@ class DataExporter(
 
                 // Conversations
                 if (conversationSpool != null) {
-                    val unchangedConversationIds = baseline
-                        ?.unchangedConversationIds(conversationSpool.index.watermarks)
-                        .orEmpty()
                     val archiveResult = writeConversationArchive(
                         zip = zip,
                         spool = conversationSpool,
                         baseline = baseline,
-                        unchangedConversationIds = unchangedConversationIds,
                     )
                     imagesExportedTotal += archiveResult.imagesExported
                     missingResourceCount += archiveResult.missingResourceCount

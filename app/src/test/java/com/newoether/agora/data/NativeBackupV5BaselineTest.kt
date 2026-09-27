@@ -2,6 +2,7 @@ package com.newoether.agora.data
 
 import java.io.File
 import java.nio.file.Files
+import java.util.zip.ZipEntry
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -25,7 +26,9 @@ class NativeBackupV5BaselineTest {
             writeBaseline(baselineFile)
             NativeBackupV5Baseline.openOrNull(baselineFile).use { baseline ->
                 requireNotNull(baseline)
-                assertEquals(setOf("same"), baseline.unchangedConversationIds(mapOf("same" to 1L, "changed" to 3L)))
+                assertTrue(baseline.canReuse("same", 1L))
+                assertFalse(baseline.canReuse("changed", 3L))
+                assertFalse(baseline.canReuse("new", 4L))
                 val copiedMedia = mutableSetOf<String>()
                 val indexEntries = mutableListOf<NativeConversationIndexEntry>()
                 ZipArchiveOutputStream(resultFile).use { output ->
@@ -81,6 +84,33 @@ class NativeBackupV5BaselineTest {
         }
     }
 
+    @Test
+    fun damagedBaselineItemIsNotReused() {
+        val directory = Files.createTempDirectory("agora-v5-damaged").toFile()
+        val file = File(directory, "damaged.agora")
+        try {
+            val item = NativeBackupFormat.conversationEntry("same")
+            val payload = "payload-same-stored"
+            ZipArchiveOutputStream(file).use { output ->
+                writeEntry(output, NativeBackupFormat.MANIFEST_ENTRY, MARKED_MANIFEST)
+                // Stored, so the payload bytes sit in the file as is and can be damaged in place.
+                output.putArchiveEntry(ZipArchiveEntry(item).apply { method = ZipEntry.STORED })
+                output.write(payload.encodeToByteArray())
+                output.closeArchiveEntry()
+                val index = NativeConversationIndex(listOf(NativeConversationIndexEntry("same", 1L, item)))
+                writeEntry(output, NativeBackupFormat.CONVERSATION_INDEX_ENTRY, Json.encodeToString(index))
+            }
+            NativeBackupV5Baseline.openOrNull(file).use { assertTrue(requireNotNull(it).canReuse("same", 1L)) }
+            val bytes = file.readBytes()
+            val at = String(bytes, Charsets.ISO_8859_1).indexOf(payload)
+            assertTrue(at >= 0)
+            bytes[at] = 'X'.code.toByte()
+            file.writeBytes(bytes)
+            NativeBackupV5Baseline.openOrNull(file).use { assertFalse(requireNotNull(it).canReuse("same", 1L)) }
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
     @Test
     fun backupWithoutIncrementalMarkerIsNotUsedAsBaseline() {
         val directory = Files.createTempDirectory("agora-v5-unmarked").toFile()

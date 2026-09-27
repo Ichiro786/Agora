@@ -3,6 +3,7 @@ package com.newoether.agora.data
 import java.io.Closeable
 import java.io.File
 import java.io.IOException
+import java.util.zip.CRC32
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -17,10 +18,33 @@ internal class NativeBackupV5Baseline private constructor(
 ) : Closeable {
     private val byId = index.conversations.associateBy { it.id }
 
-    fun unchangedConversationIds(current: Map<String, Long>): Set<String> =
-        current.mapNotNullTo(linkedSetOf()) { (id, changedAt) ->
-            id.takeIf { byId[id]?.dataChangedAt == changedAt }
-        }
+    private val intactEntries = mutableMapOf<String, Boolean>()
+    /**
+     * True when [id]'s baseline item was written at [dataChangedAt] and it and every media entry it
+     * references still decompress to their recorded size and CRC. A raw copy never re-checks the
+     * data, so this keeps a damaged baseline entry from being carried into every later backup.
+     */
+    fun canReuse(id: String, dataChangedAt: Long): Boolean {
+        val item = byId[id]?.takeIf { it.dataChangedAt == dataChangedAt } ?: return false
+        return isIntact(item.entry) && item.mediaEntries.all(::isIntact)
+    }
+    private fun isIntact(name: String): Boolean = intactEntries.getOrPut(name) {
+        val entry = zip.getEntry(name) ?: return@getOrPut false
+        runCatching {
+            val crc = CRC32()
+            val buffer = ByteArray(64 * 1024)
+            var total = 0L
+            zip.getInputStream(entry).use { input ->
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    crc.update(buffer, 0, count)
+                    total += count
+                }
+            }
+            total == entry.size && crc.value == entry.crc
+        }.getOrDefault(false)
+    }
 
     fun copyRaw(name: String, output: ZipArchiveOutputStream) {
         val entry = zip.getEntry(name) ?: throw IOException("Missing baseline entry: $name")
