@@ -156,14 +156,14 @@ internal fun UserMessageBubble(
                 // Same inset as the read-only bubble, so the text stays put when editing starts;
                 // the field keeps only a bottom gap above its indicator line.
                 // The action buttons are 40dp tall around a 20sp label, so each carries 10dp of
-                // invisible height below its text; the bottom inset drops by that amount so the
-                // visible gap under Cancel/Send matches the 15dp inset elsewhere.
+                // invisible height below its text; the bottom inset drops by that amount (and 1dp
+                // more, tuned by eye) so the visible gap under Cancel/Send matches the other sides.
                 Column(
                     modifier = Modifier.padding(
                         start = USER_BUBBLE_CONTENT_PADDING,
                         top = USER_BUBBLE_CONTENT_PADDING,
                         end = USER_BUBBLE_CONTENT_PADDING,
-                        bottom = USER_BUBBLE_CONTENT_PADDING - EDIT_ACTION_INVISIBLE_INSET,
+                        bottom = EDIT_BOTTOM_INSET,
                     ),
                 ) {
                     Box(modifier = Modifier.noOpBringIntoView()) {
@@ -398,8 +398,11 @@ internal fun UserMessageBubble(
     }
 }
 
-/** Space a Material TextButton (40dp min height, 20sp label) leaves below its label. */
-private val EDIT_ACTION_INVISIBLE_INSET = 10.dp
+/**
+ * Bottom inset of the edit-mode bubble: the 15dp content padding minus the 10dp a Material
+ * TextButton (40dp min height, 20sp label) leaves below its label, minus 1dp tuned by eye.
+ */
+private val EDIT_BOTTOM_INSET = 4.dp
 
 /** Width of a single-line bubble's height (15dp padding twice plus one 24.2sp line), so the
  * shortest message is a circle rather than a pinched capsule. */

@@ -691,8 +691,9 @@ narrow bubbles; `RoundedCornerShape` is not used because it shrinks each side's 
 own. The radius does not grow with bubble height. A bubble is at least `54 dp` wide (its single-line height), so a
 one-character message is a circle; content narrower than that is centered. Content padding is `15 dp` in both reading and edit mode
 (the edit field adds only an `8 dp` gap above its indicator and drops the text field's `56 dp`
-minimum height, so a single line keeps its indicator `8 dp` below the text); its bottom inset is `5 dp`
-because the Cancel/Send buttons already carry `10 dp` of invisible height below their labels, so `27 dp` is half of a single-line bubble. Attachments inside the bubble (images, video,
+minimum height, so a single line keeps its indicator `8 dp` below the text); its bottom inset is `4 dp`
+because the Cancel/Send buttons already carry `10 dp` of invisible height below their labels, less
+`1 dp` tuned by eye. The `15 dp` reading padding makes `27 dp` half of a single-line bubble. Attachments inside the bubble (images, video,
 files, PDFs) use `15 dp` corners, equal to the content padding (user choice over the strictly
 concentric `12 dp`); the composer attachment preview keeps its own `8 dp`. The `ask_user` interaction
 capsule and its Settings toggle use the outlined help icon (a question mark in a circle). The drawer
