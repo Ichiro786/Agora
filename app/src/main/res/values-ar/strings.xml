@@ -567,6 +567,10 @@
     <string name="ask_user_title">المساعد يسأل</string>
     <string name="ask_user_send">إرسال</string>
     <string name="ask_user_next">التالي</string>
+    <string name="interaction_ask_user">سؤال</string>
+    <string name="interaction_approval">موافقة</string>
+    <string name="interaction_minimize">تصغير</string>
+    <string name="interaction_expand">توسيع</string>
     <string name="ask_user_custom_answer">أجب بكلماتك</string>
     <string name="ask_user_skip">تخطي</string>
     <string name="ask_user_notification_channel">سؤال من Agora</string>

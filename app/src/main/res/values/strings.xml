@@ -614,6 +614,10 @@
     <string name="ask_user_title">The assistant is asking</string>
     <string name="ask_user_send">Send</string>
     <string name="ask_user_next">Next</string>
+    <string name="interaction_ask_user">Ask User</string>
+    <string name="interaction_approval">Approval</string>
+    <string name="interaction_minimize">Minimize</string>
+    <string name="interaction_expand">Expand</string>
     <string name="ask_user_custom_answer">Answer in your own words</string>
     <string name="ask_user_skip">Skip</string>
     <string name="ask_user_notification_channel">Question from Agora</string>

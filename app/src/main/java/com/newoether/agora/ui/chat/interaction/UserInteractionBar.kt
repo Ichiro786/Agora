@@ -35,7 +35,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.newoether.agora.R
 import com.newoether.agora.ui.chat.message.ChatMarkdownCodeBlock
@@ -74,6 +75,9 @@ private val BottomOrigin = TransformOrigin(0.5f, 1f)
  * dismissed by tapping elsewhere; both kinds of request are answered only by their own buttons,
  * which keeps the shell confirmation a real security gate.
  *
+ * The bar can be folded into a capsule so the conversation behind it can be read; tapping the
+ * capsule opens it again. Folding never answers anything, and it resets once nothing is waiting.
+ *
  * [onHeightChanged] reports the measured height in pixels so the host can lift whatever sits above
  * the composer, and reports zero when there is nothing to answer.
  */
@@ -92,9 +96,15 @@ internal fun UserInteractionBar(
     // The exit animation still needs cards to draw, so the last non-empty list stays around.
     var shown by remember { mutableStateOf(interactions) }
     if (visible) shown = interactions
+    var minimized by rememberSaveable { mutableStateOf(false) }
     // The measured height never reaches zero on its own, because the bar leaves by scaling rather
     // than shrinking. Reporting zero here is what lets the host drop its lifted controls back down.
-    LaunchedEffect(visible) { if (!visible) onHeightChanged(0f) }
+    LaunchedEffect(visible) {
+        if (!visible) {
+            onHeightChanged(0f)
+            minimized = false
+        }
+    }
     val spec = if (motionPolicy.allowContinuousMotion) tween<Float>(AppearDurationMs) else snap()
     AnimatedVisibility(
         visible = visible,
@@ -109,6 +119,8 @@ internal fun UserInteractionBar(
             onSkipQuestion = onSkipQuestion,
             onShellDecision = onShellDecision,
             onHeightChanged = onHeightChanged,
+            minimized = minimized,
+            onMinimizedChange = { minimized = it },
         )
     }
 }
@@ -121,6 +133,8 @@ private fun UserInteractionPager(
     onSkipQuestion: (Long) -> Unit,
     onShellDecision: (Long, Boolean, Boolean) -> Unit,
     onHeightChanged: (Float) -> Unit,
+    minimized: Boolean,
+    onMinimizedChange: (Boolean) -> Unit,
 ) {
     val pagerState = rememberPagerState(pageCount = { interactions.size })
     Column(
@@ -135,17 +149,27 @@ private fun UserInteractionPager(
             contentPadding = PaddingValues(horizontal = 12.dp),
             pageSpacing = 8.dp,
             verticalAlignment = Alignment.Bottom,
+            // A capsule shows only the current request; swiping would move it off screen.
+            userScrollEnabled = !minimized,
             key = { index -> interactions.getOrNull(index)?.key ?: index },
         ) { page ->
             when (val interaction = interactions.getOrNull(page)) {
-                is UserInteraction.Question -> InteractionCard {
+                is UserInteraction.Question -> MorphingInteractionCard(
+                    kind = interaction.kind,
+                    minimized = minimized,
+                    onMinimizedChange = onMinimizedChange,
+                ) {
                     QuestionCardContent(
                         requests = interaction.requests,
                         onAnswer = onAnswerQuestion,
                         onSkip = onSkipQuestion,
                     )
                 }
-                is UserInteraction.ShellCommand -> InteractionCard {
+                is UserInteraction.ShellCommand -> MorphingInteractionCard(
+                    kind = interaction.kind,
+                    minimized = minimized,
+                    onMinimizedChange = onMinimizedChange,
+                ) {
                     ShellCardContent(
                         pending = interaction.pending,
                         autoWrapCodeBlocks = autoWrapCodeBlocks,
@@ -157,24 +181,11 @@ private fun UserInteractionPager(
                 null -> Box(modifier = Modifier.fillMaxWidth())
             }
         }
-        if (interactions.size > 1) {
+        if (interactions.size > 1 && !minimized) {
             Spacer(Modifier.height(8.dp))
             PageIndicator(pageCount = interactions.size, currentPage = pagerState.currentPage)
         }
         Spacer(Modifier.height(8.dp))
-    }
-}
-
-@Composable
-private fun InteractionCard(content: @Composable () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 3.dp,
-        shadowElevation = 4.dp,
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) { content() }
     }
 }
 
@@ -187,9 +198,10 @@ private fun ShellCardContent(
     var alwaysAllow by remember(pending.id) { mutableStateOf(false) }
     CardHeader(
         icon = { tint ->
-            Icon(Icons.Default.Terminal, null, modifier = Modifier.size(18.dp), tint = tint)
+            Icon(InteractionKind.Approval.icon, null, modifier = Modifier.size(18.dp), tint = tint)
         },
-        title = stringResource(R.string.shell_confirm_title, pending.server),
+        title = stringResource(InteractionKind.Approval.titleRes),
+        detail = pending.server,
     )
     Spacer(Modifier.height(10.dp))
     Box(
@@ -239,8 +251,13 @@ private fun ShellCardContent(
 internal fun CardHeader(
     icon: @Composable (Color) -> Unit,
     title: String,
+    detail: String? = null,
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    // The end padding keeps the header clear of the card's minimize button.
+    Row(
+        modifier = Modifier.padding(end = 40.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         icon(MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(8.dp))
         Text(
@@ -249,6 +266,16 @@ internal fun CardHeader(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
+        detail?.let {
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

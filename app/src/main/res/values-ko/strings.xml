@@ -567,6 +567,10 @@
     <string name="ask_user_title">어시스턴트의 질문</string>
     <string name="ask_user_send">보내기</string>
     <string name="ask_user_next">다음</string>
+    <string name="interaction_ask_user">질문</string>
+    <string name="interaction_approval">승인</string>
+    <string name="interaction_minimize">최소화</string>
+    <string name="interaction_expand">펼치기</string>
     <string name="ask_user_custom_answer">직접 답변 입력</string>
     <string name="ask_user_skip">건너뛰기</string>
     <string name="ask_user_notification_channel">Agora의 질문</string>

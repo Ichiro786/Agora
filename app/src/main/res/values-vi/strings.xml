@@ -576,6 +576,10 @@
     <string name="ask_user_title">Trợ lý đang hỏi</string>
     <string name="ask_user_send">Gửi</string>
     <string name="ask_user_next">Tiếp</string>
+    <string name="interaction_ask_user">Hỏi người dùng</string>
+    <string name="interaction_approval">Phê duyệt</string>
+    <string name="interaction_minimize">Thu nhỏ</string>
+    <string name="interaction_expand">Mở rộng</string>
     <string name="ask_user_custom_answer">Trả lời bằng lời của bạn</string>
     <string name="ask_user_skip">Bỏ qua</string>
     <string name="ask_user_notification_channel">Câu hỏi từ Agora</string>

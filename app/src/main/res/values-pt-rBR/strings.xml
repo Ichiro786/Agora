@@ -567,6 +567,10 @@
     <string name="ask_user_title">O assistente está perguntando</string>
     <string name="ask_user_send">Enviar</string>
     <string name="ask_user_next">Próxima</string>
+    <string name="interaction_ask_user">Pergunta</string>
+    <string name="interaction_approval">Aprovação</string>
+    <string name="interaction_minimize">Minimizar</string>
+    <string name="interaction_expand">Expandir</string>
     <string name="ask_user_custom_answer">Responda com suas palavras</string>
     <string name="ask_user_skip">Ignorar</string>
     <string name="ask_user_notification_channel">Pergunta do Agora</string>

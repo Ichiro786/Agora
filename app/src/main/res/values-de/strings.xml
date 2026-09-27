@@ -567,6 +567,10 @@
     <string name="ask_user_title">Der Assistent fragt</string>
     <string name="ask_user_send">Senden</string>
     <string name="ask_user_next">Weiter</string>
+    <string name="interaction_ask_user">Rückfrage</string>
+    <string name="interaction_approval">Freigabe</string>
+    <string name="interaction_minimize">Minimieren</string>
+    <string name="interaction_expand">Erweitern</string>
     <string name="ask_user_custom_answer">Mit eigenen Worten antworten</string>
     <string name="ask_user_skip">Überspringen</string>
     <string name="ask_user_notification_channel">Frage von Agora</string>

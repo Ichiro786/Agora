@@ -609,6 +609,10 @@
     <string name="ask_user_title">助手正在提問</string>
     <string name="ask_user_send">傳送</string>
     <string name="ask_user_next">下一題</string>
+    <string name="interaction_ask_user">詢問</string>
+    <string name="interaction_approval">審批</string>
+    <string name="interaction_minimize">最小化</string>
+    <string name="interaction_expand">展開</string>
     <string name="ask_user_custom_answer">用自己的話回答</string>
     <string name="ask_user_skip">略過</string>
     <string name="ask_user_notification_channel">Agora 的提問</string>

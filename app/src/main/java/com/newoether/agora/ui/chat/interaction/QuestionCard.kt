@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -78,12 +76,12 @@ internal fun QuestionCardContent(
     val draft = drafts.getValue(request.id)
     val isLast = current == requests.lastIndex
 
-    val title = stringResource(R.string.ask_user_title)
     CardHeader(
         icon = { tint ->
-            Icon(Icons.Default.QuestionAnswer, null, modifier = Modifier.size(18.dp), tint = tint)
+            Icon(InteractionKind.Question.icon, null, modifier = Modifier.size(18.dp), tint = tint)
         },
-        title = if (requests.size > 1) "$title  ${current + 1} / ${requests.size}" else title,
+        title = stringResource(InteractionKind.Question.titleRes),
+        detail = if (requests.size > 1) "${current + 1} / ${requests.size}" else null,
     )
     Spacer(Modifier.height(10.dp))
     QuestionPage(request = request, draft = draft)

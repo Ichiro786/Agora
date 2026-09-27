@@ -567,6 +567,10 @@
     <string name="ask_user_title">Ассистент спрашивает</string>
     <string name="ask_user_send">Отправить</string>
     <string name="ask_user_next">Далее</string>
+    <string name="interaction_ask_user">Вопрос</string>
+    <string name="interaction_approval">Подтверждение</string>
+    <string name="interaction_minimize">Свернуть</string>
+    <string name="interaction_expand">Развернуть</string>
     <string name="ask_user_custom_answer">Ответьте своими словами</string>
     <string name="ask_user_skip">Пропустить</string>
     <string name="ask_user_notification_channel">Вопрос от Agora</string>

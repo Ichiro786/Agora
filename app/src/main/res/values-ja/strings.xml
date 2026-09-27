@@ -567,6 +567,10 @@
     <string name="ask_user_title">アシスタントからの質問</string>
     <string name="ask_user_send">送信</string>
     <string name="ask_user_next">次へ</string>
+    <string name="interaction_ask_user">質問</string>
+    <string name="interaction_approval">承認</string>
+    <string name="interaction_minimize">最小化</string>
+    <string name="interaction_expand">展開</string>
     <string name="ask_user_custom_answer">自分の言葉で答える</string>
     <string name="ask_user_skip">スキップ</string>
     <string name="ask_user_notification_channel">Agora からの質問</string>

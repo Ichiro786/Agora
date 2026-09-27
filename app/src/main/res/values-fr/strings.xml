@@ -567,6 +567,10 @@
     <string name="ask_user_title">L\'assistant vous demande</string>
     <string name="ask_user_send">Envoyer</string>
     <string name="ask_user_next">Suivant</string>
+    <string name="interaction_ask_user">Question</string>
+    <string name="interaction_approval">Approbation</string>
+    <string name="interaction_minimize">Réduire</string>
+    <string name="interaction_expand">Développer</string>
     <string name="ask_user_custom_answer">Répondez avec vos mots</string>
     <string name="ask_user_skip">Ignorer</string>
     <string name="ask_user_notification_channel">Question d\'Agora</string>
