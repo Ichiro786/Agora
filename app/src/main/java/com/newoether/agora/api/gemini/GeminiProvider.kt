@@ -18,6 +18,7 @@ import com.newoether.agora.api.util.asRetryableTransportError
 import com.newoether.agora.api.util.carriesModelOutput
 import com.newoether.agora.api.util.safeWireToolName
 import com.newoether.agora.api.util.safeWireToolCallId
+import com.newoether.agora.api.util.malformedToolCallRequest
 import com.newoether.agora.model.Participant
 import com.newoether.agora.util.Constants
 import kotlinx.coroutines.delay
@@ -628,29 +629,35 @@ class GeminiProvider(
                                     part.functionCall?.let { fc ->
                                         val callId = fc.id?.takeIf(String::isNotBlank)
                                             ?: "call_${UUID.randomUUID()}"
+                                        val argsJson = fc.args?.let {
+                                            Json.encodeToString(JsonObject.serializer(), it)
+                                        } ?: "{}"
+                                        val signature = partThoughtSignature
+                                            ?: fc.thoughtSignature?.takeIf(String::isNotBlank)
+                                            ?: currentThoughtSignature
+                                        val streamKey = "call_stream_${UUID.randomUUID()}"
                                         if (
-                                            !fc.name.matches(safeWireToolName) ||
-                                            !callId.matches(safeWireToolCallId) ||
-                                            !completedToolCallIds.add(callId)
+                                            fc.name.matches(safeWireToolName) &&
+                                            callId.matches(safeWireToolCallId) &&
+                                            completedToolCallIds.add(callId)
                                         ) {
-                                            toolCallInFlight = true
-                                            streamError = GenerationError.SseParse(
-                                                rawLine = "functionCall",
-                                                cause = "Gemini returned invalid or duplicate tool metadata",
-                                            )
-                                        } else {
-                                            val argsJson = fc.args?.let {
-                                                Json.encodeToString(JsonObject.serializer(), it)
-                                            } ?: "{}"
-                                            val signature = partThoughtSignature
-                                                ?: fc.thoughtSignature?.takeIf(String::isNotBlank)
-                                                ?: currentThoughtSignature
-                                            val streamKey = "call_stream_${UUID.randomUUID()}"
                                             emitTracked(StreamEvent.ToolCallUpdate(streamKey, callId, fc.name, argsJson, signature))
                                             emitTracked(StreamEvent.ToolCallRequest(callId, fc.name, argsJson, signature, streamKey))
-                                            currentThoughtSignature = null
-                                            inThoughtBlock = false
+                                        } else {
+                                            // Answered with an error result so the model can re-issue it.
+                                            // The signature stays because Gemini replay requires it.
+                                            emitTracked(
+                                                malformedToolCallRequest(
+                                                    cause = "Gemini returned invalid or duplicate tool metadata",
+                                                    originalName = fc.name,
+                                                    originalArguments = argsJson,
+                                                    streamKey = streamKey,
+                                                    signature = signature,
+                                                ),
+                                            )
                                         }
+                                        currentThoughtSignature = null
+                                        inThoughtBlock = false
                                     }
                                 }
                                 candidate?.groundingMetadata

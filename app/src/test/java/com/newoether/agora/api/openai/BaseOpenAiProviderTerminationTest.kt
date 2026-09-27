@@ -1,5 +1,6 @@
 package com.newoether.agora.api.openai
 
+import com.newoether.agora.api.util.MALFORMED_TOOL_CALL_NAME
 import com.newoether.agora.api.GenerationError
 import com.newoether.agora.api.ProviderConfig
 import com.newoether.agora.api.StreamEvent
@@ -248,8 +249,10 @@ class BaseOpenAiProviderTerminationTest : OpenAiSseTestFixture() {
             }
         }
 
-        assertTrue(events.none { it is StreamEvent.ToolCallRequest })
-        assertEquals(1, events.filterIsInstance<StreamEvent.Error>().size)
+        // The invalid name is never executed; the model receives an error result for it instead.
+        val call = events.filterIsInstance<StreamEvent.ToolCallRequest>().single()
+        assertEquals(MALFORMED_TOOL_CALL_NAME, call.name)
+        assertTrue(events.none { it is StreamEvent.Error })
     }
 
     @Test
@@ -268,8 +271,11 @@ class BaseOpenAiProviderTerminationTest : OpenAiSseTestFixture() {
             }
         }
 
-        assertTrue(events.none { it is StreamEvent.ToolCallRequest || it is StreamEvent.ToolCallsRequest })
-        assertEquals(1, events.filterIsInstance<StreamEvent.Error>().size)
+        // The first call keeps its id; the duplicate becomes a malformed call with a fresh id.
+        val calls = events.filterIsInstance<StreamEvent.ToolCallsRequest>().single().calls
+        assertEquals(listOf("file_read", MALFORMED_TOOL_CALL_NAME), calls.map { it.name })
+        assertEquals(2, calls.map { it.id }.distinct().size)
+        assertTrue(events.none { it is StreamEvent.Error })
     }
 
     @Test

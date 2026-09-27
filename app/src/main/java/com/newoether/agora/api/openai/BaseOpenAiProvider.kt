@@ -16,6 +16,7 @@ import com.newoether.agora.api.util.carriesModelOutput
 import com.newoether.agora.api.util.ProviderRetryPolicy
 import com.newoether.agora.api.util.safeWireToolCallId
 import com.newoether.agora.api.util.safeWireToolName
+import com.newoether.agora.api.util.malformedToolCallRequest
 import com.newoether.agora.model.ChatMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -439,47 +440,35 @@ abstract class BaseOpenAiProvider : LlmProvider {
             if (pendingToolCalls.isEmpty()) return
             val pending = pendingToolCalls.values.toList()
             pendingToolCalls.clear()
-            val incomplete = pending.firstOrNull { candidate ->
+            val seenIds = mutableSetOf<String>()
+            val calls = pending.map { candidate ->
                 val callId = candidate.id.ifBlank { candidate.streamKey }
-                !callId.matches(safeWireToolCallId) ||
-                    !candidate.name.matches(safeWireToolName) || runCatching {
-                    json.parseToJsonElement(candidate.args.toString().ifBlank { "{}" }) is
-                        kotlinx.serialization.json.JsonObject
-                }.getOrDefault(false).not()
-            }
-            val callIds = pending.map { candidate ->
-                candidate.id.ifBlank { candidate.streamKey }
-            }
-            if (incomplete != null || callIds.distinct().size != callIds.size) {
-                emitTracked(
-                    StreamEvent.Error(
-                        GenerationError.SseParse(
-                            rawLine = "tool_calls",
-                            cause = when {
-                                callIds.distinct().size != callIds.size ->
-                                    "Provider returned duplicate tool call ids"
-                                incomplete == null -> "Provider returned incomplete tool metadata"
-                                !incomplete.name.matches(safeWireToolName) ->
-                                    "Provider ended before the tool name was complete"
-                                !incomplete.id.ifBlank { incomplete.streamKey }
-                                    .matches(safeWireToolCallId) ->
-                                    "Provider returned an invalid tool call id"
-                                else ->
-                                    "Provider ended before the tool arguments formed a complete JSON object"
-                            },
-                        )
-                    )
-                )
-                return
-            }
-            val calls = pending.map {
-                    StreamEvent.ToolCallRequest(
-                        id = it.id.ifBlank { it.streamKey },
-                        name = it.name,
-                        arguments = it.args.toString().ifBlank { "{}" },
-                        streamKey = it.streamKey,
-                    )
+                val arguments = candidate.args.toString().ifBlank { "{}" }
+                val argumentsAreObject = runCatching {
+                    json.parseToJsonElement(arguments) is kotlinx.serialization.json.JsonObject
+                }.getOrDefault(false)
+                // A damaged call becomes a stand-in the executor answers with this cause, so the
+                // model can correct itself instead of the whole run failing.
+                val cause = when {
+                    !callId.matches(safeWireToolCallId) -> "Provider returned an invalid tool call id"
+                    !seenIds.add(callId) -> "Provider returned duplicate tool call ids"
+                    !candidate.name.matches(safeWireToolName) ->
+                        "Provider ended before the tool name was complete"
+                    !argumentsAreObject ->
+                        "Provider ended before the tool arguments formed a complete JSON object"
+                    else -> null
                 }
+                if (cause == null) {
+                    StreamEvent.ToolCallRequest(
+                        id = callId,
+                        name = candidate.name,
+                        arguments = arguments,
+                        streamKey = candidate.streamKey,
+                    )
+                } else {
+                    malformedToolCallRequest(cause, candidate.name, arguments, candidate.streamKey)
+                }
+            }
             if (calls.size == 1) emitTracked(calls.first())
             else emitTracked(StreamEvent.ToolCallsRequest(calls))
         }

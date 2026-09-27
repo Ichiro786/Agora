@@ -1,5 +1,6 @@
 package com.newoether.agora.viewmodel
 
+import com.newoether.agora.api.util.MALFORMED_TOOL_CALL_NAME
 import com.newoether.agora.api.GenerationError
 import com.newoether.agora.api.StreamEvent
 import com.newoether.agora.api.ToolDefinition
@@ -317,14 +318,18 @@ class ProviderThoughtBoundaryNormalizerTest {
     }
 
     @Test
-    fun `malformed syntax fails closed`() = runTest {
+    fun `malformed syntax is answered as a malformed call`() = runTest {
         val malformed = normalize(
             listOf(StreamEvent.TextChunk("<tool_call>{\"name\":\"file_read\"}")),
             TOOLS,
         )
 
-        assertTrue(malformed.any { it is StreamEvent.Error })
-        assertTrue(malformed.none { it is StreamEvent.ToolCallRequest })
+        // Nothing is executed, and the run continues with an error result the model can act on.
+        assertTrue(malformed.none { it is StreamEvent.Error })
+        assertEquals(
+            MALFORMED_TOOL_CALL_NAME,
+            malformed.filterIsInstance<StreamEvent.ToolCallRequest>().single().name,
+        )
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.newoether.agora.viewmodel
 
+import com.newoether.agora.api.util.MALFORMED_TOOL_CALL_NAME
 import com.newoether.agora.api.GenerationError
 import com.newoether.agora.api.LlmProvider
 import com.newoether.agora.api.ProviderConfig
@@ -111,7 +112,7 @@ class ProviderPassRunnerTest {
     }
 
     @Test
-    fun `malformed duplicate incomplete and empty tool batches fail closed`() = runTest {
+    fun `malformed duplicate incomplete and empty tool batches stay pairable`() = runTest {
         val valid = StreamEvent.ToolCallRequest("call_1", "file_read", "{}", streamKey = "s1")
         val invalidStreams = listOf(
             listOf<StreamEvent>(
@@ -131,7 +132,10 @@ class ProviderPassRunnerTest {
             listOf<StreamEvent>(StreamEvent.ToolCallsRequest(emptyList())),
         )
 
-        invalidStreams.forEach { streamEvents ->
+        // Identity damage is answered as malformed calls; a reused or blank stream key is local
+        // bookkeeping and only gets a fresh key.
+        val expectedMalformed = listOf(1, 1, 1, 0, 0, 1, 1)
+        invalidStreams.zip(expectedMalformed).forEach { (streamEvents, malformedCount) ->
             val forwarded = mutableListOf<StreamEvent>()
             val outcome = runner(streamEvents).run(
                 IDENTITY,
@@ -140,11 +144,12 @@ class ProviderPassRunnerTest {
                 forwarded::add,
             )
 
-            assertTrue(outcome is ProviderPassOutcome.Failed)
-            assertTrue(
-                (outcome as ProviderPassOutcome.Failed).error is GenerationError.MalformedToolCall,
-            )
-            assertTrue(forwarded.last() is StreamEvent.Error)
+            val calls = (outcome as ProviderPassOutcome.CompletedToolCalls).calls
+            assertEquals(malformedCount, calls.count { it.name == MALFORMED_TOOL_CALL_NAME })
+            assertEquals(calls.size, calls.map { it.id }.distinct().size)
+            assertEquals(calls.size, calls.map { it.streamKey }.distinct().size)
+            assertTrue(calls.all { it.streamKey.isNotBlank() })
+            assertTrue(forwarded.none { it is StreamEvent.Error })
         }
     }
 
