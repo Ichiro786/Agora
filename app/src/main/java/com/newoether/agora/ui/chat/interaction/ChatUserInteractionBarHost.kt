@@ -3,12 +3,19 @@ package com.newoether.agora.ui.chat.interaction
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
+import com.newoether.agora.service.AppForegroundTracker
 import com.newoether.agora.viewmodel.ChatViewModel
 
 /**
@@ -33,8 +40,25 @@ internal fun BoxScope.ChatUserInteractionBar(
     val interactions = remember(questions, shellCommand, conversationId) {
         userInteractions(conversationId, questions, shellCommand)
     }
+    // Requests of other conversations are never shown here; the notifiers surface them instead,
+    // so they need to know which conversation is on screen.
+    DisposableEffect(conversationId) {
+        AppForegroundTracker.setPresentedConversation(conversationId)
+        onDispose { AppForegroundTracker.setPresentedConversation(null) }
+    }
+    // Folding is remembered per conversation and survives switching away, until that
+    // conversation has nothing left to answer.
+    var minimizedIn by rememberSaveable(saver = MinimizedSaver) { mutableStateOf(emptySet<String>()) }
+    val minimizedKey = conversationId.orEmpty()
+    LaunchedEffect(minimizedKey, interactions.isEmpty()) {
+        if (interactions.isEmpty()) minimizedIn = minimizedIn - minimizedKey
+    }
     UserInteractionBar(
         interactions = interactions,
+        minimized = minimizedKey in minimizedIn,
+        onMinimizedChange = { folded ->
+            minimizedIn = if (folded) minimizedIn + minimizedKey else minimizedIn - minimizedKey
+        },
         autoWrapCodeBlocks = autoWrapCodeBlocks,
         onAnswerQuestion = { id, choices, text -> viewModel.askUser.submit(id, choices, text) },
         onSkipQuestion = { id -> viewModel.askUser.dismiss(id) },
@@ -47,3 +71,8 @@ internal fun BoxScope.ChatUserInteractionBar(
             .padding(bottom = bottomBarHeight),
     )
 }
+
+private val MinimizedSaver = listSaver<androidx.compose.runtime.MutableState<Set<String>>, String>(
+    save = { it.value.toList() },
+    restore = { mutableStateOf(it.toSet()) },
+)

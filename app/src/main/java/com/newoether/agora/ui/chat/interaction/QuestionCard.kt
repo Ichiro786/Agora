@@ -25,9 +25,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,7 +37,7 @@ import com.newoether.agora.viewmodel.AskUserController
 
 /** What the user has picked and typed for one question, kept while they move between pages. */
 @Stable
-private class QuestionDraft(hasOptions: Boolean) {
+internal class QuestionDraft(hasOptions: Boolean) {
     var selected by mutableStateOf(emptySet<String>())
     var typed by mutableStateOf("")
 
@@ -50,12 +48,26 @@ private class QuestionDraft(hasOptions: Boolean) {
     val answered: Boolean get() = selected.isNotEmpty() || (ownAnswer && typed.isNotBlank())
 }
 
+/** Drafts for every question on the card, keyed by request id. A new card never inherits one. */
+internal class QuestionDrafts {
+    private val drafts = HashMap<Long, QuestionDraft>()
+
+    fun of(request: AskUserController.Request): QuestionDraft =
+        drafts.getOrPut(request.id) { QuestionDraft(request.options.isNotEmpty()) }
+
+    /** Forgets answered, skipped and withdrawn questions so their ids cannot come back filled. */
+    fun retainOnly(requests: List<AskUserController.Request>) {
+        val live = requests.mapTo(HashSet()) { it.id }
+        drafts.keys.retainAll(live)
+    }
+}
+
 /**
- * One card for everything a single `ask_user` call asked.
+ * One question page of the interaction card.
  *
- * A set of questions is one decision for the model, so it is one card here: each question is a page
- * of the card, Back and Next move between them, and Send on the last page answers them all at once.
- * A single question is simply a card with one page. Skip declines the whole card.
+ * Every waiting question shares the card: Back and Next move between pages, and Send on the last
+ * page answers them all at once, declining any left blank. Skip declines every question on the
+ * card. [position] is the "current / total" count across the whole card.
  *
  * Options are optional: a question without them is an open question. Even with options the user can
  * type instead, because the model's list is its guess at what the answers are, and a wrong guess must
@@ -64,27 +76,24 @@ private class QuestionDraft(hasOptions: Boolean) {
 @Composable
 internal fun QuestionCardContent(
     requests: List<AskUserController.Request>,
+    drafts: QuestionDrafts,
+    index: Int,
+    position: String?,
+    onBack: (() -> Unit)?,
+    onNext: (() -> Unit)?,
     onAnswer: (Long, List<String>, String?) -> Unit,
     onSkip: (Long) -> Unit,
 ) {
-    // Drafts belong to these requests only: a new card must never inherit an old answer.
-    val ids = requests.map { it.id }
-    val drafts = remember(ids) { requests.associate { it.id to QuestionDraft(it.options.isNotEmpty()) } }
-    var page by remember(ids) { mutableIntStateOf(0) }
-    val current = page.coerceIn(0, requests.lastIndex)
-    val request = requests[current]
-    val draft = drafts.getValue(request.id)
-    val isLast = current == requests.lastIndex
-
+    val request = requests[index.coerceIn(0, requests.lastIndex)]
     CardHeader(
         icon = { tint ->
             Icon(InteractionKind.Question.icon, null, modifier = Modifier.size(18.dp), tint = tint)
         },
         title = stringResource(InteractionKind.Question.titleRes),
-        detail = if (requests.size > 1) "${current + 1} / ${requests.size}" else null,
+        position = position,
     )
     Spacer(Modifier.height(10.dp))
-    QuestionPage(request = request, draft = draft)
+    QuestionPage(request = request, draft = drafts.of(request))
     Spacer(Modifier.height(6.dp))
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -95,18 +104,18 @@ internal fun QuestionCardContent(
             Text(stringResource(R.string.ask_user_skip))
         }
         Spacer(Modifier.weight(1f))
-        if (current > 0) {
-            TextButton(onClick = { page = current - 1 }) { Text(stringResource(R.string.back)) }
+        onBack?.let {
+            TextButton(onClick = it) { Text(stringResource(R.string.back)) }
             Spacer(Modifier.width(4.dp))
         }
-        if (!isLast) {
-            Button(onClick = { page = current + 1 }) { Text(stringResource(R.string.ask_user_next)) }
+        if (onNext != null) {
+            Button(onClick = onNext) { Text(stringResource(R.string.ask_user_next)) }
         } else {
             Button(
                 onClick = {
                     // A question left blank on an earlier page is declined, not invented.
                     requests.forEach { question ->
-                        val answer = drafts.getValue(question.id)
+                        val answer = drafts.of(question)
                         if (answer.answered) {
                             onAnswer(
                                 question.id,
@@ -118,7 +127,7 @@ internal fun QuestionCardContent(
                         }
                     }
                 },
-                enabled = drafts.values.any { it.answered },
+                enabled = requests.any { drafts.of(it).answered },
             ) { Text(stringResource(R.string.ask_user_send)) }
         }
     }
@@ -200,7 +209,9 @@ private fun OptionRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onToggle),
+            .clickable(onClick = onToggle)
+            // Inset so the rounded highlight never cuts into the control.
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // The row owns the click, so the control itself stays non-interactive and the whole row
@@ -210,7 +221,7 @@ private fun OptionRow(
         } else {
             RadioButton(selected = checked, onClick = null)
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(12.dp))
         Text(
             text = option,
             style = MaterialTheme.typography.bodyMedium,

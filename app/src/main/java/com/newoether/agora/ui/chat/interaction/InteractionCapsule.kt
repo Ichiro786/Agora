@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloseFullscreen
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
@@ -133,7 +132,7 @@ internal fun MorphingInteractionCard(
                     modifier = Modifier.align(Alignment.TopEnd).padding(end = 4.dp),
                 ) {
                     Icon(
-                        Icons.Default.CloseFullscreen,
+                        CollapseContentIcon,
                         contentDescription = stringResource(R.string.interaction_minimize),
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -156,7 +155,7 @@ private fun CapsuleLabel(kind: InteractionKind, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .height(CapsuleHeight)
-            .padding(start = 16.dp, end = 20.dp),
+            .padding(start = 16.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -173,6 +172,13 @@ private fun CapsuleLabel(kind: InteractionKind, modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.width(10.dp))
+        Icon(
+            ExpandContentIcon,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

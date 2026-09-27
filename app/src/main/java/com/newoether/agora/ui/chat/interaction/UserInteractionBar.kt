@@ -1,18 +1,22 @@
 package com.newoether.agora.ui.chat.interaction
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,14 +26,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -40,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -50,18 +50,37 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.newoether.agora.R
 import com.newoether.agora.ui.chat.message.ChatMarkdownCodeBlock
 import com.newoether.agora.ui.motion.LocalAgoraMotionPolicy
+import com.newoether.agora.viewmodel.AskUserController
 import com.newoether.agora.viewmodel.ShellConfirmationController
 
 private val ContentMaxWidth = 840.dp
 internal val ScrollableContentMaxHeight = 200.dp
 private const val AppearDurationMs = 180
+private const val PageDurationMs = 220
+private const val PageFadeOutMs = 160
+
+/** One page of the interaction card. [key] identifies it across list changes. */
+private sealed interface DeckPage {
+    val key: String
+
+    data class Shell(val pending: ShellConfirmationController.PendingShellCommand) : DeckPage {
+        override val key: String get() = "shell:${pending.id}"
+    }
+
+    data class Question(val request: AskUserController.Request) : DeckPage {
+        override val key: String get() = "question:${request.id}"
+    }
+}
 
 /** The bar grows out of the composer, so it scales from its bottom edge rather than its centre. */
 private val BottomOrigin = TransformOrigin(0.5f, 1f)
@@ -69,14 +88,16 @@ private val BottomOrigin = TransformOrigin(0.5f, 1f)
 /**
  * Bottom bar that answers the requests in [interactions] without covering the conversation.
  *
- * Requests stack, so the bar is a pager: one card per request (a set of questions asked together
- * is one card with a page per question), swiped left and right, with the
- * oldest first. Answering removes that card and the next one takes its place. Nothing here can be
- * dismissed by tapping elsewhere; both kinds of request are answered only by their own buttons,
- * which keeps the shell confirmation a real security gate.
+ * Everything waiting is one card with one page per request and a "current / total" count in the
+ * header: the shell confirmation first, because a command is held until it is decided, then every
+ * question in the order it was asked. Back and Next move between pages, and Send on the last page
+ * answers every question at once. Nothing here can be dismissed by tapping elsewhere; both kinds
+ * of request are answered only by their own buttons, which keeps the shell confirmation a real
+ * security gate.
  *
- * The bar can be folded into a capsule so the conversation behind it can be read; tapping the
- * capsule opens it again. Folding never answers anything, and it resets once nothing is waiting.
+ * The card can be folded into a capsule so the conversation behind it can be read; tapping the
+ * capsule opens it again. Folding never answers anything. The host owns [minimized] per
+ * conversation, so switching away and back keeps it.
  *
  * [onHeightChanged] reports the measured height in pixels so the host can lift whatever sits above
  * the composer, and reports zero when there is nothing to answer.
@@ -89,21 +110,19 @@ internal fun UserInteractionBar(
     onSkipQuestion: (Long) -> Unit,
     onShellDecision: (Long, Boolean, Boolean) -> Unit,
     onHeightChanged: (Float) -> Unit,
+    minimized: Boolean,
+    onMinimizedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val motionPolicy = LocalAgoraMotionPolicy.current
     val visible = interactions.isNotEmpty()
-    // The exit animation still needs cards to draw, so the last non-empty list stays around.
+    // The exit animation still needs a card to draw, so the last non-empty list stays around.
     var shown by remember { mutableStateOf(interactions) }
     if (visible) shown = interactions
-    var minimized by rememberSaveable { mutableStateOf(false) }
     // The measured height never reaches zero on its own, because the bar leaves by scaling rather
     // than shrinking. Reporting zero here is what lets the host drop its lifted controls back down.
     LaunchedEffect(visible) {
-        if (!visible) {
-            onHeightChanged(0f)
-            minimized = false
-        }
+        if (!visible) onHeightChanged(0f)
     }
     val spec = if (motionPolicy.allowContinuousMotion) tween<Float>(AppearDurationMs) else snap()
     AnimatedVisibility(
@@ -112,7 +131,7 @@ internal fun UserInteractionBar(
         exit = fadeOut(spec) + scaleOut(spec, targetScale = 0.9f, transformOrigin = BottomOrigin),
         modifier = modifier.fillMaxWidth(),
     ) {
-        UserInteractionPager(
+        InteractionDeck(
             interactions = shown,
             autoWrapCodeBlocks = autoWrapCodeBlocks,
             onAnswerQuestion = onAnswerQuestion,
@@ -120,13 +139,13 @@ internal fun UserInteractionBar(
             onShellDecision = onShellDecision,
             onHeightChanged = onHeightChanged,
             minimized = minimized,
-            onMinimizedChange = { minimized = it },
+            onMinimizedChange = onMinimizedChange,
         )
     }
 }
 
 @Composable
-private fun UserInteractionPager(
+private fun InteractionDeck(
     interactions: List<UserInteraction>,
     autoWrapCodeBlocks: Boolean,
     onAnswerQuestion: (Long, List<String>, String?) -> Unit,
@@ -136,54 +155,96 @@ private fun UserInteractionPager(
     minimized: Boolean,
     onMinimizedChange: (Boolean) -> Unit,
 ) {
-    val pagerState = rememberPagerState(pageCount = { interactions.size })
+    val shell = interactions.firstNotNullOfOrNull { (it as? UserInteraction.ShellCommand)?.pending }
+    val questions = interactions.filterIsInstance<UserInteraction.Question>().flatMap { it.requests }
+    val pages = listOfNotNull<DeckPage>(shell?.let(DeckPage::Shell)) +
+        questions.map(DeckPage::Question)
+    val keys = pages.map { it.key }
+    // Drafts outlive page changes and new arrivals, so a question joining the card never wipes
+    // what was already picked or typed for the others.
+    val drafts = remember { QuestionDrafts() }
+    drafts.retainOnly(questions)
+    var page by rememberSaveable { mutableIntStateOf(0) }
+    if (pages.isEmpty()) return
+    val current = pages[page.coerceIn(0, pages.lastIndex)]
+    val motion = LocalAgoraMotionPolicy.current
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .onSizeChanged { onHeightChanged(it.height.toFloat()) },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.widthIn(max = ContentMaxWidth),
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            pageSpacing = 8.dp,
-            verticalAlignment = Alignment.Bottom,
-            // A capsule shows only the current request; swiping would move it off screen.
-            userScrollEnabled = !minimized,
-            key = { index -> interactions.getOrNull(index)?.key ?: index },
-        ) { page ->
-            when (val interaction = interactions.getOrNull(page)) {
-                is UserInteraction.Question -> MorphingInteractionCard(
-                    kind = interaction.kind,
-                    minimized = minimized,
-                    onMinimizedChange = onMinimizedChange,
-                ) {
-                    QuestionCardContent(
-                        requests = interaction.requests,
-                        onAnswer = onAnswerQuestion,
-                        onSkip = onSkipQuestion,
-                    )
+        Box(modifier = Modifier.widthIn(max = ContentMaxWidth).padding(horizontal = 12.dp)) {
+            MorphingInteractionCard(
+                kind = if (current is DeckPage.Shell) InteractionKind.Approval else InteractionKind.Question,
+                minimized = minimized,
+                onMinimizedChange = onMinimizedChange,
+            ) {
+                // Pages change content inside the one card: a short slide in the reading
+                // direction with a fade, while the outline follows the new page's height.
+                AnimatedContent(
+                    targetState = current,
+                    contentKey = { it.key },
+                    transitionSpec = {
+                        if (!motion.allowContinuousMotion) {
+                            EnterTransition.None togetherWith ExitTransition.None using null
+                        } else {
+                            val from = keys.indexOf(initialState.key)
+                            val to = keys.indexOf(targetState.key)
+                            // A page that left the card (answered) counts as behind the new one.
+                            val forward = from < 0 || to >= from
+                            val sign = (if (forward) 1 else -1) * (if (rtl) -1 else 1)
+                            (
+                                slideInHorizontally(tween(PageDurationMs)) { sign * it / 5 } +
+                                    fadeIn(tween(PageDurationMs))
+                                ) togetherWith (
+                                slideOutHorizontally(tween(PageDurationMs)) { -sign * it / 5 } +
+                                    fadeOut(tween(PageFadeOutMs))
+                                ) using SizeTransform(clip = false) { _, _ ->
+                                tween<IntSize>(PageDurationMs)
+                            }
+                        }
+                    },
+                    label = "interaction page",
+                ) { shownPage ->
+                    // The outgoing page may already be gone from the lists; it then renders
+                    // alone, with inert buttons, for the few frames it takes to fade away.
+                    val index = keys.indexOf(shownPage.key)
+                    val live = index >= 0
+                    val position = if (live && pages.size > 1) "${index + 1} / ${pages.size}" else null
+                    val back: (() -> Unit)? = if (live && index > 0) ({ page = index - 1 }) else null
+                    val next: (() -> Unit)? =
+                        if (live && index < pages.lastIndex) ({ page = index + 1 }) else null
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        when (shownPage) {
+                            is DeckPage.Shell -> ShellCardContent(
+                                pending = shownPage.pending,
+                                autoWrapCodeBlocks = autoWrapCodeBlocks,
+                                position = position,
+                                onNext = next,
+                                onDecision = { allow, alwaysAllow ->
+                                    if (live) onShellDecision(shownPage.pending.id, allow, alwaysAllow)
+                                },
+                            )
+                            is DeckPage.Question -> {
+                                val questionIndex = questions.indexOfFirst { it.id == shownPage.request.id }
+                                QuestionCardContent(
+                                    requests = if (questionIndex >= 0) questions else listOf(shownPage.request),
+                                    drafts = drafts,
+                                    index = questionIndex.coerceAtLeast(0),
+                                    position = position,
+                                    onBack = back,
+                                    onNext = next,
+                                    onAnswer = { id, choices, text -> if (live) onAnswerQuestion(id, choices, text) },
+                                    onSkip = { id -> if (live) onSkipQuestion(id) },
+                                )
+                            }
+                        }
+                    }
                 }
-                is UserInteraction.ShellCommand -> MorphingInteractionCard(
-                    kind = interaction.kind,
-                    minimized = minimized,
-                    onMinimizedChange = onMinimizedChange,
-                ) {
-                    ShellCardContent(
-                        pending = interaction.pending,
-                        autoWrapCodeBlocks = autoWrapCodeBlocks,
-                        onDecision = { allow, alwaysAllow ->
-                            onShellDecision(interaction.pending.id, allow, alwaysAllow)
-                        },
-                    )
-                }
-                null -> Box(modifier = Modifier.fillMaxWidth())
             }
-        }
-        if (interactions.size > 1 && !minimized) {
-            Spacer(Modifier.height(8.dp))
-            PageIndicator(pageCount = interactions.size, currentPage = pagerState.currentPage)
         }
         Spacer(Modifier.height(8.dp))
     }
@@ -193,6 +254,8 @@ private fun UserInteractionPager(
 private fun ShellCardContent(
     pending: ShellConfirmationController.PendingShellCommand,
     autoWrapCodeBlocks: Boolean,
+    position: String?,
+    onNext: (() -> Unit)?,
     onDecision: (Boolean, Boolean) -> Unit,
 ) {
     var alwaysAllow by remember(pending.id) { mutableStateOf(false) }
@@ -202,6 +265,7 @@ private fun ShellCardContent(
         },
         title = stringResource(InteractionKind.Approval.titleRes),
         detail = pending.server,
+        position = position,
     )
     Spacer(Modifier.height(10.dp))
     Box(
@@ -212,16 +276,18 @@ private fun ShellCardContent(
     ) {
         ChatMarkdownCodeBlock(code = pending.summary, autoWrap = autoWrapCodeBlocks)
     }
-    Spacer(Modifier.height(4.dp))
+    Spacer(Modifier.height(10.dp))
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable { alwaysAllow = !alwaysAllow },
+            .clickable { alwaysAllow = !alwaysAllow }
+            // Inset so the rounded highlight never cuts into the checkbox.
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(checked = alwaysAllow, onCheckedChange = null)
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(12.dp))
         Text(
             text = stringResource(R.string.shell_confirm_always),
             style = MaterialTheme.typography.bodyMedium,
@@ -231,9 +297,10 @@ private fun ShellCardContent(
     Spacer(Modifier.height(6.dp))
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        onNext?.let { TextButton(onClick = it) { Text(stringResource(R.string.ask_user_next)) } }
+        Spacer(Modifier.weight(1f))
         TextButton(
             onClick = { onDecision(false, false) },
             colors = ButtonDefaults.textButtonColors(
@@ -252,10 +319,11 @@ internal fun CardHeader(
     icon: @Composable (Color) -> Unit,
     title: String,
     detail: String? = null,
+    position: String? = null,
 ) {
     // The end padding keeps the header clear of the card's minimize button.
     Row(
-        modifier = Modifier.padding(end = 40.dp),
+        modifier = Modifier.fillMaxWidth().padding(end = 40.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         icon(MaterialTheme.colorScheme.primary)
@@ -274,28 +342,15 @@ internal fun CardHeader(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
         }
-    }
-}
-
-@Composable
-private fun PageIndicator(pageCount: Int, currentPage: Int) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        repeat(pageCount) { index ->
-            val active = index == currentPage
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 3.dp)
-                    .size(if (active) 7.dp else 5.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (active) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.outlineVariant
-                        }
-                    ),
+        Spacer(Modifier.weight(1f))
+        position?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
