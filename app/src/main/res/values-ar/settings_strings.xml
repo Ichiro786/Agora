@@ -487,4 +487,6 @@
     <string name="settings_interaction_desc">الأسئلة التي يطرحها المساعد عليك</string>
     <string name="ask_user_enable">السماح للمساعد بالسؤال</string>
     <string name="ask_user_enable_desc">يمنح النموذج أداة لطرح سؤال عليك وانتظار اختيارك</string>
+    <string name="ask_user_blocking_default">انتظار الإجابات افتراضيًا</string>
+    <string name="ask_user_blocking_default_desc">ما لم يحدد المساعد خلاف ذلك، يتوقف حتى تجيب. أوقف هذا الخيار ليواصل العمل بينما ينتظر السؤال.</string>
 </resources>

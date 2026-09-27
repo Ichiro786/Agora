@@ -121,6 +121,7 @@ internal object PortableSettingsArchive {
         put("shellEnabled", JsonPrimitive(sm.shellEnabled.first()))
         put("shellConfirmEnabled", JsonPrimitive(sm.shellConfirmEnabled.first()))
         put("askUserEnabled", JsonPrimitive(sm.askUserEnabled.first()))
+        put("askUserBlockingDefault", JsonPrimitive(sm.askUserBlockingDefault.first()))
         putEncoded("shellDevices", sm.shellDevices.first().map(ShellDeviceConfig::withoutSecrets))
         put("automationToolsEnabled", JsonPrimitive(sm.automationToolsEnabled.first()))
         put("exactExecutionEnabled", JsonPrimitive(sm.exactExecutionEnabled.first()))
@@ -403,6 +404,7 @@ internal object PortableSettingsArchive {
         obj.boolean("shellEnabled")?.let { sm.saveShellEnabled(it) }
         obj.boolean("shellConfirmEnabled")?.let { sm.saveShellConfirmEnabled(it) }
         obj.boolean("askUserEnabled")?.let { sm.saveAskUserEnabled(it) }
+        obj.boolean("askUserBlockingDefault")?.let { sm.saveAskUserBlockingDefault(it) }
         val shellElement = obj["shellDevices"]
         if (shellElement != null || replace) {
             val decoded = shellElement

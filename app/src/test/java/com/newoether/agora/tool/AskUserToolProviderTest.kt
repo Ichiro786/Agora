@@ -162,6 +162,18 @@ class AskUserToolProviderTest {
     }
 
     @Test
+    fun `the blocking setting decides when the model leaves blocking out`() = runTest {
+        val controller = AskUserController()
+        val result = AskUserToolProvider(controller).execute(
+            "ask_user",
+            """{"question":"Now?"}""",
+            ctx.copy(askUserBlockingDefault = false),
+        )
+        assertEquals("queued", body(result)["delivery"]?.jsonPrimitive?.content)
+        assertEquals(1, controller.requests.value.size)
+    }
+
+    @Test
     fun `stopping the generation leaves no question waiting on screen`() = runTest {
         val controller = AskUserController()
         val provider = AskUserToolProvider(controller)

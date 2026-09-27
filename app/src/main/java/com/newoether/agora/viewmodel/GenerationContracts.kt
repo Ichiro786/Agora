@@ -74,6 +74,8 @@ data class GenerationContext(
     val webSearchBaseUrl: String = "",
     val imageGenEnabled: Boolean = false,
     val askUserEnabled: Boolean = false,
+    /** What `ask_user` does when the model leaves `blocking` out. */
+    val askUserBlockingDefault: Boolean = true,
     val imageGenApiKey: String = "",
     val imageGenBaseUrl: String = "",
     val imageGenModel: String = "gpt-image-1",

@@ -492,4 +492,6 @@
     <string name="settings_interaction_desc">助手向你提問的方式</string>
     <string name="ask_user_enable">允許助手提問</string>
     <string name="ask_user_enable_desc">讓模型可以用工具向你提問，並等你做出選擇</string>
+    <string name="ask_user_blocking_default">預設等待回答</string>
+    <string name="ask_user_blocking_default_desc">助手未指定時，會暫停直到你回答。關閉後，問題等待期間助手會繼續工作。</string>
 </resources>

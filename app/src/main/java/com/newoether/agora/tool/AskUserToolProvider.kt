@@ -97,11 +97,11 @@ class AskUserToolProvider(private val askUser: AskUserController) : ToolProvider
                             ),
                             "blocking" to ToolProperty(
                                 "boolean",
-                                "True (the default) waits here until the user answers, so the " +
-                                    "answer is part of this result. False returns immediately and " +
-                                    "you keep working; the answer arrives later as a user " +
-                                    "message, so only use it when you have work that does not " +
-                                    "depend on the answer.",
+                                "True waits here until the user answers, so the answer is " +
+                                    "part of this result. False returns immediately and you keep " +
+                                    "working; the answer arrives later as a user message, so " +
+                                    "only use it when you have work that does not depend on the " +
+                                    "answer. Defaults to ${ctx.askUserBlockingDefault}.",
                             ),
                         ),
                         required = emptyList(),
@@ -120,7 +120,7 @@ class AskUserToolProvider(private val askUser: AskUserController) : ToolProvider
     ): String {
         val args = runCatching { Json.parseToJsonElement(arguments.ifBlank { "{}" }) as JsonObject }
             .getOrNull() ?: return failure("bad_arguments", "Arguments are not a JSON object.")
-        val blocking = args["blocking"]?.jsonPrimitive?.booleanOrNull ?: true
+        val blocking = args["blocking"]?.jsonPrimitive?.booleanOrNull ?: ctx.askUserBlockingDefault
         if (!blocking && ctx.conversationId == null) {
             return failure(
                 "no_conversation",

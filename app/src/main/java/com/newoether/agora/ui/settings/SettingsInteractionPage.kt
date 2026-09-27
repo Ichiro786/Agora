@@ -3,6 +3,7 @@ package com.newoether.agora.ui.settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +24,7 @@ import com.newoether.agora.viewmodel.ChatViewModel
 @Composable
 fun SettingsInteractionPage(viewModel: ChatViewModel, onBack: () -> Unit) {
     val askUserEnabled by viewModel.settings.askUserEnabled.collectAsState()
+    val askUserBlockingDefault by viewModel.settings.askUserBlockingDefault.collectAsState()
     val scrollState = rememberScrollState()
     CollapsingSettingsScaffold(
         title = stringResource(R.string.settings_interaction),
@@ -54,6 +56,33 @@ fun SettingsInteractionPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                             },
                             modifier = Modifier.clickable {
                                 viewModel.settings.setAskUserEnabled(!askUserEnabled)
+                            },
+                        )
+                    }
+                    add {
+                        SettingsItem(
+                            headlineContent = {
+                                Text(stringResource(R.string.ask_user_blocking_default))
+                            },
+                            supportingContent = {
+                                Text(stringResource(R.string.ask_user_blocking_default_desc))
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Default.HourglassTop,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = askUserBlockingDefault,
+                                    onCheckedChange = viewModel.settings::setAskUserBlockingDefault,
+                                    enabled = askUserEnabled,
+                                )
+                            },
+                            modifier = Modifier.clickable(enabled = askUserEnabled) {
+                                viewModel.settings.setAskUserBlockingDefault(!askUserBlockingDefault)
                             },
                         )
                     }

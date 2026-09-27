@@ -563,6 +563,7 @@ class GenerationRequestBuilder(
             webSearchBaseUrl = settings.webSearchBaseUrl.value,
             imageGenEnabled = settings.imageGenEnabled.value && imageGenModel?.contains(":") == true,
             askUserEnabled = settings.askUserEnabled.value,
+            askUserBlockingDefault = settings.askUserBlockingDefault.value,
             imageGenApiKey = resolveImageGenApiKey(imageGenModel),
             imageGenBaseUrl = resolveImageGenBaseUrl(imageGenModel),
             imageGenModel = resolveImageGenModelId(imageGenModel),
