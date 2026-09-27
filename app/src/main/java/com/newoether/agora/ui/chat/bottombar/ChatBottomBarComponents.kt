@@ -147,6 +147,11 @@ internal fun ComposerContextIndicator(
         ContextBudget.compactLabel(estimatedTokens),
         ContextBudget.compactLabel(tokenBudget),
     ) else stringResource(R.string.unknown)
+    val usagePercent = if (estimatedTokens != null && tokenBudget != null) {
+        java.text.NumberFormat.getPercentInstance().format(contextUsagePercent(estimatedTokens, tokenBudget) / 100.0)
+    } else {
+        null
+    }
     ExposedDropdownMenuBox(expanded = expanded && available, onExpandedChange = {}) {
         IconButton(
             onClick = onClick,
@@ -173,7 +178,15 @@ internal fun ComposerContextIndicator(
                 modifier = Modifier.width(CONTEXT_MENU_WIDTH).padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(text = title, style = MaterialTheme.typography.titleSmall)
+                // The usage heads the popup; "Context" stays the anchor's accessibility label.
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = usage, style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.weight(1f))
+                    if (usagePercent != null) {
+                        Spacer(Modifier.width(12.dp))
+                        Text(text = usagePercent, style = MaterialTheme.typography.titleSmall)
+                    }
+                }
                 ContextCompositionBar(
                     systemPromptTokens = systemPromptTokens,
                     toolTokens = toolTokens,
@@ -185,7 +198,6 @@ internal fun ComposerContextIndicator(
                     compactEnabled = compactEnabled,
                     overCompactThreshold = overCompactThreshold,
                 )
-                Text(text = usage, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -264,6 +276,13 @@ internal fun ProviderBadge(provider: String) {
         )
     }
 }
+
+/**
+ * Share of the whole window already used by the system prompt, tools and messages, rounded to a
+ * whole percent. The compaction reserve is not usage, so it is not counted.
+ */
+internal fun contextUsagePercent(estimatedTokens: Int, tokenBudget: Int): Int =
+    if (tokenBudget <= 0) 0 else Math.round(estimatedTokens.coerceAtLeast(0) * 100.0 / tokenBudget).toInt()
 
 internal fun contextUsageAtCapacity(estimatedTokens: Int, tokenBudget: Int): Boolean =
     tokenBudget > 0 && estimatedTokens >= tokenBudget

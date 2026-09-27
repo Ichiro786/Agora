@@ -647,6 +647,25 @@ closing back to `0.5` or below rearms the next opening. Dragged and programmatic
 state. Existing Back handling remains independent. Direct and queued Send preserve focus, IME
 visibility, and expanded Composer state.
 
+## 26. Chat context usage popup
+The context popup opened from the composer's context ring heads with the usage text
+`~used / budget tokens` in `titleSmall`, followed on the same row by the right-aligned usage
+percentage in `titleSmall`. The percentage is `round((System + Tools + Messages) / budget * 100)` as a
+whole locale-formatted percent; the compaction reserve is never counted as usage. The former
+`Context` title and the footer usage line are not shown; `Context` remains the ring's accessibility
+label. The composition bar is unchanged. Legend rows are spaced `6 dp` apart, use `bodyMedium` for
+both label and value, and carry `10 dp` color dots. Verification covers the percent rounding, reserve
+exclusion, and zero-budget result.
+## 27. Interaction card exit, lift, and option shape
+A card that leaves, including after Send answers every question, keeps the page and fold it showed
+until it has finished leaving; the host clears the conversation's saved page and fold only after
+the card is gone and only when that conversation has nothing left to answer. The lift applied to the
+scroll-to-bottom control has one writer: the measured card height multiplied by the card's own
+appear/leave progress (the card's `180 ms` enter/exit tween, snapped under Reduced Motion), so the
+lift grows and shrinks with the card and is exactly zero once no card is shown. Question option rows
+clip their highlight and ripple to a corner radius of `min(height / 2, 24 dp)`: a capsule for a
+single-line option, `24 dp` for a wrapped one. Verification covers the leaving page, the monotonic
+lift ending at zero, the post-exit gone callback, and both option radii.
 ## 15. Verification
 
 Focused verification must cover the onboarding action's fixed 32 dp inset and 48 dp height, absence
