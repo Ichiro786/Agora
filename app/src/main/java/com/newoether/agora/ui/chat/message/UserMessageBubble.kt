@@ -160,8 +160,12 @@ internal fun UserMessageBubble(
                         TextField(
                             state = editState,
                             scrollState = editScrollState,
+                            // TextField applies a 56dp default min height only when no min
+                            // height is set; any explicit min lets the text decide the height, so a
+                            // single line keeps its indicator 8dp below the text.
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .heightIn(min = 1.dp)
                                 .focusRequester(editFocusRequester),
                             contentPadding = PaddingValues(bottom = 8.dp),
                             colors = TextFieldDefaults.colors(

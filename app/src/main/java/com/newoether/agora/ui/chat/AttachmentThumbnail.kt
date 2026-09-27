@@ -120,10 +120,10 @@ fun FileThumbnail(
 internal val USER_BUBBLE_CONTENT_PADDING = 15.dp
 
 /**
- * Corner radius of attachments inside a user bubble: the bubble's 27dp corner minus its 15dp content
- * padding, so the attachment corner runs parallel to the bubble corner.
+ * Corner radius of attachments inside a user bubble, kept equal to the bubble's content padding so
+ * the two read as one rhythm. (A strictly concentric corner would be 27dp - 15dp = 12dp.)
  */
-internal val USER_BUBBLE_ATTACHMENT_CORNER = 12.dp
+internal val USER_BUBBLE_ATTACHMENT_CORNER = USER_BUBBLE_CONTENT_PADDING
 
 data class ThumbnailClickHandlers(
     val onMediaClick: ((urls: List<String>, index: Int) -> Unit)? = null,

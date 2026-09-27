@@ -689,9 +689,10 @@ corners one shared radius, `min(27 dp, half the bubble's smaller side)`, and kee
 tail (never larger than that radius). The three large corners always match, including short or
 narrow bubbles; `RoundedCornerShape` is not used because it shrinks each side's corner pair on its
 own. The radius does not grow with bubble height. Content padding is `15 dp` in both reading and edit mode
-(the edit field adds only an `8 dp` gap above its indicator), so `27 dp` is half of a single-line bubble. Attachments inside the bubble (images, video,
-files, PDFs) use `12 dp` corners, the bubble corner minus its `15 dp` padding, so inner and outer
-corners run parallel; the composer attachment preview keeps its own `8 dp`. The `ask_user` interaction
+(the edit field adds only an `8 dp` gap above its indicator and drops the text field's `56 dp`
+minimum height, so a single line keeps its indicator `8 dp` below the text), so `27 dp` is half of a single-line bubble. Attachments inside the bubble (images, video,
+files, PDFs) use `15 dp` corners, equal to the content padding (user choice over the strictly
+concentric `12 dp`); the composer attachment preview keeps its own `8 dp`. The `ask_user` interaction
 capsule and its Settings toggle use the outlined help icon (a question mark in a circle). The drawer
 search indicator shows exactly while the newest search runs: a cancelled search never clears it.
 The conversation switching overlay keeps its full-body background and centers its indicator between
