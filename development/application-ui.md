@@ -684,9 +684,11 @@ longer label is cut only by the clip; a label ellipsizes only past the space lef
 The composer controls capsule may grow from the bar's inner start edge up to the send button minus a
 fixed `8 dp` gap, in ordinary and externally owned conversations alike. Every control in it has a
 fixed width except the model selector label, which is the only flexible child; there is no fixed
-label cap. User message bubbles use a fixed `28 dp` radius on the top-start, top-end, and bottom-start
-corners (half of a single-line bubble: `16 dp` padding on each side plus one `24.2 sp` line) and keep
-the `4 dp` bottom-end tail; the radius does not follow bubble height. The `ask_user` interaction
+label cap. User message bubbles (`UserBubbleShape`) give the top-start, top-end, and bottom-start
+corners one shared radius, `min(28 dp, half the bubble's smaller side)`, and keep a `4 dp` bottom-end
+tail (never larger than that radius). The three large corners always match, including short or
+narrow bubbles; `RoundedCornerShape` is not used because it shrinks each side's corner pair on its
+own. The radius does not grow with bubble height. The `ask_user` interaction
 capsule and its Settings toggle use the outlined help icon (a question mark in a circle). The drawer
 search indicator shows exactly while the newest search runs: a cancelled search never clears it.
 The conversation switching overlay keeps its full-body background and centers its indicator between
