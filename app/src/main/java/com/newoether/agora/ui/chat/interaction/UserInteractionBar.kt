@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -37,12 +38,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -102,8 +107,10 @@ private val BottomOrigin = TransformOrigin(0.5f, 1f)
  * is also waiting lets the old card leave first and then brings the new one in, so it never looks
  * like paging inside one card. A leaving card keeps its own requests until it is gone.
  *
- * [onHeightChanged] reports the measured height in pixels so the host can lift whatever sits above
- * the composer, and reports zero when there is nothing to answer.
+ * [onHeightChanged] reports, in pixels, how far the host should lift whatever sits above the
+ * composer: the measured card height scaled by the card's appear/leave progress, so the lift grows
+ * and shrinks with the card and is exactly zero once nothing is shown. It is the only writer.
+ * [onCardGone] tells the host that the card of a conversation has finished leaving.
  */
 @Composable
 internal fun UserInteractionBar(
@@ -119,6 +126,7 @@ internal fun UserInteractionBar(
     drafts: QuestionDrafts,
     pageIn: Map<String, String>,
     onPageChange: (String, String) -> Unit,
+    onCardGone: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val motionPolicy = LocalAgoraMotionPolicy.current
@@ -126,12 +134,18 @@ internal fun UserInteractionBar(
     // The exit animation still needs a card to draw, so the last non-empty list stays around.
     var shown by remember { mutableStateOf(conversationId to interactions) }
     if (visible) shown = conversationId to interactions
-    // The measured height never reaches zero on its own, because the bar leaves by scaling rather
-    // than shrinking. Reporting zero here is what lets the host drop its lifted controls back down.
-    LaunchedEffect(visible) {
-        if (!visible) onHeightChanged(0f)
-    }
     val spec = if (motionPolicy.allowContinuousMotion) tween<Float>(AppearDurationMs) else snap()
+    // The card appears and leaves by scaling, so its measured height never shrinks on its own. The
+    // lift is that height times the same appear/leave progress, which makes it follow the card and
+    // end at exactly zero. This is the one place the lift is reported from, so no late measurement
+    // of a leaving card can leave the host lifted.
+    val liftFraction by animateFloatAsState(if (visible) 1f else 0f, spec, label = "interaction-lift")
+    var cardHeight by remember { mutableFloatStateOf(0f) }
+    val latestOnHeightChanged by rememberUpdatedState(onHeightChanged)
+    LaunchedEffect(Unit) {
+        snapshotFlow { cardHeight * liftFraction }.collect { latestOnHeightChanged(it) }
+    }
+    val latestOnCardGone by rememberUpdatedState(onCardGone)
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(spec) + scaleIn(spec, initialScale = 0.9f, transformOrigin = BottomOrigin),
@@ -162,13 +176,17 @@ internal fun UserInteractionBar(
             modifier = Modifier.fillMaxWidth(),
             label = "interaction-card",
         ) { (owner, waiting) ->
+            // Leaves composition only once this card has finished leaving.
+            DisposableEffect(owner) {
+                onDispose { latestOnCardGone(owner) }
+            }
             InteractionDeck(
                 interactions = waiting,
                 autoWrapCodeBlocks = autoWrapCodeBlocks,
                 onSubmitQuestions = onSubmitQuestions,
                 onSkipQuestion = onSkipQuestion,
                 onShellDecision = onShellDecision,
-                onHeightChanged = onHeightChanged,
+                onCardMeasured = { height -> cardHeight = height },
                 minimized = owner in minimizedIn,
                 onMinimizedChange = { folded -> onMinimizedChange(owner, folded) },
                 drafts = drafts,
@@ -186,7 +204,7 @@ private fun InteractionDeck(
     onSubmitQuestions: (List<Pair<Long, AskUserController.Answer>>) -> Unit,
     onSkipQuestion: (Long) -> Unit,
     onShellDecision: (Long, Boolean, Boolean) -> Unit,
-    onHeightChanged: (Float) -> Unit,
+    onCardMeasured: (Float) -> Unit,
     minimized: Boolean,
     onMinimizedChange: (Boolean) -> Unit,
     drafts: QuestionDrafts,
@@ -220,7 +238,7 @@ private fun InteractionDeck(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .onSizeChanged { onHeightChanged(it.height.toFloat()) },
+            .onSizeChanged { onCardMeasured(it.height.toFloat()) },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(modifier = Modifier.widthIn(max = ContentMaxWidth).padding(horizontal = 12.dp)) {
