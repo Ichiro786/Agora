@@ -137,7 +137,7 @@ internal fun UserMessageBubble(
             shape = shape,
             color = backgroundColor,
             modifier = Modifier
-                .widthIn(max = 300.dp)
+                .widthIn(min = USER_BUBBLE_MIN_WIDTH, max = 300.dp)
                 .then(contextAlpha)
                 .clip(shape)
                 .combinedClickable(
@@ -155,7 +155,17 @@ internal fun UserMessageBubble(
                 val editScrollState = rememberScrollState()
                 // Same inset as the read-only bubble, so the text stays put when editing starts;
                 // the field keeps only a bottom gap above its indicator line.
-                Column(modifier = Modifier.padding(USER_BUBBLE_CONTENT_PADDING)) {
+                // The action buttons are 40dp tall around a 20sp label, so each carries 10dp of
+                // invisible height below its text; the bottom inset drops by that amount so the
+                // visible gap under Cancel/Send matches the 15dp inset elsewhere.
+                Column(
+                    modifier = Modifier.padding(
+                        start = USER_BUBBLE_CONTENT_PADDING,
+                        top = USER_BUBBLE_CONTENT_PADDING,
+                        end = USER_BUBBLE_CONTENT_PADDING,
+                        bottom = USER_BUBBLE_CONTENT_PADDING - EDIT_ACTION_INVISIBLE_INSET,
+                    ),
+                ) {
                     Box(modifier = Modifier.noOpBringIntoView()) {
                         TextField(
                             state = editState,
@@ -189,6 +199,9 @@ internal fun UserMessageBubble(
                     }
                 }
             } else {
+                // Content narrower than the minimum width sits centered; wider content fills the
+                // bubble and keeps its start alignment.
+                Box(contentAlignment = Alignment.Center) {
                 Column(
                     modifier = Modifier.padding(USER_BUBBLE_CONTENT_PADDING).noOpBringIntoView(),
                     horizontalAlignment = Alignment.Start
@@ -281,6 +294,7 @@ internal fun UserMessageBubble(
                             spec = searchHighlight,
                         )
                     }
+                }
                 }
             }
         }
@@ -383,3 +397,10 @@ internal fun UserMessageBubble(
 
     }
 }
+
+/** Space a Material TextButton (40dp min height, 20sp label) leaves below its label. */
+private val EDIT_ACTION_INVISIBLE_INSET = 10.dp
+
+/** Width of a single-line bubble's height (15dp padding twice plus one 24.2sp line), so the
+ * shortest message is a circle rather than a pinched capsule. */
+private val USER_BUBBLE_MIN_WIDTH = 54.dp

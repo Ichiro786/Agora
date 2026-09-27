@@ -688,9 +688,11 @@ label cap. User message bubbles (`UserBubbleShape`) give the top-start, top-end,
 corners one shared radius, `min(27 dp, half the bubble's smaller side)`, and keep an `8 dp` bottom-end
 tail (never larger than that radius). The three large corners always match, including short or
 narrow bubbles; `RoundedCornerShape` is not used because it shrinks each side's corner pair on its
-own. The radius does not grow with bubble height. Content padding is `15 dp` in both reading and edit mode
+own. The radius does not grow with bubble height. A bubble is at least `54 dp` wide (its single-line height), so a
+one-character message is a circle; content narrower than that is centered. Content padding is `15 dp` in both reading and edit mode
 (the edit field adds only an `8 dp` gap above its indicator and drops the text field's `56 dp`
-minimum height, so a single line keeps its indicator `8 dp` below the text), so `27 dp` is half of a single-line bubble. Attachments inside the bubble (images, video,
+minimum height, so a single line keeps its indicator `8 dp` below the text); its bottom inset is `5 dp`
+because the Cancel/Send buttons already carry `10 dp` of invisible height below their labels, so `27 dp` is half of a single-line bubble. Attachments inside the bubble (images, video,
 files, PDFs) use `15 dp` corners, equal to the content padding (user choice over the strictly
 concentric `12 dp`); the composer attachment preview keeps its own `8 dp`. The `ask_user` interaction
 capsule and its Settings toggle use the outlined help icon (a question mark in a circle). The drawer
