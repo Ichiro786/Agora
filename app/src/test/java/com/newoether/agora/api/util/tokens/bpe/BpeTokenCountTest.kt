@@ -64,6 +64,16 @@ class BpeTokenCountTest {
     }
 
     @Test
+    fun `memoised counts equal direct counts on first and repeated lookups`() {
+        val memo = com.newoether.agora.api.util.tokens.BpeTextTokenCounter.CountMemo
+        cases.values.map { it.text.repeat(8) }.forEach { text ->
+            val direct = BpeTokenCount.of(text, vocabulary)
+            assertEquals(direct, memo.countOf(text, vocabulary))
+            assertEquals(direct, memo.countOf(String(text.toCharArray()), vocabulary))
+        }
+    }
+
+    @Test
     fun `empty text costs nothing`() {
         assertEquals(0L, BpeTokenCount.of("", vocabulary))
     }

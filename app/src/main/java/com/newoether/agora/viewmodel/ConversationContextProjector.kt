@@ -7,6 +7,8 @@ import com.newoether.agora.api.util.tokens.ContextCostModel
 import com.newoether.agora.api.util.tokens.ContextCostModels
 import com.newoether.agora.data.repository.ConversationRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -60,7 +62,9 @@ internal class ConversationContextProjector(
             usage = previousUsage,
             loading = true,
         )
-        val result = try {
+        // Pricing the whole history tokenizes every message; it must never run on the caller's
+        // (main) thread.
+        val result = try { withContext(Dispatchers.Default) {
             val effectiveConversationId = conversationId ?: CONTEXT_PREVIEW_CONVERSATION_ID
             val snapshot = selectedModelId.takeIf(String::isNotBlank)?.let { modelId ->
                 try {
@@ -135,7 +139,7 @@ internal class ConversationContextProjector(
                 ),
                 completed = true,
             )
-        } catch (cancelled: CancellationException) {
+        } } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
             ConversationContextProjection(
