@@ -47,10 +47,16 @@ import ru.noties.jlatexmath.JLatexMathDrawable
 import kotlin.io.encoding.Base64
 import kotlin.math.roundToInt
 
+/**
+ * One parsed piece of message text. A LaTeX span also keeps [source]: its exact original slice,
+ * delimiters included, plus any whitespace removed next to an inline formula, so copying the
+ * rendered formula reproduces the original text.
+ */
 data class LatexSpan(
     val isLatex: Boolean,
     val content: String,
     val display: Boolean = false,
+    val source: String = content,
 )
 
 // ── Patterns ──────────────────────────────────────────────────────────
@@ -93,6 +99,7 @@ private val LATEX_BASE64 = Base64.UrlSafe
 private data class LatexImageRequest(
     val latex: String,
     val display: Boolean,
+    val source: String,
 )
 
 private data class ProtectedRange(
@@ -251,7 +258,7 @@ fun parseLatexSpans(
                 val latex = text.substring(i + 2, end).trim()
                 if (latex.isNotBlank() && nonAsciiInsideBraces(latex)) {
                     if (buf.isNotEmpty()) { spans.add(LatexSpan(false, buf.toString())); buf.clear() }
-                    spans.add(LatexSpan(true, latex, true))
+                    spans.add(LatexSpan(true, latex, true, text.substring(i, end + 2)))
                     i = end + 2
                     continue
                 } else if (latex.isNotBlank()) {
@@ -274,7 +281,7 @@ fun parseLatexSpans(
                 val latex = text.substring(i + 2, end).trim()
                 if (latex.isNotBlank() && nonAsciiInsideBraces(latex)) {
                     if (buf.isNotEmpty()) { spans.add(LatexSpan(false, buf.toString())); buf.clear() }
-                    spans.add(LatexSpan(true, latex, true))
+                    spans.add(LatexSpan(true, latex, true, text.substring(i, end + 2)))
                     i = end + 2
                     continue
                 } else if (latex.isNotBlank()) {
@@ -295,7 +302,7 @@ fun parseLatexSpans(
                 val latex = text.substring(i + 2, end).trim()
                 if (latex.isNotBlank() && nonAsciiInsideBraces(latex)) {
                     if (buf.isNotEmpty()) { spans.add(LatexSpan(false, buf.toString())); buf.clear() }
-                    spans.add(LatexSpan(true, latex, false))
+                    spans.add(LatexSpan(true, latex, false, text.substring(i, end + 2)))
                     i = end + 2
                     continue
                 } else if (latex.isNotBlank()) {
@@ -324,7 +331,7 @@ fun parseLatexSpans(
                     val latex = text.substring(i + 1, end).trim()
                     if (latex.isNotEmpty() && isLikelyLatex(latex)) {
                         if (buf.isNotEmpty()) { spans.add(LatexSpan(false, buf.toString())); buf.clear() }
-                        spans.add(LatexSpan(true, latex, false))
+                        spans.add(LatexSpan(true, latex, false, text.substring(i, end + 1)))
                         i = end + 1
                         continue
                     }
@@ -362,18 +369,29 @@ fun parseLatexSpans(
         }
     }
 
-    // Trim whitespace around inline LaTeX spans
+    // Trim whitespace around inline LaTeX spans. The removed whitespace moves into the formula's
+    // source so a copy of the rendered text still equals the original.
     for (idx in spans.indices) {
         val span = spans[idx]
         if (span.isLatex && !span.display) {
+            var source = span.source
             if (idx > 0) {
                 val prev = spans[idx - 1]
-                if (!prev.isLatex) spans[idx - 1] = prev.copy(content = prev.content.trimEnd())
+                if (!prev.isLatex) {
+                    val trimmed = prev.content.trimEnd()
+                    source = prev.content.substring(trimmed.length) + source
+                    spans[idx - 1] = prev.copy(content = trimmed)
+                }
             }
             if (idx + 1 < spans.size) {
                 val next = spans[idx + 1]
-                if (!next.isLatex) spans[idx + 1] = next.copy(content = next.content.trimStart())
+                if (!next.isLatex) {
+                    val trimmed = next.content.trimStart()
+                    source += next.content.substring(0, next.content.length - trimmed.length)
+                    spans[idx + 1] = next.copy(content = trimmed)
+                }
             }
+            spans[idx] = span.copy(source = source)
         }
     }
 
@@ -416,10 +434,12 @@ fun canRenderLatex(latex: String): Boolean {
     } catch (_: Exception) { false }
 }
 
-private fun encodeLatexUrl(latex: String, display: Boolean = false): String {
+// latex://<mode>/<base64 latex>/<base64 source>. URL-safe Base64 never contains '/'.
+private fun encodeLatexUrl(latex: String, display: Boolean, source: String): String {
     val mode = if (display) LATEX_URL_DISPLAY else LATEX_URL_INLINE
     val encoded = LATEX_BASE64.encode(latex.toByteArray(Charsets.UTF_8))
-    return "$mode$encoded"
+    val encodedSource = LATEX_BASE64.encode(source.toByteArray(Charsets.UTF_8))
+    return "$mode$encoded/$encodedSource"
 }
 
 private fun decodeLatexUrl(encoded: String): String {
@@ -434,8 +454,10 @@ private fun decodeLatexLink(link: String): LatexImageRequest? {
         payload.startsWith(LATEX_URL_INLINE) -> false to payload.removePrefix(LATEX_URL_INLINE)
         else -> false to payload
     }
+    val parts = encoded.split('/')
+    if (parts.size != 2) return null
     return try {
-        LatexImageRequest(decodeLatexUrl(encoded), display)
+        LatexImageRequest(decodeLatexUrl(parts[0]), display, decodeLatexUrl(parts[1]))
     } catch (_: Exception) {
         null
     }
@@ -445,12 +467,11 @@ internal fun isDisplayLatexLink(link: String?): Boolean {
     return link?.let(::decodeLatexLink)?.display == true
 }
 
-fun inlineLatexToMarkdown(latexContent: String): String {
-    return latexToMarkdown(latexContent, display = false)
-}
+/** The original text a rendered formula stands for, or null when [link] is not a LaTeX link. */
+internal fun latexSourceForLink(link: String): String? = decodeLatexLink(link)?.source
 
-fun latexToMarkdown(latexContent: String, display: Boolean): String {
-    val image = "![latex]($LATEX_URL_PREFIX${encodeLatexUrl(latexContent, display)})"
+fun latexToMarkdown(latexContent: String, display: Boolean, source: String): String {
+    val image = "![latex]($LATEX_URL_PREFIX${encodeLatexUrl(latexContent, display, source)})"
     return if (display) "\n\n$image\n\n" else image
 }
 

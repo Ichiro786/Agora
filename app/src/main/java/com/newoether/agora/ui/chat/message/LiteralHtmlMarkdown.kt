@@ -1,5 +1,6 @@
 package com.newoether.agora.ui.chat.message
 
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -8,21 +9,39 @@ import com.mikepenz.markdown.compose.components.MarkdownComponentModel
 import com.mikepenz.markdown.compose.elements.MarkdownText
 import com.mikepenz.markdown.model.MarkdownAnnotator
 import com.mikepenz.markdown.model.markdownAnnotator
+import com.mikepenz.markdown.utils.MARKDOWN_TAG_IMAGE_URL
+import com.newoether.agora.ui.components.latexSourceForLink
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
 import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.ast.getTextInNode
 
 /**
- * The Compose renderer does not provide default output for inline HTML AST nodes. Treat model
- * output as literal Markdown text instead of executable HTML and append the original source range.
+ * Agora's annotated-string rules on top of the renderer defaults.
+ *
+ * - The Compose renderer does not provide default output for inline HTML AST nodes. Treat model
+ *   output as literal Markdown text instead of executable HTML and append the original source range.
+ * - A LaTeX image keeps the renderer's inline-content tag, so layout and placeholders are unchanged,
+ *   but its alternate text is the formula's original source instead of its `latex://` URL. Selection
+ *   copies that alternate text.
  */
-internal val literalHtmlMarkdownAnnotator: MarkdownAnnotator = markdownAnnotator { content, child ->
-    if (child.type == MarkdownTokenTypes.HTML_TAG) {
-        append(child.getTextInNode(content))
-        true
-    } else {
-        false
+internal val chatMarkdownAnnotator: MarkdownAnnotator = markdownAnnotator { content, child ->
+    when (child.type) {
+        MarkdownTokenTypes.HTML_TAG -> {
+            append(child.getTextInNode(content))
+            true
+        }
+        MarkdownElementTypes.IMAGE -> {
+            val link = markdownImageLink(content, child, null)
+            val source = link?.let(::latexSourceForLink)
+            if (source != null) {
+                appendInlineContent("${MARKDOWN_TAG_IMAGE_URL}_$link", source)
+                true
+            } else {
+                false
+            }
+        }
+        else -> false
     }
 }
 
