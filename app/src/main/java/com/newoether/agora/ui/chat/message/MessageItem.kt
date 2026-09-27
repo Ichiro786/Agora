@@ -259,7 +259,9 @@ internal fun MessageItem(
     }
 
     val shape = when (message.participant) {
-        Participant.USER -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
+        // 28dp is half of a single-line bubble (16dp padding on each side plus one 24.2sp line), so
+        // one line reads as a capsule; the radius stays fixed for taller bubbles.
+        Participant.USER -> RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 28.dp, bottomEnd = 4.dp)
         Participant.MODEL -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 20.dp)
         Participant.ERROR -> RoundedCornerShape(12.dp)
     }

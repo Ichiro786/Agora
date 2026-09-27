@@ -671,14 +671,26 @@ The Chat bottom-bar model selector follows the section 24 motion language throug
 clip owner (`ui/motion/IdentityClipWidth.kt`, also used by the top-bar title). A change of the
 displayed label Crossfades the label over `200 ms` with `FastOutSlowInEasing`. The button is always
 laid out at its independently measured final width: label width plus `8 dp` padding on each side,
-at least the Material button minimum width and at most `160 dp`. One start-anchored rounded clip
+at least the Material button minimum width and at most the space left in the controls capsule. One start-anchored rounded clip
 (`50%` corners) cuts the whole button, including its ripple, at the visible edge, which moves over
 `400 ms` with `FastOutSlowInEasing`, rebases toward a newer target within the same deadline, and
 ends exactly on the latest target. The selector's slot takes the clip width, so the controls after
 it follow the visible edge. `animateContentSize` does not participate. Initial composition presents
 the final width without motion; Reduced Motion snaps the clip and keeps the Crossfade. Verification
 covers the shared owner's deadline, mid-motion rebasing, target-only updates, initial presentation,
-and Reduced Motion snap.
+and Reduced Motion snap. Each Crossfade label keeps its own width while it fades, so an outgoing
+longer label is cut only by the clip; a label ellipsizes only past the space left.
+## 29. Composer controls width, user bubble, and small indicators
+The composer controls capsule may grow from the bar's inner start edge up to the send button minus a
+fixed `8 dp` gap, in ordinary and externally owned conversations alike. Every control in it has a
+fixed width except the model selector label, which is the only flexible child; there is no fixed
+label cap. User message bubbles use a fixed `28 dp` radius on the top-start, top-end, and bottom-start
+corners (half of a single-line bubble: `16 dp` padding on each side plus one `24.2 sp` line) and keep
+the `4 dp` bottom-end tail; the radius does not follow bubble height. The `ask_user` interaction
+capsule and its Settings toggle use the outlined help icon (a question mark in a circle). The drawer
+search indicator shows exactly while the newest search runs: a cancelled search never clears it.
+The conversation switching overlay keeps its full-body background and centers its indicator between
+the top bar and the measured bottom bar, so it follows the IME like the welcome text.
 ## 15. Verification
 
 Focused verification must cover the onboarding action's fixed 32 dp inset and 48 dp height, absence

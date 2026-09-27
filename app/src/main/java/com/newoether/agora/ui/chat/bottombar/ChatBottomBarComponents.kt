@@ -43,7 +43,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.layout.Box
@@ -59,23 +61,28 @@ internal const val CHAT_DROPDOWN_MENU_ICON_SIZE_DP = 24
 
 private val MODEL_SELECTOR_HEIGHT = 38.dp
 private val MODEL_SELECTOR_PADDING = 8.dp
-private val MODEL_SELECTOR_MAX_WIDTH = 160.dp
+private val COMPOSER_SEND_BUTTON_GAP = 8.dp
 
-/** The same controls capsule is used by ordinary and externally owned conversations. */
+/**
+ * The same controls capsule is used by ordinary and externally owned conversations. It may grow
+ * up to the send button minus a fixed gap; only the model selector inside it is flexible.
+ */
 @Composable
-internal fun ComposerControlGroup(content: @Composable RowScope.() -> Unit) {
+internal fun RowScope.ComposerControlGroup(content: @Composable RowScope.() -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.height(48.dp)
+        modifier = Modifier.weight(1f, fill = false).height(48.dp)
             .background(MaterialTheme.colorScheme.surfaceColorAtElevation(10.dp), RoundedCornerShape(100))
             .padding(horizontal = 8.dp, vertical = 4.dp),
         content = content,
     )
+    Spacer(modifier = Modifier.width(COMPOSER_SEND_BUTTON_GAP))
 }
 
+/** The only flexible child of [ComposerControlGroup]; the space left in the group caps its width. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ComposerModelSelector(
+internal fun RowScope.ComposerModelSelector(
     displayText: String,
     isModelValid: Boolean,
     expanded: Boolean,
@@ -85,67 +92,78 @@ internal fun ComposerModelSelector(
     menuContent: @Composable ColumnScope.() -> Unit,
 ) {
     val labelStyle = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp)
-    val textMeasurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    // The final button width, measured on its own so that no animated value ever constrains the
-    // button or its label: 8 dp padding on each side, the button's minimum width, and the cap.
-    val targetWidth = with(density) {
-        val labelWidth = textMeasurer.measure(
-            text = AnnotatedString(displayText),
-            style = labelStyle,
-            maxLines = 1,
-            softWrap = false,
-        ).size.width.toDp()
-        (labelWidth + MODEL_SELECTOR_PADDING * 2)
-            .coerceIn(ButtonDefaults.MinWidth, MODEL_SELECTOR_MAX_WIDTH)
-    }
-    val clipWidth = rememberIdentityClipWidth(
-        identity = displayText,
-        targetWidth = targetWidth,
-        allowSpatialTransitions = LocalAgoraMotionPolicy.current.allowSpatialTransitions,
-    )
-    ExposedDropdownMenuBox(expanded = expanded && enabled, onExpandedChange = {}) {
-        // The slot takes the clip width, so the controls after it follow the visible edge, and one
-        // start-anchored rounded clip cuts the whole button, ripple included, at that edge.
-        Box(
-            modifier = Modifier
-                .height(MODEL_SELECTOR_HEIGHT)
-                .width(clipWidth)
-                .clip(RoundedCornerShape(50)),
-        ) {
-            TextButton(
-                onClick = onClick,
-                enabled = enabled,
+    BoxWithConstraints(modifier = Modifier.weight(1f, fill = false)) {
+        val availableWidth = if (constraints.hasBoundedWidth) maxWidth else Dp.Unspecified
+        val labelMaxWidth = if (availableWidth.isSpecified) availableWidth - MODEL_SELECTOR_PADDING * 2 else Dp.Unspecified
+        val textMeasurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        // The final button width, measured on its own so that no animated value ever constrains the
+        // button or its label: 8 dp padding on each side, the button's minimum width, and the space
+        // left in the controls group.
+        val targetWidth = with(density) {
+            val labelWidth = textMeasurer.measure(
+                text = AnnotatedString(displayText),
+                style = labelStyle,
+                maxLines = 1,
+                softWrap = false,
+            ).size.width.toDp()
+            (labelWidth + MODEL_SELECTOR_PADDING * 2)
+                .coerceAtLeast(ButtonDefaults.MinWidth)
+                .let { width -> if (availableWidth.isSpecified) width.coerceAtMost(availableWidth) else width }
+        }
+        val clipWidth = rememberIdentityClipWidth(
+            identity = displayText,
+            targetWidth = targetWidth,
+            allowSpatialTransitions = LocalAgoraMotionPolicy.current.allowSpatialTransitions,
+        )
+        ExposedDropdownMenuBox(expanded = expanded && enabled, onExpandedChange = {}) {
+            // The slot takes the clip width, so the controls after it follow the visible edge, and one
+            // start-anchored rounded clip cuts the whole button, ripple included, at that edge.
+            Box(
                 modifier = Modifier
-                    .wrapContentWidth(Alignment.Start, unbounded = true)
-                    .size(targetWidth, MODEL_SELECTOR_HEIGHT)
-                    .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = enabled),
-                contentPadding = PaddingValues(MODEL_SELECTOR_PADDING),
+                    .height(MODEL_SELECTOR_HEIGHT)
+                    .width(clipWidth)
+                    .clip(RoundedCornerShape(50)),
             ) {
-                Crossfade(
-                    targetState = displayText,
-                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
-                    label = "composerModelSelector",
-                ) { label ->
-                    Text(
-                        text = label,
-                        style = labelStyle,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = if (isModelValid) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    )
+                TextButton(
+                    onClick = onClick,
+                    enabled = enabled,
+                    modifier = Modifier
+                        .wrapContentWidth(Alignment.Start, unbounded = true)
+                        .size(targetWidth, MODEL_SELECTOR_HEIGHT)
+                        .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = enabled),
+                    contentPadding = PaddingValues(MODEL_SELECTOR_PADDING),
+                ) {
+                    Crossfade(
+                        targetState = displayText,
+                        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                        label = "composerModelSelector",
+                    ) { label ->
+                        // Each label keeps its own width while it fades, so an outgoing longer name is
+                        // cut only by the moving clip; it ellipsizes only past the space left.
+                        Text(
+                            text = label,
+                            style = labelStyle,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (isModelValid) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .wrapContentWidth(Alignment.Start, unbounded = true)
+                                .widthIn(max = labelMaxWidth),
+                        )
+                    }
                 }
             }
+            ExposedDropdownMenu(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                expanded = expanded && enabled,
+                onDismissRequest = onDismissRequest,
+                matchTextFieldWidth = false,
+                shape = CHAT_DROPDOWN_MENU_SHAPE,
+                content = menuContent,
+            )
         }
-        ExposedDropdownMenu(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            expanded = expanded && enabled,
-            onDismissRequest = onDismissRequest,
-            matchTextFieldWidth = false,
-            shape = CHAT_DROPDOWN_MENU_SHAPE,
-            content = menuContent,
-        )
     }
 }
 
