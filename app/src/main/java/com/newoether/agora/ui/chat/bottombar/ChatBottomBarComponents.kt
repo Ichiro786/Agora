@@ -44,10 +44,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
+import com.newoether.agora.ui.motion.rememberIdentityClipWidth
 import com.newoether.agora.R
 import com.newoether.agora.ui.theme.ChatType
 
 internal const val CHAT_DROPDOWN_MENU_ICON_SIZE_DP = 24
+
+private val MODEL_SELECTOR_HEIGHT = 38.dp
+private val MODEL_SELECTOR_PADDING = 8.dp
+private val MODEL_SELECTOR_MAX_WIDTH = 160.dp
 
 /** The same controls capsule is used by ordinary and externally owned conversations. */
 @Composable
@@ -72,22 +84,59 @@ internal fun ComposerModelSelector(
     enabled: Boolean = true,
     menuContent: @Composable ColumnScope.() -> Unit,
 ) {
+    val labelStyle = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp)
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    // The final button width, measured on its own so that no animated value ever constrains the
+    // button or its label: 8 dp padding on each side, the button's minimum width, and the cap.
+    val targetWidth = with(density) {
+        val labelWidth = textMeasurer.measure(
+            text = AnnotatedString(displayText),
+            style = labelStyle,
+            maxLines = 1,
+            softWrap = false,
+        ).size.width.toDp()
+        (labelWidth + MODEL_SELECTOR_PADDING * 2)
+            .coerceIn(ButtonDefaults.MinWidth, MODEL_SELECTOR_MAX_WIDTH)
+    }
+    val clipWidth = rememberIdentityClipWidth(
+        identity = displayText,
+        targetWidth = targetWidth,
+        allowSpatialTransitions = LocalAgoraMotionPolicy.current.allowSpatialTransitions,
+    )
     ExposedDropdownMenuBox(expanded = expanded && enabled, onExpandedChange = {}) {
-        TextButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = Modifier.height(38.dp).widthIn(max = 160.dp)
-                .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = enabled),
-            contentPadding = PaddingValues(8.dp),
+        // The slot takes the clip width, so the controls after it follow the visible edge, and one
+        // start-anchored rounded clip cuts the whole button, ripple included, at that edge.
+        Box(
+            modifier = Modifier
+                .height(MODEL_SELECTOR_HEIGHT)
+                .width(clipWidth)
+                .clip(RoundedCornerShape(50)),
         ) {
-            Text(
-                text = displayText,
-                style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = if (isModelValid) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-            )
+            TextButton(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = Modifier
+                    .wrapContentWidth(Alignment.Start, unbounded = true)
+                    .size(targetWidth, MODEL_SELECTOR_HEIGHT)
+                    .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = enabled),
+                contentPadding = PaddingValues(MODEL_SELECTOR_PADDING),
+            ) {
+                Crossfade(
+                    targetState = displayText,
+                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                    label = "composerModelSelector",
+                ) { label ->
+                    Text(
+                        text = label,
+                        style = labelStyle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = if (isModelValid) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    )
+                }
+            }
         }
         ExposedDropdownMenu(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,

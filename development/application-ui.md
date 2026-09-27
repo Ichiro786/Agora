@@ -666,6 +666,19 @@ lift grows and shrinks with the card and is exactly zero once no card is shown. 
 clip their highlight and ripple to a corner radius of `min(height / 2, 24 dp)`: a capsule for a
 single-line option, `24 dp` for a wrapped one. Verification covers the leaving page, the monotonic
 lift ending at zero, the post-exit gone callback, and both option radii.
+## 28. Composer model selector motion
+The Chat bottom-bar model selector follows the section 24 motion language through the same shared
+clip owner (`ui/motion/IdentityClipWidth.kt`, also used by the top-bar title). A change of the
+displayed label Crossfades the label over `200 ms` with `FastOutSlowInEasing`. The button is always
+laid out at its independently measured final width: label width plus `8 dp` padding on each side,
+at least the Material button minimum width and at most `160 dp`. One start-anchored rounded clip
+(`50%` corners) cuts the whole button, including its ripple, at the visible edge, which moves over
+`400 ms` with `FastOutSlowInEasing`, rebases toward a newer target within the same deadline, and
+ends exactly on the latest target. The selector's slot takes the clip width, so the controls after
+it follow the visible edge. `animateContentSize` does not participate. Initial composition presents
+the final width without motion; Reduced Motion snaps the clip and keeps the Crossfade. Verification
+covers the shared owner's deadline, mid-motion rebasing, target-only updates, initial presentation,
+and Reduced Motion snap.
 ## 15. Verification
 
 Focused verification must cover the onboarding action's fixed 32 dp inset and 48 dp height, absence
