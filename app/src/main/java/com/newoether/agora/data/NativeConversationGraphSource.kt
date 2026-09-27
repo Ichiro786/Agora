@@ -3,11 +3,15 @@ package com.newoether.agora.data
 import android.util.JsonReader
 import android.util.JsonToken
 import android.util.JsonWriter
+import java.io.ByteArrayInputStream
 import java.io.Closeable
 import java.io.File
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
+import java.io.SequenceInputStream
+import java.nio.file.Files
+import java.util.Collections
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 
@@ -20,14 +24,14 @@ internal interface NativeGraphEntrySource {
 internal class NativeConversationGraphSource private constructor(
     private val archive: NativeGraphEntrySource,
     private val legacyEntry: String?,
-    private val spool: File?,
+    private val spool: Spool?,
 ) : Closeable {
     private val handedOut = mutableListOf<InputStream>()
 
     fun open(): InputStream {
         val stream = legacyEntry?.let {
             checkNotNull(archive.stream(it))
-        } ?: checkNotNull(spool).inputStream()
+        } ?: checkNotNull(spool).open()
         synchronized(handedOut) { handedOut += stream }
         return stream
     }
@@ -37,7 +41,32 @@ internal class NativeConversationGraphSource private constructor(
             handedOut.forEach { stream -> runCatching { stream.close() } }
             handedOut.clear()
         }
-        if (spool != null && !spool.delete()) spool.deleteOnExit()
+        spool?.delete()
+    }
+    /**
+     * The merged v5 graph, kept as one JSON array file per field. Reading it chains the arrays
+     * under their field names, so each item is decompressed once however often the graph is read.
+     */
+    private class Spool(private val directory: File) {
+        fun part(field: String): File = File(directory, "$field.json")
+        fun open(): InputStream {
+            val pieces = mutableListOf<InputStream>()
+            try {
+                GRAPH_FIELDS.forEachIndexed { index, field ->
+                    val separator = if (index == 0) "{" else ","
+                    pieces += ByteArrayInputStream("$separator\"$field\":".encodeToByteArray())
+                    pieces += part(field).inputStream()
+                }
+                pieces += ByteArrayInputStream("}".encodeToByteArray())
+            } catch (error: Throwable) {
+                pieces.forEach { runCatching { it.close() } }
+                throw error
+            }
+            return SequenceInputStream(Collections.enumeration(pieces))
+        }
+        fun delete() {
+            if (!directory.deleteRecursively()) directory.deleteOnExit()
+        }
     }
 
     companion object {
@@ -52,7 +81,8 @@ internal class NativeConversationGraphSource private constructor(
                 ?.decodeToString()
                 ?.let { Json.decodeFromString<NativeConversationIndex>(it) }
                 ?: error("${NativeBackupFormat.CONVERSATION_INDEX_ENTRY} is missing")
-            val spool = File.createTempFile("agora-import-v5-", ".json", cacheDir)
+            val spool = Spool(Files.createTempDirectory(cacheDir.toPath(), "agora-import-v5-").toFile())
+            val writers = mutableMapOf<String, JsonWriter>()
             try {
                 val seenIds = mutableSetOf<String>()
                 index.conversations.forEach { item ->
@@ -61,31 +91,47 @@ internal class NativeConversationGraphSource private constructor(
                         "Index entry ${item.entry} does not match id ${item.id}"
                     }
                 }
-                JsonWriter(OutputStreamWriter(spool.outputStream(), Charsets.UTF_8)).use { writer ->
-                    writer.beginObject()
-                    listOf("conversations", "runs", "messages", "loops").forEach { field ->
-                        writer.name(field).beginArray()
-                        index.conversations.forEach { item ->
-                            require(item.entry == NativeBackupFormat.conversationEntry(item.id))
-                            archive.stream(item.entry)?.use { copyArrayField(it, field, writer) }
-                                ?: error("${item.entry} is missing")
-                        }
-                        writer.endArray()
-                    }
-                    writer.name("tasks").beginArray()
-                    archive.stream(NativeBackupFormat.TASKS_ENTRY)?.use {
-                        copyArrayField(it, "tasks", writer)
-                    } ?: error("${NativeBackupFormat.TASKS_ENTRY} is missing")
-                    writer.endArray()
-                    writer.endObject()
+                GRAPH_FIELDS.forEach { field ->
+                    writers[field] = JsonWriter(
+                        OutputStreamWriter(spool.part(field).outputStream().buffered(), Charsets.UTF_8),
+                    ).apply { beginArray() }
+                }
+                // One pass per item: every field is routed to its own array file.
+                index.conversations.forEach { item ->
+                    archive.stream(item.entry)?.use { splitItem(it, writers) }
+                        ?: error("${item.entry} is missing")
+                }
+                archive.stream(NativeBackupFormat.TASKS_ENTRY)?.use {
+                    copyArrayField(it, "tasks", writers.getValue("tasks"))
+                } ?: error("${NativeBackupFormat.TASKS_ENTRY} is missing")
+                GRAPH_FIELDS.forEach { field ->
+                    writers.remove(field)!!.apply { endArray() }.close()
                 }
                 return NativeConversationGraphSource(archive, null, spool)
             } catch (error: Throwable) {
+                writers.values.forEach { runCatching { it.close() } }
                 spool.delete()
                 throw error
             }
         }
-
+        private val GRAPH_FIELDS = listOf("conversations", "runs", "messages", "loops", "tasks")
+        private fun splitItem(stream: InputStream, writers: Map<String, JsonWriter>) {
+            JsonReader(InputStreamReader(stream, Charsets.UTF_8)).use { reader ->
+                reader.beginObject()
+                while (reader.hasNext()) {
+                    val name = reader.nextName()
+                    val writer = writers[name]?.takeIf { name != "tasks" }
+                    if (writer == null) {
+                        reader.skipValue()
+                        continue
+                    }
+                    reader.beginArray()
+                    while (reader.hasNext()) copyValue(reader, writer)
+                    reader.endArray()
+                }
+                reader.endObject()
+            }
+        }
         private fun copyArrayField(stream: InputStream, field: String, writer: JsonWriter) {
             JsonReader(InputStreamReader(stream, Charsets.UTF_8)).use { reader ->
                 reader.beginObject()
