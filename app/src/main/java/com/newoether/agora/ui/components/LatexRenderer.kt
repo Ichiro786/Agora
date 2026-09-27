@@ -14,6 +14,7 @@ import com.newoether.agora.ui.chat.message.MarkdownImageThumbnail
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,6 +44,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import org.scilab.forge.jlatexmath.DefaultTeXFont
+import org.scilab.forge.jlatexmath.TeXConstants
 import ru.noties.jlatexmath.JLatexMathDrawable
 import kotlin.io.encoding.Base64
 import kotlin.math.roundToInt
@@ -417,13 +420,41 @@ fun renderLatexToBitmap(
         val ih = drawable.intrinsicHeight
         val w = maxOf(iw.takeIf { it > 0 } ?: fallbackW, minW)
         val h = ih.takeIf { it > 0 } ?: fallbackH
-        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        // Placeholders are centered on the text, so pad above or below until the TeX math axis
+        // (where fraction bars and the minus sign sit) is the bitmap's vertical center.
+        val padding = if (ih > 0) mathAxisCenteringPadding(drawable, textSize, h) else AxisPadding(0, 0)
+        val bmp = Bitmap.createBitmap(w, h + padding.top + padding.bottom, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
+        canvas.translate(0f, padding.top.toFloat())
         drawable.setBounds(0, 0, w, h)
         drawable.draw(canvas)
         bmp
     } catch (e: Exception) {
         null
+    }
+}
+
+internal data class AxisPadding(val top: Int, val bottom: Int)
+
+/**
+ * The transparent rows to add so the math axis lands on the vertical center of a formula of
+ * [height] pixels. The axis is the formula font's axis height above the icon's baseline.
+ */
+private fun mathAxisCenteringPadding(drawable: JLatexMathDrawable, textSize: Float, height: Int): AxisPadding {
+    val icon = drawable.icon()
+    val baselineY = icon.baseLine * height
+    val axisHeight = DefaultTeXFont(textSize).getAxisHeight(TeXConstants.STYLE_DISPLAY) * textSize
+    return axisCenteringPadding(axisY = baselineY - axisHeight, height = height)
+}
+
+/** Rows above and below that move [axisY] (pixels from the top) to the center of the result. */
+internal fun axisCenteringPadding(axisY: Float, height: Int): AxisPadding {
+    val above = axisY.coerceIn(0f, height.toFloat())
+    val below = height - above
+    return if (above < below) {
+        AxisPadding(top = (below - above).roundToInt(), bottom = 0)
+    } else {
+        AxisPadding(top = 0, bottom = (above - below).roundToInt())
     }
 }
 
@@ -508,10 +539,15 @@ private object LatexBitmapCache {
             return size > MAX_ENTRIES
         }
     }
+    // Rendered sizes as snapshot state, so layout decisions that depend on a formula's size
+    // recompose when its bitmap finishes. Sizes outlive evicted bitmaps; a re-render is identical.
+    private val renderedSizes = mutableStateMapOf<LatexRenderKey, Size>()
 
     fun get(key: LatexRenderKey): Bitmap? = synchronized(lock) {
         bitmaps[key]
     }
+
+    fun observedSize(key: LatexRenderKey): Size? = renderedSizes[key]
 
     fun renderAsync(key: LatexRenderKey): Deferred<Bitmap> = synchronized(lock) {
         bitmaps[key]?.let { return CompletableDeferred(it) }
@@ -522,6 +558,7 @@ private object LatexBitmapCache {
         renderScope.launch {
             try {
                 val rendered = renderBitmap(key)
+                renderedSizes[key] = Size(rendered.width.toFloat(), rendered.height.toFloat())
                 synchronized(lock) {
                     bitmaps[key] = rendered
                     if (inFlight[key] === deferred) {
@@ -603,6 +640,17 @@ class LatexImageTransformer(
             }
         }
         return true
+    }
+
+    /**
+     * The formula's size in pixels: the rendered bitmap once it exists, the placeholder estimate
+     * before. Reading it in composition recomposes when the bitmap finishes. Null for other links.
+     */
+    fun formulaSize(link: String): Size? {
+        val request = decodeLatexLink(link) ?: return null
+        val key = LatexRenderKey(request.latex, textSize, color)
+        return LatexBitmapCache.observedSize(key)
+            ?: estimateLatexPlaceholderSize(request.latex, textSize, request.display)
     }
 
     @Composable

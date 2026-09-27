@@ -32,7 +32,7 @@ import com.newoether.agora.ui.chat.message.SearchHighlightedMarkdownHeading
 import com.newoether.agora.ui.chat.message.SearchHighlightedMarkdownTable
 import com.newoether.agora.ui.chat.message.SearchHighlightedMarkdownText
 import com.newoether.agora.ui.chat.message.chatLinkTextStyles
-import com.newoether.agora.ui.chat.message.chatMarkdownAnnotator
+import com.newoether.agora.ui.chat.message.literalHtmlMarkdownAnnotator
 import com.newoether.agora.ui.chat.message.scaledMarkdownTextStyle
 import com.newoether.agora.util.NoAutoScrollSelectionContainer
 import com.mikepenz.markdown.compose.MarkdownElement
@@ -183,7 +183,7 @@ fun TextFileViewer(
                         modifier = Modifier.fillMaxWidth(),
                         typography = viewerTypography,
                         padding = viewerPadding,
-                        annotator = chatMarkdownAnnotator,
+                        annotator = literalHtmlMarkdownAnnotator,
                         components = literalHtmlComponents,
                     )
                                     }

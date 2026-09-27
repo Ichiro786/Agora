@@ -257,6 +257,7 @@ internal fun rememberChatMarkdownAssets(
                     spec = LocalSearchHighlightSpec.current,
                     highlightColor = searchHighlightColor,
                     activeHighlightColor = activeSearchHighlightColor,
+                    promoteWideLatex = true,
                 )
             },
             heading1 = { model ->
@@ -616,6 +617,7 @@ internal fun SearchHighlightedMarkdownText(
     spec: SearchHighlightSpec? = null,
     highlightColor: Color = SearchHighlightBackground,
     activeHighlightColor: Color = ActiveSearchHighlightBackground,
+    promoteWideLatex: Boolean = false,
 ) {
     val settings = annotatorSettings()
     val citationTokens = LocalCitationInlineTokens.current
@@ -646,12 +648,13 @@ internal fun SearchHighlightedMarkdownText(
             color = fadeColor,
             fade = nodeFade,
         )
-        AnimatedMarkdownText(
+        LatexAwareMarkdownText(
             content = renderedText,
             node = model.node,
             modifier = modifier,
             style = style,
             sourceContent = model.content,
+            promoteWideLatex = promoteWideLatex,
         )
         return
     }
@@ -699,7 +702,7 @@ internal fun SearchHighlightedMarkdownText(
         layoutResult = layoutResult,
         coordinates = coordinates,
     )
-    AnimatedMarkdownText(
+    LatexAwareMarkdownText(
         content = renderedText,
         node = model.node,
         modifier = modifier
@@ -707,6 +710,7 @@ internal fun SearchHighlightedMarkdownText(
         style = style,
         onTextLayout = { layoutResult = it },
         sourceContent = model.content,
+        promoteWideLatex = promoteWideLatex,
     )
 }
 

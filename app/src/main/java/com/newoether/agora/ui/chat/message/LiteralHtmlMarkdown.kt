@@ -17,34 +17,38 @@ import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.ast.getTextInNode
 
 /**
- * Agora's annotated-string rules on top of the renderer defaults.
- *
- * - The Compose renderer does not provide default output for inline HTML AST nodes. Treat model
- *   output as literal Markdown text instead of executable HTML and append the original source range.
- * - A LaTeX image keeps the renderer's inline-content tag, so layout and placeholders are unchanged,
- *   but its alternate text is the formula's original source instead of its `latex://` URL. Selection
- *   copies that alternate text.
+ * The Compose renderer does not provide default output for inline HTML AST nodes. Treat model
+ * output as literal Markdown text instead of executable HTML and append the original source range.
  */
-internal val chatMarkdownAnnotator: MarkdownAnnotator = markdownAnnotator { content, child ->
-    when (child.type) {
-        MarkdownTokenTypes.HTML_TAG -> {
-            append(child.getTextInNode(content))
-            true
-        }
-        MarkdownElementTypes.IMAGE -> {
-            val link = markdownImageLink(content, child, null)
-            val source = link?.let(::latexSourceForLink)
-            if (source != null) {
-                appendInlineContent("${MARKDOWN_TAG_IMAGE_URL}_$link", source)
-                true
-            } else {
-                false
-            }
-        }
-        else -> false
+private fun AnnotatedString.Builder.appendLiteralHtml(content: String, child: ASTNode): Boolean =
+    if (child.type == MarkdownTokenTypes.HTML_TAG) {
+        append(child.getTextInNode(content))
+        true
+    } else {
+        false
     }
+
+/** Literal inline HTML only, for Markdown outside chat messages. */
+internal val literalHtmlMarkdownAnnotator: MarkdownAnnotator = markdownAnnotator { content, child ->
+    appendLiteralHtml(content, child)
 }
 
+/**
+ * Chat Markdown rules on top of the renderer defaults.
+ *
+ * - Inline HTML stays literal text.
+ * - A LaTeX image keeps the renderer's inline-content tag, so placeholders and block promotion are
+ *   unchanged, but its alternate text is the formula's original source instead of its `latex://`
+ *   URL. Selection copies that alternate text.
+ */
+internal val chatMarkdownAnnotator: MarkdownAnnotator = markdownAnnotator { content, child ->
+    if (appendLiteralHtml(content, child)) return@markdownAnnotator true
+    if (child.type != MarkdownElementTypes.IMAGE) return@markdownAnnotator false
+    val link = markdownImageLink(content, child, null)
+    val source = link?.let(::latexSourceForLink) ?: return@markdownAnnotator false
+    appendInlineContent("${MARKDOWN_TAG_IMAGE_URL}_$link", source)
+    true
+}
 internal fun literalHtmlBlockText(content: String, node: ASTNode): String? =
     if (node.type == MarkdownElementTypes.HTML_BLOCK) {
         node.getTextInNode(content).toString()
