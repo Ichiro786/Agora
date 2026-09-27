@@ -688,7 +688,9 @@ label cap. User message bubbles (`UserBubbleShape`) give the top-start, top-end,
 corners one shared radius, `min(28 dp, half the bubble's smaller side)`, and keep a `4 dp` bottom-end
 tail (never larger than that radius). The three large corners always match, including short or
 narrow bubbles; `RoundedCornerShape` is not used because it shrinks each side's corner pair on its
-own. The radius does not grow with bubble height. The `ask_user` interaction
+own. The radius does not grow with bubble height. Attachments inside the bubble (images, video,
+files, PDFs) use `12 dp` corners, the bubble corner minus its `16 dp` padding, so inner and outer
+corners run parallel; the composer attachment preview keeps its own `8 dp`. The `ask_user` interaction
 capsule and its Settings toggle use the outlined help icon (a question mark in a circle). The drawer
 search indicator shows exactly while the newest search runs: a cancelled search never clears it.
 The conversation switching overlay keeps its full-body background and centers its indicator between
