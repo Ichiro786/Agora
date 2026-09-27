@@ -566,6 +566,7 @@
     <string name="shell_confirm_notification_desc">Agora가 백그라운드에 있을 때 원격 명령을 허용하거나 거부하도록 묻습니다</string>
     <string name="ask_user_title">어시스턴트의 질문</string>
     <string name="ask_user_send">보내기</string>
+    <string name="ask_user_next">다음</string>
     <string name="ask_user_custom_answer">직접 답변 입력</string>
     <string name="ask_user_skip">건너뛰기</string>
     <string name="ask_user_notification_channel">Agora의 질문</string>

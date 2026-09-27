@@ -39,16 +39,34 @@ class UserInteractionRequestsTest {
     }
 
     @Test
+    fun `questions asked together form one card in the place of the first`() {
+        val setFirst = question(id = 2, conversationId = "c1", setId = 1)
+        val single = question(id = 4, conversationId = "c1")
+        val setSecond = question(id = 3, conversationId = "c1", setId = 1)
+        val interactions = userInteractions("c1", listOf(setFirst, single, setSecond), null)
+        assertEquals(listOf("question:1", "question:4"), interactions.map { it.key })
+        assertEquals(
+            listOf(2L, 3L),
+            (interactions.first() as UserInteraction.Question).requests.map { it.id },
+        )
+    }
+
+    @Test
     fun `nothing pending produces no cards`() {
         assertEquals(emptyList<UserInteraction>(), userInteractions("c1", emptyList(), null))
     }
 
-    private fun question(id: Long, conversationId: String?) = AskUserController.Request(
+    private fun question(
+        id: Long,
+        conversationId: String?,
+        setId: Long? = null,
+    ) = AskUserController.Request(
         id = id,
         conversationId = conversationId,
         question = "Which one?",
         options = listOf("A", "B"),
         allowMultiple = false,
         blocking = true,
+        setId = setId,
     )
 }

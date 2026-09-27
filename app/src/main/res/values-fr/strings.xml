@@ -566,6 +566,7 @@
     <string name="shell_confirm_notification_desc">Demande à autoriser ou refuser une commande distante pendant qu\'Agora est en arrière-plan</string>
     <string name="ask_user_title">L\'assistant vous demande</string>
     <string name="ask_user_send">Envoyer</string>
+    <string name="ask_user_next">Suivant</string>
     <string name="ask_user_custom_answer">Répondez avec vos mots</string>
     <string name="ask_user_skip">Ignorer</string>
     <string name="ask_user_notification_channel">Question d\'Agora</string>

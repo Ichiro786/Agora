@@ -566,6 +566,7 @@
     <string name="shell_confirm_notification_desc">يطلب السماح بأمر عن بُعد أو رفضه عندما يكون Agora في الخلفية</string>
     <string name="ask_user_title">المساعد يسأل</string>
     <string name="ask_user_send">إرسال</string>
+    <string name="ask_user_next">التالي</string>
     <string name="ask_user_custom_answer">أجب بكلماتك</string>
     <string name="ask_user_skip">تخطي</string>
     <string name="ask_user_notification_channel">سؤال من Agora</string>

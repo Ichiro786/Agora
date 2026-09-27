@@ -566,6 +566,7 @@
     <string name="shell_confirm_notification_desc">Agora がバックグラウンドにある間に、リモートコマンドを許可または拒否するよう尋ねます</string>
     <string name="ask_user_title">アシスタントからの質問</string>
     <string name="ask_user_send">送信</string>
+    <string name="ask_user_next">次へ</string>
     <string name="ask_user_custom_answer">自分の言葉で答える</string>
     <string name="ask_user_skip">スキップ</string>
     <string name="ask_user_notification_channel">Agora からの質問</string>

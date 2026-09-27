@@ -617,6 +617,7 @@
     <string name="shell_confirm_notification_desc">Agora 在后台时，请求你允许或拒绝远程命令</string>
     <string name="ask_user_title">助手正在提问</string>
     <string name="ask_user_send">发送</string>
+    <string name="ask_user_next">下一题</string>
     <string name="ask_user_custom_answer">用自己的话回答</string>
     <string name="ask_user_skip">跳过</string>
     <string name="ask_user_notification_channel">Agora 的提问</string>

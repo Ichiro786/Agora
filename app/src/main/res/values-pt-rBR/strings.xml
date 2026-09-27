@@ -566,6 +566,7 @@
     <string name="shell_confirm_notification_desc">Pede para permitir ou negar um comando remoto enquanto o Agora está em segundo plano</string>
     <string name="ask_user_title">O assistente está perguntando</string>
     <string name="ask_user_send">Enviar</string>
+    <string name="ask_user_next">Próxima</string>
     <string name="ask_user_custom_answer">Responda com suas palavras</string>
     <string name="ask_user_skip">Ignorar</string>
     <string name="ask_user_notification_channel">Pergunta do Agora</string>

@@ -132,6 +132,8 @@ class AskUserToolProvider(private val askUser: AskUserController) : ToolProvider
             is ParsedQuestions.Invalid -> return failure(parsed.code, parsed.detail)
             is ParsedQuestions.Valid -> parsed.questions
         }
+        // A set is one card with a page per question, so its questions share one set id.
+        val setId = if (questions.size > 1) askUser.newSetId() else null
         val requests = questions.map { question ->
             askUser.open(
                 conversationId = ctx.conversationId,
@@ -139,6 +141,7 @@ class AskUserToolProvider(private val askUser: AskUserController) : ToolProvider
                 options = question.options,
                 allowMultiple = question.allowMultiple,
                 blocking = blocking,
+                setId = setId,
             )
         }
         if (!blocking) return queuedResult(requests.size)

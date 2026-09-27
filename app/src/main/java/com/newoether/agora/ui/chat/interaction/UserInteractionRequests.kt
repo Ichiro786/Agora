@@ -13,8 +13,14 @@ import com.newoether.agora.viewmodel.ShellConfirmationController
 internal sealed interface UserInteraction {
     val key: String
 
-    data class Question(val request: AskUserController.Request) : UserInteraction {
-        override val key: String get() = "question:${request.id}"
+    /** Everything one `ask_user` call asked: one question, or a set shown as one paged card. */
+    data class Question(val requests: List<AskUserController.Request>) : UserInteraction {
+        init {
+            require(requests.isNotEmpty())
+        }
+
+        override val key: String
+            get() = "question:${requests.first().let { it.setId ?: it.id }}"
     }
 
     data class ShellCommand(
@@ -36,8 +42,11 @@ internal fun userInteractions(
     questions: List<AskUserController.Request>,
     shellCommand: ShellConfirmationController.PendingShellCommand?,
 ): List<UserInteraction> {
+    // Questions of one set stay together in one card, placed where the set's first question is.
     val visibleQuestions = questions
         .filter { it.conversationId == null || it.conversationId == conversationId }
+        .groupBy { request -> request.setId?.let { "set:$it" } ?: "single:${request.id}" }
+        .values
         .map { UserInteraction.Question(it) }
     val shell = shellCommand?.let { UserInteraction.ShellCommand(it) }
     return if (shell == null) visibleQuestions else visibleQuestions + shell

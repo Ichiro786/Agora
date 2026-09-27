@@ -608,6 +608,7 @@
     <string name="shell_confirm_notification_desc">Agora 於背景執行時，請求你允許或拒絕遠端命令</string>
     <string name="ask_user_title">助手正在提問</string>
     <string name="ask_user_send">傳送</string>
+    <string name="ask_user_next">下一題</string>
     <string name="ask_user_custom_answer">用自己的話回答</string>
     <string name="ask_user_skip">略過</string>
     <string name="ask_user_notification_channel">Agora 的提問</string>

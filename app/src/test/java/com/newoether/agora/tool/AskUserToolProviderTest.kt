@@ -79,6 +79,9 @@ class AskUserToolProviderTest {
         assertEquals(listOf("First?", "Second?"), waiting.map { it.question })
         assertFalse(waiting[0].allowMultiple)
         assertTrue(waiting[1].allowMultiple)
+        // One call, one card: both questions carry the same set id.
+        assertTrue(waiting[0].setId != null)
+        assertEquals(waiting[0].setId, waiting[1].setId)
 
         // Answered out of order, because both cards are on screen at the same time.
         controller.submit(waiting[1].id, listOf("B", "C"))

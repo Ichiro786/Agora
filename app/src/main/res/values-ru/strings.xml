@@ -566,6 +566,7 @@
     <string name="shell_confirm_notification_desc">Запрашивает разрешение или запрет удалённой команды, пока Agora в фоновом режиме</string>
     <string name="ask_user_title">Ассистент спрашивает</string>
     <string name="ask_user_send">Отправить</string>
+    <string name="ask_user_next">Далее</string>
     <string name="ask_user_custom_answer">Ответьте своими словами</string>
     <string name="ask_user_skip">Пропустить</string>
     <string name="ask_user_notification_channel">Вопрос от Agora</string>

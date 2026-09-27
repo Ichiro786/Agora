@@ -29,15 +29,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -59,11 +56,10 @@ import androidx.compose.ui.unit.dp
 import com.newoether.agora.R
 import com.newoether.agora.ui.chat.message.ChatMarkdownCodeBlock
 import com.newoether.agora.ui.motion.LocalAgoraMotionPolicy
-import com.newoether.agora.viewmodel.AskUserController
 import com.newoether.agora.viewmodel.ShellConfirmationController
 
 private val ContentMaxWidth = 840.dp
-private val ScrollableContentMaxHeight = 200.dp
+internal val ScrollableContentMaxHeight = 200.dp
 private const val AppearDurationMs = 180
 
 /** The bar grows out of the composer, so it scales from its bottom edge rather than its centre. */
@@ -72,7 +68,8 @@ private val BottomOrigin = TransformOrigin(0.5f, 1f)
 /**
  * Bottom bar that answers the requests in [interactions] without covering the conversation.
  *
- * Requests stack, so the bar is a pager: one card per request, swiped left and right, with the
+ * Requests stack, so the bar is a pager: one card per request (a set of questions asked together
+ * is one card with a page per question), swiped left and right, with the
  * oldest first. Answering removes that card and the next one takes its place. Nothing here can be
  * dismissed by tapping elsewhere; both kinds of request are answered only by their own buttons,
  * which keeps the shell confirmation a real security gate.
@@ -143,11 +140,9 @@ private fun UserInteractionPager(
             when (val interaction = interactions.getOrNull(page)) {
                 is UserInteraction.Question -> InteractionCard {
                     QuestionCardContent(
-                        request = interaction.request,
-                        onAnswer = { choices, text ->
-                            onAnswerQuestion(interaction.request.id, choices, text)
-                        },
-                        onSkip = { onSkipQuestion(interaction.request.id) },
+                        requests = interaction.requests,
+                        onAnswer = onAnswerQuestion,
+                        onSkip = onSkipQuestion,
                     )
                 }
                 is UserInteraction.ShellCommand -> InteractionCard {
@@ -180,141 +175,6 @@ private fun InteractionCard(content: @Composable () -> Unit) {
         shadowElevation = 4.dp,
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) { content() }
-    }
-}
-
-/**
- * One question.
- *
- * Options are optional: a request without them is an open question. Even with options the user can
- * type instead, because the model's list is its guess at what the answers are, and a wrong guess
- * must not force the user to pick one of it.
- */
-@Composable
-private fun QuestionCardContent(
-    request: AskUserController.Request,
-    onAnswer: (List<String>, String?) -> Unit,
-    onSkip: () -> Unit,
-) {
-    // Selection and draft belong to this request only: a new request must never inherit an old answer.
-    var selected by remember(request.id) { mutableStateOf(emptySet<String>()) }
-    var typed by remember(request.id) { mutableStateOf("") }
-    val hasOptions = request.options.isNotEmpty()
-    // Typing is one of the choices rather than a second control next to them. An open question has
-    // nothing to choose between, so there the field is the answer and is offered straight away.
-    var ownAnswer by remember(request.id) { mutableStateOf(!hasOptions) }
-    CardHeader(
-        icon = { tint ->
-            Icon(Icons.Default.QuestionAnswer, null, modifier = Modifier.size(18.dp), tint = tint)
-        },
-        title = stringResource(R.string.ask_user_title),
-    )
-    Spacer(Modifier.height(10.dp))
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = ScrollableContentMaxHeight)
-            .verticalScroll(rememberScrollState()),
-    ) {
-        Text(
-            text = request.question,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        if (hasOptions) {
-            Spacer(Modifier.height(10.dp))
-            request.options.forEach { option ->
-                OptionRow(
-                    option = option,
-                    checked = option in selected,
-                    allowMultiple = request.allowMultiple,
-                    onToggle = {
-                        selected = when {
-                            !request.allowMultiple -> setOf(option)
-                            option in selected -> selected - option
-                            else -> selected + option
-                        }
-                        // One answer means one choice: picking a listed option puts the typed one
-                        // away, and picking the typed one clears the list.
-                        if (!request.allowMultiple) ownAnswer = false
-                    },
-                )
-            }
-            OptionRow(
-                option = stringResource(R.string.ask_user_custom_answer),
-                checked = ownAnswer,
-                allowMultiple = request.allowMultiple,
-                onToggle = {
-                    ownAnswer = if (request.allowMultiple) !ownAnswer else true
-                    if (!request.allowMultiple) selected = emptySet()
-                },
-            )
-        }
-    }
-    if (ownAnswer) {
-        Spacer(Modifier.height(10.dp))
-        OutlinedTextField(
-            value = typed,
-            onValueChange = { typed = it },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = if (hasOptions) {
-                null
-            } else {
-                { Text(stringResource(R.string.ask_user_custom_answer)) }
-            },
-            textStyle = MaterialTheme.typography.bodyMedium,
-            shape = RoundedCornerShape(16.dp),
-            maxLines = 4,
-        )
-    }
-    Spacer(Modifier.height(6.dp))
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TextButton(onClick = onSkip) { Text(stringResource(R.string.ask_user_skip)) }
-        Spacer(Modifier.width(4.dp))
-        Button(
-            onClick = {
-                onAnswer(
-                    request.options.filter { it in selected },
-                    typed.trim().takeIf { ownAnswer && it.isNotEmpty() },
-                )
-            },
-            enabled = selected.isNotEmpty() || (ownAnswer && typed.isNotBlank()),
-        ) { Text(stringResource(R.string.ask_user_send)) }
-    }
-}
-
-@Composable
-private fun OptionRow(
-    option: String,
-    checked: Boolean,
-    allowMultiple: Boolean,
-    onToggle: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onToggle),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // The row owns the click, so the control itself stays non-interactive and the whole row
-        // reads as one target for accessibility services.
-        if (allowMultiple) {
-            Checkbox(checked = checked, onCheckedChange = null)
-        } else {
-            RadioButton(selected = checked, onClick = null)
-        }
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = option,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(vertical = 8.dp),
-        )
     }
 }
 
@@ -376,7 +236,7 @@ private fun ShellCardContent(
 }
 
 @Composable
-private fun CardHeader(
+internal fun CardHeader(
     icon: @Composable (Color) -> Unit,
     title: String,
 ) {

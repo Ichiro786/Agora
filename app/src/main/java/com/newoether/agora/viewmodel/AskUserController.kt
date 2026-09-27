@@ -36,6 +36,11 @@ class AskUserController {
         val allowMultiple: Boolean,
         /** False means the asking tool call already returned and the answer travels as a message. */
         val blocking: Boolean,
+        /**
+         * Shared by the questions one call asked together, so they are shown as one card; null for
+         * a question asked on its own. Each question is still answered by its own id.
+         */
+        val setId: Long? = null,
     )
 
     /**
@@ -77,6 +82,9 @@ class AskUserController {
      */
     val notificationSessionId: String = java.util.UUID.randomUUID().toString()
 
+    /** A fresh id for a set of questions opened together; it never equals a request id. */
+    fun newSetId(): Long = nextRequestId.getAndIncrement()
+
     /** Looks up a request that is still waiting, for callers that only kept its id. */
     fun requestById(id: Long): Request? = _requests.value.firstOrNull { it.id == id }
 
@@ -86,6 +94,7 @@ class AskUserController {
         options: List<String>,
         allowMultiple: Boolean,
         blocking: Boolean,
+        setId: Long? = null,
     ): Request {
         val request = Request(
             id = nextRequestId.getAndIncrement(),
@@ -94,6 +103,7 @@ class AskUserController {
             options = options,
             allowMultiple = allowMultiple,
             blocking = blocking,
+            setId = setId,
         )
         // Only a blocking request has a caller to resume.
         if (blocking) waiters[request.id] = CompletableDeferred()

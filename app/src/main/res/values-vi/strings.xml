@@ -575,6 +575,7 @@
     <string name="shell_confirm_notification_desc">Yêu cầu cho phép hoặc từ chối lệnh từ xa khi Agora chạy ngầm</string>
     <string name="ask_user_title">Trợ lý đang hỏi</string>
     <string name="ask_user_send">Gửi</string>
+    <string name="ask_user_next">Tiếp</string>
     <string name="ask_user_custom_answer">Trả lời bằng lời của bạn</string>
     <string name="ask_user_skip">Bỏ qua</string>
     <string name="ask_user_notification_channel">Câu hỏi từ Agora</string>

@@ -613,6 +613,7 @@
     <string name="shell_confirm_notification_desc">Asks you to allow or deny a remote command while Agora is in the background</string>
     <string name="ask_user_title">The assistant is asking</string>
     <string name="ask_user_send">Send</string>
+    <string name="ask_user_next">Next</string>
     <string name="ask_user_custom_answer">Answer in your own words</string>
     <string name="ask_user_skip">Skip</string>
     <string name="ask_user_notification_channel">Question from Agora</string>

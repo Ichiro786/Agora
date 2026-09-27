@@ -566,6 +566,7 @@
     <string name="shell_confirm_notification_desc">Pide permitir o denegar un comando remoto mientras Agora está en segundo plano</string>
     <string name="ask_user_title">El asistente pregunta</string>
     <string name="ask_user_send">Enviar</string>
+    <string name="ask_user_next">Siguiente</string>
     <string name="ask_user_custom_answer">Responde con tus palabras</string>
     <string name="ask_user_skip">Omitir</string>
     <string name="ask_user_notification_channel">Pregunta de Agora</string>

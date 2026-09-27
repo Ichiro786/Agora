@@ -1,0 +1,223 @@
+package com.newoether.agora.ui.chat.interaction
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QuestionAnswer
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import com.newoether.agora.R
+import com.newoether.agora.viewmodel.AskUserController
+
+/** What the user has picked and typed for one question, kept while they move between pages. */
+@Stable
+private class QuestionDraft(hasOptions: Boolean) {
+    var selected by mutableStateOf(emptySet<String>())
+    var typed by mutableStateOf("")
+
+    // Typing is one of the choices rather than a second control next to them. An open question has
+    // nothing to choose between, so there the field is the answer and is offered straight away.
+    var ownAnswer by mutableStateOf(!hasOptions)
+
+    val answered: Boolean get() = selected.isNotEmpty() || (ownAnswer && typed.isNotBlank())
+}
+
+/**
+ * One card for everything a single `ask_user` call asked.
+ *
+ * A set of questions is one decision for the model, so it is one card here: each question is a page
+ * of the card, Back and Next move between them, and Send on the last page answers them all at once.
+ * A single question is simply a card with one page. Skip declines the whole card.
+ *
+ * Options are optional: a question without them is an open question. Even with options the user can
+ * type instead, because the model's list is its guess at what the answers are, and a wrong guess must
+ * not force the user to pick one of it.
+ */
+@Composable
+internal fun QuestionCardContent(
+    requests: List<AskUserController.Request>,
+    onAnswer: (Long, List<String>, String?) -> Unit,
+    onSkip: (Long) -> Unit,
+) {
+    // Drafts belong to these requests only: a new card must never inherit an old answer.
+    val ids = requests.map { it.id }
+    val drafts = remember(ids) { requests.associate { it.id to QuestionDraft(it.options.isNotEmpty()) } }
+    var page by remember(ids) { mutableIntStateOf(0) }
+    val current = page.coerceIn(0, requests.lastIndex)
+    val request = requests[current]
+    val draft = drafts.getValue(request.id)
+    val isLast = current == requests.lastIndex
+
+    val title = stringResource(R.string.ask_user_title)
+    CardHeader(
+        icon = { tint ->
+            Icon(Icons.Default.QuestionAnswer, null, modifier = Modifier.size(18.dp), tint = tint)
+        },
+        title = if (requests.size > 1) "$title  ${current + 1} / ${requests.size}" else title,
+    )
+    Spacer(Modifier.height(10.dp))
+    QuestionPage(request = request, draft = draft)
+    Spacer(Modifier.height(6.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(onClick = { requests.forEach { onSkip(it.id) } }) {
+            Text(stringResource(R.string.ask_user_skip))
+        }
+        Spacer(Modifier.weight(1f))
+        if (current > 0) {
+            TextButton(onClick = { page = current - 1 }) { Text(stringResource(R.string.back)) }
+            Spacer(Modifier.width(4.dp))
+        }
+        if (!isLast) {
+            Button(onClick = { page = current + 1 }) { Text(stringResource(R.string.ask_user_next)) }
+        } else {
+            Button(
+                onClick = {
+                    // A question left blank on an earlier page is declined, not invented.
+                    requests.forEach { question ->
+                        val answer = drafts.getValue(question.id)
+                        if (answer.answered) {
+                            onAnswer(
+                                question.id,
+                                question.options.filter { it in answer.selected },
+                                answer.typed.trim().takeIf { answer.ownAnswer && it.isNotEmpty() },
+                            )
+                        } else {
+                            onSkip(question.id)
+                        }
+                    }
+                },
+                enabled = drafts.values.any { it.answered },
+            ) { Text(stringResource(R.string.ask_user_send)) }
+        }
+    }
+}
+
+@Composable
+private fun QuestionPage(
+    request: AskUserController.Request,
+    draft: QuestionDraft,
+) {
+    val hasOptions = request.options.isNotEmpty()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = ScrollableContentMaxHeight)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        Text(
+            text = request.question,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        if (hasOptions) {
+            Spacer(Modifier.height(10.dp))
+            request.options.forEach { option ->
+                OptionRow(
+                    option = option,
+                    checked = option in draft.selected,
+                    allowMultiple = request.allowMultiple,
+                    onToggle = {
+                        draft.selected = when {
+                            !request.allowMultiple -> setOf(option)
+                            option in draft.selected -> draft.selected - option
+                            else -> draft.selected + option
+                        }
+                        // One answer means one choice: picking a listed option puts the typed one
+                        // away, and picking the typed one clears the list.
+                        if (!request.allowMultiple) draft.ownAnswer = false
+                    },
+                )
+            }
+            OptionRow(
+                option = stringResource(R.string.ask_user_custom_answer),
+                checked = draft.ownAnswer,
+                allowMultiple = request.allowMultiple,
+                onToggle = {
+                    draft.ownAnswer = if (request.allowMultiple) !draft.ownAnswer else true
+                    if (!request.allowMultiple) draft.selected = emptySet()
+                },
+            )
+        }
+    }
+    if (draft.ownAnswer) {
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            value = draft.typed,
+            onValueChange = { draft.typed = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = if (hasOptions) {
+                null
+            } else {
+                { Text(stringResource(R.string.ask_user_custom_answer)) }
+            },
+            textStyle = MaterialTheme.typography.bodyMedium,
+            shape = RoundedCornerShape(16.dp),
+            maxLines = 4,
+        )
+    }
+}
+
+@Composable
+private fun OptionRow(
+    option: String,
+    checked: Boolean,
+    allowMultiple: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onToggle),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // The row owns the click, so the control itself stays non-interactive and the whole row
+        // reads as one target for accessibility services.
+        if (allowMultiple) {
+            Checkbox(checked = checked, onCheckedChange = null)
+        } else {
+            RadioButton(selected = checked, onClick = null)
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = option,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(vertical = 8.dp),
+        )
+    }
+}
