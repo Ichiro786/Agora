@@ -33,7 +33,9 @@ class ShellConfirmationController internal constructor(
         val id: Long,
         val server: String,
         val summary: String,
-        val deferred: CompletableDeferred<Boolean>
+        val deferred: CompletableDeferred<Boolean>,
+        /** Conversation whose tool call is waiting; a notification tap opens it. */
+        val conversationId: String? = null,
     )
     val notificationSessionId: String = java.util.UUID.randomUUID().toString()
 
@@ -56,7 +58,7 @@ class ShellConfirmationController internal constructor(
     private val promptMutex = Mutex()
 
     /** Suspends until the user resolves the prompt; returns whether the command may run. */
-    suspend fun confirm(server: String, summary: String): Boolean {
+    suspend fun confirm(server: String, summary: String, conversationId: String? = null): Boolean {
         if (!confirmEnabled.value) return true
         if (sessionAllowedServers.contains(server)) return true
         return promptMutex.withLock {
@@ -65,7 +67,7 @@ class ShellConfirmationController internal constructor(
             if (sessionAllowedServers.contains(server)) return@withLock true
             val deferred = CompletableDeferred<Boolean>()
             val promptId = nextPromptId.getAndIncrement()
-            _pendingShellCommand.value = PendingShellCommand(promptId, server, summary, deferred)
+            _pendingShellCommand.value = PendingShellCommand(promptId, server, summary, deferred, conversationId)
             try {
                 // Backgrounding the app does not answer the request. There is no visible dialog
                 // there, so the app layer re-surfaces the wait as a notification with the same

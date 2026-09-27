@@ -68,7 +68,7 @@ object ShellConfirmationNotifier {
             .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(openAppIntent(context))
+            .setContentIntent(openAppIntent(context, pending.conversationId))
             .addAction(0, context.getString(R.string.shell_confirm_allow), actionIntent(context, pending.id, ACTION_ALLOW, sessionId))
             .addAction(0, context.getString(R.string.shell_confirm_deny), actionIntent(context, pending.id, ACTION_DENY, sessionId))
             .build()
@@ -102,13 +102,17 @@ object ShellConfirmationNotifier {
         )
     }
 
-    private fun openAppIntent(context: Context): PendingIntent {
+    private fun openAppIntent(context: Context, conversationId: String?): PendingIntent {
         val launchFlags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         return PendingIntent.getActivity(
             context,
             NOTIFICATION_ID,
             Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                // Opening the app should land on the conversation whose command is waiting.
+                conversationId?.takeIf { it.isNotBlank() }?.let {
+                    putExtra(MainActivity.EXTRA_CONVERSATION_ID, it)
+                }
             },
             launchFlags,
         )

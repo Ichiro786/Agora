@@ -262,7 +262,7 @@ class ChatViewModel(
         ).also { gm ->
             // Gate lives in RagManager.indexMessageForRag (autoCacheEnabled + active model).
             gm.onMessagePersisted = { messageId, text -> ragManager.indexMessageForRag(messageId, text) }
-            gm.onConfirmShellCommand = { server, summary -> shellConfirmation.confirm(server, summary) }
+            gm.onConfirmShellCommand = shellConfirmation::confirm
         }
     }
     private val semanticSearchService by lazy {

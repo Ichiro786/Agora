@@ -56,7 +56,7 @@ class GenerationManager(
 
     /** User-confirmation gate for remote shell mutations. Set by the ViewModel.
      *  Returns true to proceed, false to deny. */
-    var onConfirmShellCommand: (suspend (server: String, summary: String) -> Boolean)? = null
+    var onConfirmShellCommand: (suspend (server: String, summary: String, conversationId: String?) -> Boolean)? = null
 
     private val toolExecutor = GenerationToolExecutor.createDefault(
         app = app,
@@ -65,8 +65,8 @@ class GenerationManager(
         skillManager = skillManager,
         sandboxFactory = sandboxFactory,
         additionalProviders = additionalToolProviders,
-        confirmShellCommand = { server, summary ->
-            onConfirmShellCommand?.invoke(server, summary) ?: true
+        confirmShellCommand = { server, summary, conversationId ->
+            onConfirmShellCommand?.invoke(server, summary, conversationId) ?: true
         },
     )
     private val providerPassEffects = ProviderPassEffectExecutor()
@@ -270,7 +270,7 @@ class GenerationManager(
                 managedExternally = ctx.foregroundServiceManagedExternally,
                 acquire = {
                     withContext(Dispatchers.Main) {
-                        AgoraForegroundService.acquire(app, modelMessageId)
+                        AgoraForegroundService.acquire(app, modelMessageId, conversationId)
                     }
                 },
             )

@@ -74,7 +74,7 @@ object AskUserNotifier {
             .setStyle(NotificationCompat.BigTextStyle().bigText(request.question))
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(openAppIntent(context))
+            .setContentIntent(openAppIntent(context, request.conversationId))
         if (!request.allowMultiple && request.options.size <= MAX_OPTION_ACTIONS) {
             request.options.forEachIndexed { index, option ->
                 builder.addAction(0, option, answerIntent(context, request.id, index, sessionId))
@@ -147,13 +147,17 @@ object AskUserNotifier {
         )
     }
 
-    private fun openAppIntent(context: Context): PendingIntent {
+    private fun openAppIntent(context: Context, conversationId: String?): PendingIntent {
         val launchFlags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         return PendingIntent.getActivity(
             context,
             NOTIFICATION_ID,
             Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                // Opening the app should land on the conversation that is waiting for the answer.
+                conversationId?.takeIf { it.isNotBlank() }?.let {
+                    putExtra(MainActivity.EXTRA_CONVERSATION_ID, it)
+                }
             },
             launchFlags,
         )
