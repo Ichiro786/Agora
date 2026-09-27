@@ -469,7 +469,7 @@ class DataImporter(
                 // conversation graph has been staged.
                 val promptPlan = if (promptsSelected) {
                     try {
-                        planSystemPrompts(opened, promptsDecision!!)
+                        planSystemPrompts(opened, promptsDecision)
                     } catch (cancelled: kotlinx.coroutines.CancellationException) {
                         throw cancelled
                     } catch (error: Exception) {
