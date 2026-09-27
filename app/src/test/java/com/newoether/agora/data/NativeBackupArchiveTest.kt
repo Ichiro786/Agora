@@ -297,13 +297,25 @@ class NativeBackupArchiveTest {
         ).replace("\r\n", "\n")
         val importBody = importer.substringAfter("suspend fun import(")
         val preflight = importBody.indexOf("opened.preflightImportResources(")
-        val promptMutation = importBody.indexOf("importSystemPrompts(opened, promptsDecision)")
-        val pendingReplay = importBody.indexOf("conversationSettingsTransfers.completePendingImport()")
-        val mediaRestore = importBody.indexOf("conversationMediaRestorer.restoreConversationMedia(opened)")
+        val staging = importBody.indexOf("stageConversationGraph(opened,")
+        val promptMutation = importBody.indexOf("settingsManager.saveSystemPrompts(promptPlan.prompts)")
+        val graphMutation = importBody.indexOf("conversationGraphImporter.importConversationGraph(")
         assertTrue(preflight >= 0)
-        assertTrue(promptMutation > preflight)
-        assertTrue(pendingReplay > preflight)
-        assertTrue(mediaRestore > preflight)
+        // The whole conversation graph is staged and verified before the first write.
+        assertTrue(staging > preflight)
+        assertTrue(promptMutation > staging)
+        assertTrue(graphMutation > promptMutation)
+        val stage = importer.substringAfter("private suspend fun stageConversationGraph(")
+            .substringBefore("suspend fun import(")
+        assertTrue(stage.contains("conversationSettingsTransfers.completePendingImport()"))
+        assertTrue(stage.contains("conversationMediaRestorer.restoreConversationMedia(archive)"))
+        assertTrue(stage.contains("readConversationGraphHeaders("))
+        val preflightBody = sourceFile(
+            "app/src/main/java/com/newoether/agora/data/NativeBackupArchive.kt",
+        ).replace("\r\n", "\n").substringAfter("fun preflightImportResources(")
+            .substringBefore("fun copyTo(")
+        // Resource contents are verified once, by the checked copy, not re-read in preflight.
+        assertFalse(preflightBody.contains("getInputStream"))
 
         val fontRestore = importer.substringAfter("private fun restoreCustomFont(")
             .substringBefore("suspend fun import(")

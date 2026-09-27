@@ -103,8 +103,9 @@ internal class NativeBackupArchive private constructor(
             }
             checkedAdd(total, extractedSize, "Selected resource size is too large")
         }
+        // Contents are verified by the checked copy that extracts them; reading them here too
+        // would double the cost of a large import.
         ensureAvailable(requiredBytes, availableBytes(), destinationRoot)
-        selected.forEach(::validateEntryStream)
         return requiredBytes
     }
 
@@ -128,11 +129,6 @@ internal class NativeBackupArchive private constructor(
         }
     }
 
-    private fun validateEntryStream(entry: ZipArchiveEntry) {
-        zip.getInputStream(entry).use { input ->
-            consumeChecked(input, entry.size, entry.crc, Long.MAX_VALUE, entry.name)
-        }
-    }
 
     override fun close() {
         try {

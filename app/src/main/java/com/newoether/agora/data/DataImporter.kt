@@ -248,19 +248,23 @@ class DataImporter(
         )
     }
 
-    private suspend fun importSystemPrompts(
+    /** The prompt list to save and the id resolution it implies; nothing is written here. */
+    private class PromptPlan(val prompts: List<SystemPromptEntry>, val result: PromptImportResult)
+    private suspend fun planSystemPrompts(
         archive: NativeBackupArchive,
         strategy: ImportStrategy,
-    ): PromptImportResult {
+    ): PromptPlan {
         val bytes = archive[NativeBackupFormat.SYSTEM_PROMPTS_ENTRY]
             ?: error("${NativeBackupFormat.SYSTEM_PROMPTS_ENTRY} is missing")
         val imported = importJson.decodeFromString<List<SystemPromptEntry>>(bytes.decodeToString())
         if (strategy == ImportStrategy.REPLACE) {
-            settingsManager.saveSystemPrompts(imported)
-            return PromptImportResult(
-                importedCount = imported.size,
-                idMap = imported.associate { it.id to it.id },
-                availableIds = imported.mapTo(mutableSetOf()) { it.id },
+            return PromptPlan(
+                prompts = imported,
+                result = PromptImportResult(
+                    importedCount = imported.size,
+                    idMap = imported.associate { it.id to it.id },
+                    availableIds = imported.mapTo(mutableSetOf()) { it.id },
+                ),
             )
         }
 
@@ -290,12 +294,63 @@ class DataImporter(
             usedTitles += targetTitle
             idMap[prompt.id] = targetId
         }
-        settingsManager.saveSystemPrompts(merged)
-        return PromptImportResult(
-            importedCount = imported.size,
-            idMap = idMap,
-            availableIds = merged.mapTo(mutableSetOf()) { it.id },
+        return PromptPlan(
+            prompts = merged,
+            result = PromptImportResult(
+                importedCount = imported.size,
+                idMap = idMap,
+                availableIds = merged.mapTo(mutableSetOf()) { it.id },
+            ),
         )
+    }
+    /** Conversation inputs copied and verified ahead of the first write. */
+    private class StagedConversationGraph(
+        val graphSource: NativeConversationGraphSource,
+        val media: NativeConversationMediaRestorer.RestoredMedia,
+        val headers: NativeConversationGraphImporter.ConversationGraphHeaders,
+    ) : java.io.Closeable {
+        fun discardMedia() {
+            media.createdFiles.forEach { runCatching { it.delete() } }
+        }
+        fun discard() {
+            discardMedia()
+            close()
+        }
+        override fun close() = graphSource.close()
+    }
+    /**
+     * Copies conversation media with CRC checks, builds the graph source (v5 items are verified as
+     * they are spooled) and reads the headers, which streams the whole graph and so verifies a
+     * legacy conversations.json. Anything copied is deleted again if a step fails.
+     */
+    private suspend fun stageConversationGraph(
+        archive: NativeBackupArchive,
+        version: Int,
+        strategy: ImportStrategy,
+        prompts: PromptImportResult,
+    ): StagedConversationGraph {
+        conversationSettingsTransfers.completePendingImport()
+        var media: NativeConversationMediaRestorer.RestoredMedia? = null
+        var graphSource: NativeConversationGraphSource? = null
+        try {
+            val restored = conversationMediaRestorer.restoreConversationMedia(archive)
+            media = restored
+            val source = NativeConversationGraphSource.open(archive, version, context.cacheDir)
+            graphSource = source
+            val headers = source.open().use { stream ->
+                conversationGraphImporter.readConversationGraphHeaders(
+                    stream = stream,
+                    strategy = strategy,
+                    restoredMedia = restored,
+                    resolveSystemPromptId = prompts::resolve,
+                )
+            }
+            return StagedConversationGraph(source, restored, headers)
+        } catch (error: Throwable) {
+            runCatching { graphSource?.close() }
+            media?.createdFiles?.forEach { runCatching { it.delete() } }
+            throw error
+        }
     }
 
     private fun restoreCustomFont(
@@ -408,81 +463,96 @@ class DataImporter(
                     customFontLimitBytes = MAX_CUSTOM_FONT_BYTES,
                 )
 
-                // Import prompts before conversations/settings so every archived prompt reference
-                // can be resolved after MERGE ID collision handling.
-                var promptImport = PromptImportResult(
+                val promptsSelected = promptsDecision != null && promptsDecision != ImportStrategy.SKIP
+                // Prompts are planned before conversations/settings so every archived prompt
+                // reference resolves after MERGE ID collision handling. They are saved only once the
+                // conversation graph has been staged.
+                val promptPlan = if (promptsSelected) {
+                    try {
+                        planSystemPrompts(opened, promptsDecision!!)
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        errors += "System prompts: ${error.localizedMessage ?: "Unknown error"}"
+                        null
+                    }
+                } else {
+                    null
+                }
+                val promptImport = promptPlan?.result ?: PromptImportResult(
                     availableIds = settingsManager.systemPrompts.first()
                         .mapTo(mutableSetOf()) { it.id },
                 )
-                if (promptsDecision != null && promptsDecision != ImportStrategy.SKIP) {
+                // Every conversation input is staged before the first write, so a damaged archive
+                // fails the whole import and leaves existing data untouched.
+                val staged = if (convDecision != null && convDecision != ImportStrategy.SKIP) {
                     try {
-                        promptImport = importSystemPrompts(opened, promptsDecision)
-                        systemPromptsImported = promptImport.importedCount
-                    } catch (error: Exception) {
-                        errors += "System prompts: ${error.localizedMessage ?: "Unknown error"}"
-                    }
-                    step()
-                }
-
-                if (convDecision != null && convDecision != ImportStrategy.SKIP) {
-                    var restoredMedia: NativeConversationMediaRestorer.RestoredMedia? = null
-                    var graphCommitted = false
-                    try {
-                        conversationSettingsTransfers.completePendingImport()
-                        val media = conversationMediaRestorer.restoreConversationMedia(opened)
-                        restoredMedia = media
-                        NativeConversationGraphSource.open(
-                            archive = opened,
-                            version = manifest.version,
-                            cacheDir = context.cacheDir,
-                        ).use { graphSource ->
-                            val headers = graphSource.open().use { stream ->
-                                conversationGraphImporter.readConversationGraphHeaders(
-                                    stream = stream,
-                                    strategy = convDecision,
-                                    restoredMedia = media,
-                                    resolveSystemPromptId = promptImport::resolve,
-                                )
-                            }
-                            val semanticSnapshot = semanticModelSnapshot(
-                                activeModelId = settingsManager.activeEmbeddingModelId.first(),
-                                configuredModelIds = settingsManager.embeddingModels.first().map { it.id },
-                            )
-                            val settingsTransferId = conversationGraphImporter.importConversationGraph(
-                                graphSource = graphSource,
-                                strategy = convDecision,
-                                headers = headers,
-                                restoredMedia = media,
-                                archiveVersion = manifest.version,
-                                semanticSnapshot = semanticSnapshot,
-                            )
-                            graphCommitted = true
-                            conversationsImported = headers.conversations.size
-                            tasksImported = headers.tasks.size
-                            loopsImported = headers.loops.size
-                            try {
-                                conversationSettingsTransfers.completeImport(settingsTransferId)
-                            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                                throw cancelled
-                            } catch (error: Exception) {
-                                errors += "Conversation settings: " +
-                                    (error.localizedMessage ?: "Deferred until next startup")
-                            }
-                        }
+                        stageConversationGraph(opened, manifest.version, convDecision, promptImport)
                     } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                        if (!graphCommitted) {
-                            restoredMedia?.createdFiles?.forEach { runCatching { it.delete() } }
-                        }
                         throw cancelled
                     } catch (error: Exception) {
-                        if (!graphCommitted) {
-                            restoredMedia?.createdFiles?.forEach { runCatching { it.delete() } }
+                        return@withContext ImportResult(
+                            errors = errors + "Conversations: ${error.localizedMessage ?: "Unknown error"}",
+                        )
+                    }
+                } else {
+                    null
+                }
+                if (promptPlan != null) {
+                    try {
+                        settingsManager.saveSystemPrompts(promptPlan.prompts)
+                        systemPromptsImported = promptPlan.result.importedCount
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        staged?.discard()
+                        throw cancelled
+                    } catch (error: Exception) {
+                        // Staged conversations may reference the remapped prompt ids, so they cannot
+                        // be written without the prompts.
+                        staged?.discard()
+                        return@withContext ImportResult(
+                            errors = errors + "System prompts: ${error.localizedMessage ?: "Unknown error"}",
+                        )
+                    }
+                }
+                if (promptsSelected) step()
+                if (staged != null) {
+                    var graphCommitted = false
+                    try {
+                        val semanticSnapshot = semanticModelSnapshot(
+                            activeModelId = settingsManager.activeEmbeddingModelId.first(),
+                            configuredModelIds = settingsManager.embeddingModels.first().map { it.id },
+                        )
+                        val settingsTransferId = conversationGraphImporter.importConversationGraph(
+                            graphSource = staged.graphSource,
+                            strategy = checkNotNull(convDecision),
+                            headers = staged.headers,
+                            restoredMedia = staged.media,
+                            archiveVersion = manifest.version,
+                            semanticSnapshot = semanticSnapshot,
+                        )
+                        graphCommitted = true
+                        conversationsImported = staged.headers.conversations.size
+                        tasksImported = staged.headers.tasks.size
+                        loopsImported = staged.headers.loops.size
+                        try {
+                            conversationSettingsTransfers.completeImport(settingsTransferId)
+                        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            errors += "Conversation settings: " +
+                                (error.localizedMessage ?: "Deferred until next startup")
                         }
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        if (!graphCommitted) staged.discardMedia()
+                        throw cancelled
+                    } catch (error: Exception) {
+                        if (!graphCommitted) staged.discardMedia()
                         errors += "Conversations: ${error.localizedMessage ?: "Unknown error"}"
+                    } finally {
+                        staged.close()
                     }
                     step()
                 }
-
                 if (memDecision != null && memDecision != ImportStrategy.SKIP) {
                     try {
                         val memNames = opened.names().filter { it.startsWith("memories/") }
