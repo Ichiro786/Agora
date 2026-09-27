@@ -328,11 +328,16 @@ class AnthropicProvider(
             // The answer headroom above the thinking budget must also leave room for a tool_use
             // block: with only ~1KB of slack, a thinking model routinely exhausts the cap exactly
             // where the tool call would begin, which surfaces as "the tool call vanished".
-            maxTokens = config.maxTokens ?: when {
-                thinking?.budgetTokens != null ->
-                    maxOf(thinking.budgetTokens + ANSWER_HEADROOM_TOKENS, 16384)
-                thinking?.type == "adaptive" -> 32768
-                else -> 8192
+            //
+            // Without an explicit value every request asks for DEFAULT_MAX_TOKENS, lowered only to
+            // the model's documented ceiling (older Claude models reject anything above it).
+            maxTokens = config.maxTokens ?: run {
+                val wanted = when {
+                    thinking?.budgetTokens != null ->
+                        maxOf(thinking.budgetTokens + ANSWER_HEADROOM_TOKENS, DEFAULT_MAX_TOKENS)
+                    else -> DEFAULT_MAX_TOKENS
+                }
+                AnthropicOutputLimits.maxOutputTokens(modelName)?.let { minOf(wanted, it) } ?: wanted
             },
             tools = anthropicTools,
             // temperature/top_k/top_p are deprecated and rejected by models released after
@@ -669,6 +674,12 @@ class AnthropicProvider(
          * tool call from being cut off at the block boundary.
          */
         const val ANSWER_HEADROOM_TOKENS = 8192
+
+        /**
+         * `max_tokens` when the user sets none. It is a cap, not a target, and Anthropic's output
+         * rate limit counts only generated tokens, so a generous value costs nothing.
+         */
+        const val DEFAULT_MAX_TOKENS = 32768
     }
 }
 

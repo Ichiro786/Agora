@@ -120,6 +120,29 @@ class AnthropicProviderRequestSerializationTest {
         assertEquals(0.97f, body["top_p"]!!.jsonPrimitive.float)
     }
 
+    @Test
+    fun unsetMaxTokensDefaultsTo32kWithinTheModelsDocumentedCeiling() = withServer { server ->
+        fun maxTokensFor(model: String): Int = server.capture(
+            config(server, model).copy(maxTokens = null, thinkingEnabled = false),
+        )["max_tokens"]!!.jsonPrimitive.int
+
+        assertEquals(32768, maxTokensFor("claude-sonnet-5"))
+        assertEquals(32768, maxTokensFor("claude-mythos-preview"))
+        assertEquals(32000, maxTokensFor("claude-opus-4-1-20250805"))
+        assertEquals(8192, maxTokensFor("claude-3-5-sonnet-20240620"))
+        assertEquals(4096, maxTokensFor("claude-3-haiku-20240307"))
+    }
+
+    @Test
+    fun documentedCeilingsMatchOnVersionBoundariesOnly() {
+        assertEquals(64_000, AnthropicOutputLimits.maxOutputTokens("claude-opus-4-5-20251101"))
+        assertEquals(32_000, AnthropicOutputLimits.maxOutputTokens("claude-opus-4-20250514"))
+        assertEquals(64_000, AnthropicOutputLimits.maxOutputTokens("anthropic/claude-sonnet-4.5"))
+        assertEquals(128_000, AnthropicOutputLimits.maxOutputTokens("claude-opus-5-5"))
+        assertEquals(null, AnthropicOutputLimits.maxOutputTokens("claude-opus-45"))
+        assertEquals(null, AnthropicOutputLimits.maxOutputTokens("claude-mythos-preview"))
+    }
+
     private fun assertDisabled(model: String, effort: String) = withServer { server ->
         val body = server.capture(
             config(server, model).copy(thinkingEnabled = false, thinkingLevel = effort),
