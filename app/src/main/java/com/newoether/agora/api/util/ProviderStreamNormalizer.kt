@@ -340,15 +340,12 @@ internal class ProviderStreamNormalizer(
         val seenIds = nativeCallIds.toMutableSet()
         val calls = mutableListOf<StreamEvent.ToolCallRequest>()
         for (candidate in textToolCandidates) {
-            if (candidate.name !in offeredToolNames) {
-                reportMalformed("Tool name was not offered in this request", downstream)
-                return
-            }
+            // A tool that was not offered is the model's mistake, exactly as for native calls: the
+            // call is still pairable, so it is released and the tool executor answers it with an
+            // error result the model can correct from. The text parser only yields object
+            // arguments, and should one ever slip through the executor rejects it the same way.
+            // Only identity problems, which make a result impossible to pair, stay fatal below.
             val fingerprint = fingerprint(candidate.name, candidate.arguments)
-            if (fingerprint == null) {
-                reportMalformed("Tool arguments were not a complete JSON object", downstream)
-                return
-            }
             val id = candidate.id ?: "call_text_${UUID.randomUUID()}"
             if (!id.matches(safeWireToolCallId)) {
                 reportMalformed("Text tool payload contained an invalid or duplicate id", downstream)
@@ -359,7 +356,7 @@ internal class ProviderStreamNormalizer(
                 reportMalformed("Text tool payload contained an invalid or duplicate id", downstream)
                 return
             }
-            if (fingerprint in nativeFingerprints) continue
+            if (fingerprint != null && fingerprint in nativeFingerprints) continue
             if (!seenIds.add(id)) {
                 reportMalformed("Text tool payload contained an invalid or duplicate id", downstream)
                 return
