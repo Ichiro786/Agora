@@ -38,6 +38,7 @@ import com.newoether.agora.model.AttachmentItem
 import com.newoether.agora.model.ChatMessage
 import com.newoether.agora.ui.chat.AttachmentThumbnailItem
 import com.newoether.agora.ui.chat.ThumbnailClickHandlers
+import com.newoether.agora.ui.chat.USER_BUBBLE_CONTENT_PADDING
 import com.newoether.agora.ui.chat.resolveAttachmentType
 import com.newoether.agora.ui.common.LocalAgoraHaptics
 import com.newoether.agora.ui.motion.LocalAgoraMotionPolicy
@@ -182,7 +183,7 @@ internal fun UserMessageBubble(
                 }
             } else {
                 Column(
-                    modifier = Modifier.padding(16.dp).noOpBringIntoView(),
+                    modifier = Modifier.padding(USER_BUBBLE_CONTENT_PADDING).noOpBringIntoView(),
                     horizontalAlignment = Alignment.Start
                 ) {
                     val hasMetaItems = message.attachmentMeta?.items?.isNotEmpty() == true

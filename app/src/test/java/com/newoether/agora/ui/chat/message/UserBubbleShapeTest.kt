@@ -22,35 +22,35 @@ class UserBubbleShapeTest {
     @Test
     fun shortBubbleKeepsAllLargeCornersEqual() {
         // Slightly under two radii tall: the start pair must not shrink below top-end.
-        val rect = rounded(Size(92f, 51f))
-        assertEquals(25.5f, rect.topLeftCornerRadius.x, 0.001f)
-        assertEquals(25.5f, rect.topRightCornerRadius.x, 0.001f)
-        assertEquals(25.5f, rect.bottomLeftCornerRadius.x, 0.001f)
-        assertEquals(4f, rect.bottomRightCornerRadius.x, 0.001f)
+        val rect = rounded(Size(92f, 45f))
+        assertEquals(22.5f, rect.topLeftCornerRadius.x, 0.001f)
+        assertEquals(22.5f, rect.topRightCornerRadius.x, 0.001f)
+        assertEquals(22.5f, rect.bottomLeftCornerRadius.x, 0.001f)
+        assertEquals(8f, rect.bottomRightCornerRadius.x, 0.001f)
     }
 
     @Test
     fun narrowBubbleUsesHalfWidthForAllLargeCorners() {
-        val rect = rounded(Size(40f, 51f))
+        val rect = rounded(Size(40f, 48f))
         assertEquals(20f, rect.topLeftCornerRadius.x, 0.001f)
         assertEquals(20f, rect.topRightCornerRadius.x, 0.001f)
         assertEquals(20f, rect.bottomLeftCornerRadius.x, 0.001f)
-        assertEquals(4f, rect.bottomRightCornerRadius.x, 0.001f)
+        assertEquals(8f, rect.bottomRightCornerRadius.x, 0.001f)
     }
 
     @Test
     fun tallBubbleKeepsFixedRadius() {
         val rect = rounded(Size(200f, 300f))
-        assertEquals(28f, rect.topLeftCornerRadius.x, 0.001f)
-        assertEquals(28f, rect.topRightCornerRadius.x, 0.001f)
-        assertEquals(28f, rect.bottomLeftCornerRadius.x, 0.001f)
-        assertEquals(4f, rect.bottomRightCornerRadius.x, 0.001f)
+        assertEquals(24f, rect.topLeftCornerRadius.x, 0.001f)
+        assertEquals(24f, rect.topRightCornerRadius.x, 0.001f)
+        assertEquals(24f, rect.bottomLeftCornerRadius.x, 0.001f)
+        assertEquals(8f, rect.bottomRightCornerRadius.x, 0.001f)
     }
 
     @Test
     fun rtlMovesTailToBottomLeft() {
         val rect = rounded(Size(200f, 300f), LayoutDirection.Rtl)
-        assertEquals(4f, rect.bottomLeftCornerRadius.x, 0.001f)
-        assertEquals(28f, rect.bottomRightCornerRadius.x, 0.001f)
+        assertEquals(8f, rect.bottomLeftCornerRadius.x, 0.001f)
+        assertEquals(24f, rect.bottomRightCornerRadius.x, 0.001f)
     }
 }

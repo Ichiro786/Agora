@@ -16,13 +16,14 @@ import kotlin.math.min
  * User bubble outline: top-start, top-end and bottom-start share one radius, bottom-end is the tail.
  *
  * RoundedCornerShape shrinks each side's corner pair on its own when the bubble is shorter or
- * narrower than two radii, so the start corners (28 + 28) would shrink while top-end (28 + 4)
+ * narrower than two radii, so the start corners (24 + 24) would shrink while top-end (24 + 8)
  * kept its full size. Here the shared radius is clamped once to half the smaller dimension, so all
  * three large corners always match.
  */
 internal data class UserBubbleShape(
-    val cornerRadius: Dp = 28.dp,
-    val tailRadius: Dp = 4.dp,
+    // Half of a single-line bubble: 12dp padding on each side plus one 24.2sp line.
+    val cornerRadius: Dp = 24.dp,
+    val tailRadius: Dp = 8.dp,
 ) : Shape {
     override fun createOutline(
         size: Size,
