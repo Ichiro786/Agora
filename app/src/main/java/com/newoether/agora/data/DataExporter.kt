@@ -62,7 +62,9 @@ class DataExporter(
         @SerialName("app_version") val appVersion: String,
         @SerialName("exported_at") val exportedAt: String,
         val categories: List<String>,
-        @SerialName("has_api_keys") val hasApiKeys: Boolean = false
+        @SerialName("has_api_keys") val hasApiKeys: Boolean = false,
+        @SerialName("incremental_baseline") val incrementalBaseline: Int =
+            NativeBackupFormat.INCREMENTAL_BASELINE_REVISION,
     )
 
     @Serializable
@@ -203,17 +205,20 @@ class DataExporter(
         }
     }
 
-    /** Copies one media stream directly into the archive without a heap-sized byte array. */
+    /**
+     * Copies one opened media stream directly into the archive without a heap-sized byte array.
+     * Any failure here leaves a partial entry behind, so it fails the export instead of being
+     * counted as a missing resource. An empty file is a valid resource.
+     */
     private fun copyStreamToZipEntry(
         zip: ZipArchiveOutputStream,
         entryName: String,
-        input: InputStream?,
-    ): Boolean {
-        if (input == null) return false
-        return input.use { stream ->
+        input: InputStream,
+    ) {
+        input.use { stream ->
             zip.putArchiveEntry(ZipArchiveEntry(entryName))
             try {
-                stream.copyTo(zip) > 0L
+                stream.copyTo(zip)
             } finally {
                 zip.closeArchiveEntry()
             }
@@ -381,19 +386,16 @@ class DataExporter(
                 return entry
             }
             val entry = archiveMediaEntry(prefix, source)
-            val copied = try {
-                copyStreamToZipEntry(
-                    zip = zip,
-                    entryName = entry,
-                    input = openImageStream(source),
-                )
+            // Only a source that cannot be opened is a missing resource.
+            val input = try {
+                openImageStream(source)
             } catch (_: Exception) {
-                false
-            }
-            return entry.takeIf { copied }?.also {
-                sourceToArchiveEntry[sourceKey] = it
-                referenced?.add(it)
-            }
+                null
+            } ?: return null
+            copyStreamToZipEntry(zip = zip, entryName = entry, input = input)
+            sourceToArchiveEntry[sourceKey] = entry
+            referenced?.add(entry)
+            return entry
         }
 
         fun trackedEntry(prefix: String, referenced: MutableSet<String>): (String) -> String? =

@@ -82,6 +82,21 @@ class NativeBackupV5BaselineTest {
     }
 
     @Test
+    fun backupWithoutIncrementalMarkerIsNotUsedAsBaseline() {
+        val directory = Files.createTempDirectory("agora-v5-unmarked").toFile()
+        val file = File(directory, "old.agora")
+        try {
+            writeBaseline(
+                file,
+                """{"agora_export_version":5,"app_version":"1.0","exported_at":"2026-09-27T05:14:46Z",""" +
+                    """"categories":["conversations"],"has_api_keys":false}""",
+            )
+            assertNull(NativeBackupV5Baseline.openOrNull(file))
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+    @Test
     fun invalidBaselineFallsBackToFullExport() {
         val file = Files.createTempFile("agora-invalid-baseline", ".agora").toFile()
         try {
@@ -92,13 +107,9 @@ class NativeBackupV5BaselineTest {
         }
     }
 
-    private fun writeBaseline(file: File) {
+    private fun writeBaseline(file: File, manifest: String = MARKED_MANIFEST) {
         ZipArchiveOutputStream(file).use { output ->
-            writeEntry(
-                output,
-                NativeBackupFormat.MANIFEST_ENTRY,
-                """{"agora_export_version":5,"categories":["conversations"]}""",
-            )
+            writeEntry(output, NativeBackupFormat.MANIFEST_ENTRY, manifest)
             writeEntry(output, MEDIA_ENTRY, "media-bytes")
             val index = NativeConversationIndex(
                 listOf(
@@ -123,5 +134,10 @@ class NativeBackupV5BaselineTest {
 
     private companion object {
         const val MEDIA_ENTRY = "media/images/same.png"
+        // Shaped like a real export manifest, including keys the baseline does not read.
+        val MARKED_MANIFEST =
+            """{"agora_export_version":5,"app_version":"1.0","exported_at":"2026-09-27T05:14:46Z",""" +
+                """"categories":["conversations"],"has_api_keys":false,""" +
+                """"incremental_baseline":${NativeBackupFormat.INCREMENTAL_BASELINE_REVISION}}"""
     }
 }

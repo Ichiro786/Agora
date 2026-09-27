@@ -35,6 +35,8 @@ internal class NativeBackupV5Baseline private constructor(
 
     companion object {
         private const val MAX_METADATA_BYTES = 16L * 1024L * 1024L
+        // Manifests carry fields such as app_version and exported_at that are not read here.
+        private val baselineJson = Json { ignoreUnknownKeys = true }
 
         fun openOrNull(file: File?): NativeBackupV5Baseline? {
             if (file?.isFile != true) return null
@@ -43,6 +45,10 @@ internal class NativeBackupV5Baseline private constructor(
                 try {
                     val manifest = zip.readJson<BaselineManifest>(NativeBackupFormat.MANIFEST_ENTRY)
                     require(manifest.version == NativeBackupFormat.CURRENT_VERSION)
+                    require(
+                        manifest.incrementalBaseline ==
+                            NativeBackupFormat.INCREMENTAL_BASELINE_REVISION,
+                    )
                     require("conversations" in manifest.categories)
                     val index = zip.readJson<NativeConversationIndex>(
                         NativeBackupFormat.CONVERSATION_INDEX_ENTRY,
@@ -66,7 +72,7 @@ internal class NativeBackupV5Baseline private constructor(
             require(entry.size in 0..MAX_METADATA_BYTES)
             val text = getInputStream(entry).bufferedReader().use { it.readText() }
             require(text.encodeToByteArray().size <= MAX_METADATA_BYTES)
-            return Json.decodeFromString(text)
+            return baselineJson.decodeFromString(text)
         }
     }
 }
@@ -75,4 +81,5 @@ internal class NativeBackupV5Baseline private constructor(
 private data class BaselineManifest(
     @SerialName("agora_export_version") val version: Int,
     val categories: List<String>,
+    @SerialName("incremental_baseline") val incrementalBaseline: Int = 0,
 )
