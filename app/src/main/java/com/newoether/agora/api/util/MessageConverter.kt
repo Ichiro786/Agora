@@ -5,6 +5,8 @@ import com.newoether.agora.api.OpenAiImageUrl
 import com.newoether.agora.api.OpenAiMessage
 import com.newoether.agora.api.OpenAiRequestFunction
 import com.newoether.agora.api.OpenAiRequestToolCall
+import com.newoether.agora.api.util.tokens.ContextCostModel
+import com.newoether.agora.api.util.tokens.CostModelContextEstimator
 import com.newoether.agora.model.ChatMessage
 import com.newoether.agora.model.Participant
 import com.newoether.agora.util.Constants
@@ -174,8 +176,10 @@ fun limitContext(
     messages: List<ChatMessage>,
     contextTokenBudget: Int,
     includeAssistantReasoning: Boolean = false,
+    costs: ContextCostModel = ContextCostModel.Default,
 ): List<ChatMessage> {
     if (messages.isEmpty()) return emptyList()
+    val estimator = CostModelContextEstimator(costs)
 
     // A tool call and all of its results are one protocol unit. Truncating the flat list can leave
     // either an orphan result or an unanswered assistant tool call, so window complete units only.
@@ -186,7 +190,7 @@ fun limitContext(
     var hasNormalUserAnchor = false
     val tokenBudget = contextTokenBudget.coerceAtLeast(1).toLong()
     for (unit in units.asReversed()) {
-        val unitCost = ContextTokenEstimator.estimate(
+        val unitCost = estimator.estimate(
             unit,
             includeAssistantReasoning = includeAssistantReasoning,
         ).toLong()

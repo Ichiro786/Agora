@@ -418,6 +418,7 @@ internal class MessageGenerationController(
                         contextLimit = snapshot.config.maxContextWindow,
                         config = snapshot.automaticCompact.copy(
                             fixedTokenCost = fixedTokenCost,
+                            mainModelId = snapshot.config.modelId,
                             includeAssistantReasoning = generationManagerProvider()
                                 .includesAssistantReasoning(snapshot.config, snapshot.context),
                         ),

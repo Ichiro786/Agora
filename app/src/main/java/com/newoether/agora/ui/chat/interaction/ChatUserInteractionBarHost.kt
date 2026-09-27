@@ -36,7 +36,7 @@ internal fun BoxScope.ChatUserInteractionBar(
     UserInteractionBar(
         interactions = interactions,
         autoWrapCodeBlocks = autoWrapCodeBlocks,
-        onAnswerQuestion = { id, choices -> viewModel.askUser.submit(id, choices) },
+        onAnswerQuestion = { id, choices, text -> viewModel.askUser.submit(id, choices, text) },
         onSkipQuestion = { id -> viewModel.askUser.dismiss(id) },
         onShellDecision = { id, allow, alwaysAllowServer ->
             viewModel.shellConfirmation.resolve(id, allow, alwaysAllowServer)

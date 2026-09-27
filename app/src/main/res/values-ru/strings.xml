@@ -459,7 +459,6 @@
     <string name="pdf_selected">Выбрано</string>
 
     <!-- Caching & Sync -->
-    <string name="embedding_model_caching">Модель эмбеддинга \"%1$s\" кэшируется…</string>
     <string name="messages_not_cached">%1$d из %2$d сообщений не кэшированы.</string>
     <string name="cache_now">Кэшировать сейчас</string>
     <string name="no_messages_to_cache">Нет сообщений для кэширования.</string>
@@ -567,6 +566,7 @@
     <string name="shell_confirm_notification_desc">Запрашивает разрешение или запрет удалённой команды, пока Agora в фоновом режиме</string>
     <string name="ask_user_title">Ассистент спрашивает</string>
     <string name="ask_user_send">Отправить</string>
+    <string name="ask_user_custom_answer">Ответьте своими словами</string>
     <string name="ask_user_skip">Пропустить</string>
     <string name="ask_user_notification_channel">Вопрос от Agora</string>
     <string name="ask_user_notification_desc">Просит ответить на вопрос ассистента, когда экран чата закрыт</string>

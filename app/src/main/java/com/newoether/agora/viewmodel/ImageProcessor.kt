@@ -18,6 +18,9 @@ data class VideoSliceConfig(
     val frameCount: Int,
 )
 
+/** Pixel size of an image artifact, the input every provider's image token rule is defined on. */
+data class ImagePixelSize(val width: Int, val height: Int)
+
 internal fun imageSampleSizeForBounds(
     width: Int,
     height: Int,
@@ -80,6 +83,27 @@ class ImageProcessor(
             throw cancelled
         } catch (_: Exception) {
             output?.delete()
+            null
+        }
+    }
+
+    /**
+     * Bounds-only decode of an already produced artifact. Best effort: an unreadable or unsupported
+     * file reports no size, and the token estimate falls back to its byte rule.
+     */
+    suspend fun measurePixels(source: String): ImagePixelSize? = withContext(Dispatchers.IO) {
+        try {
+            val bounds = android.graphics.BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            openStream(source)?.use { stream ->
+                android.graphics.BitmapFactory.decodeStream(stream, null, bounds)
+            }
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) null
+            else ImagePixelSize(bounds.outWidth, bounds.outHeight)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
             null
         }
     }

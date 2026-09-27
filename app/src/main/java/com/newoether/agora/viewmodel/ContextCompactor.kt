@@ -3,6 +3,8 @@ package com.newoether.agora.viewmodel
 import com.newoether.agora.api.util.CONTEXT_SUMMARY_CLOSE_TAG
 import com.newoether.agora.api.util.CONTEXT_SUMMARY_OPEN_TAG
 import com.newoether.agora.api.util.contextWindowUsage
+import com.newoether.agora.api.util.tokens.ContextCostModel
+import com.newoether.agora.api.util.tokens.ContextCostModels
 import com.newoether.agora.api.util.projectGenerationStatusesForApi
 import com.newoether.agora.api.util.splitContextForCompactRetention
 import com.newoether.agora.api.util.stripEmptyTurns
@@ -177,6 +179,7 @@ internal fun automaticCompactNeeded(
     includeAssistantReasoning: Boolean = false,
     userPrepend: String? = null,
     userPostpend: String? = null,
+    costs: ContextCostModel = ContextCostModel.Default,
 ): Boolean {
     val selectedPath = ConversationUiState.resolvePath(
         allMessages = entities.map { it.toUiChatMessage { text -> text } },
@@ -202,6 +205,7 @@ internal fun automaticCompactNeeded(
         // Transcription-enabled models receive descriptions instead of raw images at dispatch;
         // the admission estimate must match.
         includeImages = !includeStoredTranscriptions,
+        costs = costs,
     )
 }
 
@@ -214,6 +218,7 @@ internal fun automaticCompactNeeded(
     userPrepend: String? = null,
     userPostpend: String? = null,
     includeImages: Boolean = true,
+    costs: ContextCostModel = ContextCostModel.Default,
 ): Boolean {
     if (path.isEmpty() || retainLogicalMessages < 0) return false
     val semanticPath = path.filterNot { it.isContextCompact() && !it.isSuccessfulContextCompact() }
@@ -233,6 +238,7 @@ internal fun automaticCompactNeeded(
             contextLimit.coerceAtLeast(1),
             fixedTokenCost = fixedTokenCost,
             includeAssistantReasoning = includeAssistantReasoning,
+            costs = costs,
         ).estimatedTokenCount >=
         contextLimit.coerceAtLeast(1)
 }
@@ -267,6 +273,7 @@ internal class ContextCompactor(
             contextLimit = threshold,
             retainLogicalMessages = config.request.retainLogicalMessages,
             fixedTokenCost = config.fixedTokenCost,
+            costs = ContextCostModels.forModel(config.mainModelId),
             includeAssistantReasoning = config.includeAssistantReasoning,
             userPrepend = config.userPrepend,
             userPostpend = config.userPostpend,

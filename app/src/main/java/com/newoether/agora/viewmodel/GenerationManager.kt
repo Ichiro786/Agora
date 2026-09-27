@@ -22,6 +22,7 @@ import com.newoether.agora.R
 import com.newoether.agora.service.AgoraForegroundService
 import com.newoether.agora.service.AppForegroundTracker
 import com.newoether.agora.api.util.ContextTokenEstimator
+import com.newoether.agora.api.util.tokens.FixedContextComposition
 import com.newoether.agora.tool.ToolProvider
 import com.newoether.agora.util.Constants
 import kotlinx.coroutines.CancellationException
@@ -107,7 +108,7 @@ class GenerationManager(
     internal fun fixedContextTokenCost(
         config: GenerationConfig,
         context: GenerationContext,
-    ): Int = ContextTokenEstimator.estimateFixed(
+    ): Int = ContextTokenEstimator.forModel(config.modelId).estimateFixed(
         systemPrompt = config.effectiveSystemPrompt,
         tools = if (config.lowContextModeEnabled) emptyList()
         else toolExecutor.definitions(context),
@@ -120,8 +121,8 @@ class GenerationManager(
     internal fun fixedContextComposition(
         config: GenerationConfig,
         context: GenerationContext,
-    ): ContextTokenEstimator.FixedContextComposition =
-        ContextTokenEstimator.estimateFixedComposition(
+    ): FixedContextComposition =
+        ContextTokenEstimator.forModel(config.modelId).estimateFixedComposition(
             systemPrompt = config.effectiveSystemPrompt,
             tools = if (config.lowContextModeEnabled) emptyList()
             else toolExecutor.definitions(context),
@@ -166,7 +167,7 @@ class GenerationManager(
             requestResolver = resolver,
         )
         val resolvedRequest = providerConfig.resolveRequest(emptyList())
-        return ContextTokenEstimator.estimateFixed(
+        return ContextTokenEstimator.forModel(config.modelId).estimateFixed(
             systemPrompt = resolvedRequest.systemPrompt,
             tools = definitions,
             initialUserPrompt = config.initialUserPrompt,

@@ -459,7 +459,6 @@
     <string name="pdf_selected">Ausgewählt</string>
 
     <!-- Caching & Sync -->
-    <string name="embedding_model_caching">Embedding-Modell \"%1$s\" wird zwischengespeichert…</string>
     <string name="messages_not_cached">%1$d von %2$d Nachrichten nicht zwischengespeichert.</string>
     <string name="cache_now">Jetzt zwischenspeichern</string>
     <string name="no_messages_to_cache">Keine Nachrichten zum Zwischenspeichern.</string>
@@ -567,6 +566,7 @@
     <string name="shell_confirm_notification_desc">Fragt an, einen Remote-Befehl zu erlauben oder abzulehnen, während Agora im Hintergrund ist</string>
     <string name="ask_user_title">Der Assistent fragt</string>
     <string name="ask_user_send">Senden</string>
+    <string name="ask_user_custom_answer">Mit eigenen Worten antworten</string>
     <string name="ask_user_skip">Überspringen</string>
     <string name="ask_user_notification_channel">Frage von Agora</string>
     <string name="ask_user_notification_desc">Bittet dich, eine Frage des Assistenten zu beantworten, wenn der Chat nicht geöffnet ist</string>

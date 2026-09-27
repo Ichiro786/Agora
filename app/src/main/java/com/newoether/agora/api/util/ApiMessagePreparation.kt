@@ -1,5 +1,6 @@
 package com.newoether.agora.api.util
 
+import com.newoether.agora.api.util.tokens.ContextCostModel
 import com.newoether.agora.model.ChatMessage
 import com.newoether.agora.model.Participant
 import com.newoether.agora.model.isContextCompact
@@ -92,6 +93,7 @@ fun prepareMessages(
     messages: List<ChatMessage>,
     contextTokenBudget: Int,
     includeAssistantReasoning: Boolean = false,
+    costs: ContextCostModel = ContextCostModel.Default,
 ): List<ChatMessage> {
     val previous = messages.getOrNull(messages.lastIndex - 1)
     val prompt = messages.lastOrNull()?.takeIf {
@@ -111,6 +113,7 @@ fun prepareMessages(
                 ),
                 contextTokenBudget,
                 includeAssistantReasoning = includeAssistantReasoning,
+                costs = costs,
             )
         )
     ) + listOfNotNull(prompt)

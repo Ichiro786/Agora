@@ -29,6 +29,9 @@ internal class AttachmentImportProcessor(
     ) -> List<String> = { source, config ->
         ImageProcessor(app).extractVideoFrames(source, config)
     },
+    private val measurePixels: suspend (source: String) -> ImagePixelSize? = { source ->
+        ImageProcessor(app).measurePixels(source)
+    },
     private val renderPdf: suspend (source: String, pages: Set<Int>?) -> List<String> =
         { source, pages -> PdfPageRenderer.renderAsImages(app, source, pages) },
     private val renderAllPdfPages: suspend (
@@ -256,10 +259,13 @@ internal class AttachmentImportProcessor(
     ): ProcessResult {
         val normalizedPath = normalizeImage(stagedPath)
             ?: return ProcessResult.Failure(IllegalStateException("Image normalization failed"))
+        val pixels = measurePixels(normalizedPath)
         return ProcessResult.Ready(
             attachment = attachment.copy(
                 localPath = normalizedPath,
                 fileSize = File(normalizedPath).length(),
+                pixelWidth = pixels?.width,
+                pixelHeight = pixels?.height,
                 importState = AttachmentImportState.READY,
             ),
             createdPaths = listOf(normalizedPath),
@@ -282,9 +288,14 @@ internal class AttachmentImportProcessor(
         if (frames.isEmpty()) {
             return ProcessResult.Failure(IllegalStateException("Video frame extraction failed"))
         }
+        // Every frame of one extraction is bounded by the same edge limit and shares the source's
+        // aspect ratio, so the first frame's size represents the whole slice.
+        val pixels = measurePixels(frames.first())
         return ProcessResult.Ready(
             attachment = attachment.copy(
                 processedFrames = frames,
+                pixelWidth = pixels?.width,
+                pixelHeight = pixels?.height,
                 importState = AttachmentImportState.READY,
             ),
             createdPaths = frames,
@@ -299,10 +310,14 @@ internal class AttachmentImportProcessor(
         if (pages.isEmpty()) {
             return ProcessResult.Failure(IllegalStateException("PDF rendering failed"))
         }
+        // Rendered pages share the renderer's target resolution, so the first page represents them.
+        val pixels = measurePixels(pages.first())
         return ProcessResult.Ready(
             attachment = attachment.copy(
                 selectedPages = pages.indices.toSet(),
                 preRenderedPaths = pages,
+                pixelWidth = pixels?.width,
+                pixelHeight = pixels?.height,
                 importState = AttachmentImportState.READY,
             ),
             createdPaths = pages,

@@ -459,7 +459,6 @@
     <string name="pdf_selected">選択済み</string>
 
     <!-- Caching & Sync -->
-    <string name="embedding_model_caching">埋め込みモデル \"%1$s\" をキャッシュ中…</string>
     <string name="messages_not_cached">%2$d 件中 %1$d 件のメッセージが未キャッシュです。</string>
     <string name="cache_now">今すぐキャッシュ</string>
     <string name="no_messages_to_cache">キャッシュするメッセージがありません。</string>
@@ -567,6 +566,7 @@
     <string name="shell_confirm_notification_desc">Agora がバックグラウンドにある間に、リモートコマンドを許可または拒否するよう尋ねます</string>
     <string name="ask_user_title">アシスタントからの質問</string>
     <string name="ask_user_send">送信</string>
+    <string name="ask_user_custom_answer">自分の言葉で答える</string>
     <string name="ask_user_skip">スキップ</string>
     <string name="ask_user_notification_channel">Agora からの質問</string>
     <string name="ask_user_notification_desc">チャット画面が開いていないときにアシスタントの質問への回答を求めます</string>

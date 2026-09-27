@@ -347,6 +347,11 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                                         100).toInt()
                                                     "$shown/$total ($percent%)"
                                                 }
+                                                    // A run that started before its counts arrived
+                                                    // has no progress to state yet. It still has to
+                                                    // say it is working, or the row would show only
+                                                    // the model type next to a spinning indicator.
+                                                    ?: stringResource(R.string.loading_label)
                                             EmbeddingCacheRowPhase.CACHE -> {
                                                 val cached = requireNotNull(cacheRow?.cached)
                                                 val total = requireNotNull(cacheRow.indexableTotal)

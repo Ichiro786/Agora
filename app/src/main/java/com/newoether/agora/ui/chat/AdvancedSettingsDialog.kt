@@ -264,7 +264,11 @@ private fun AdvancedParamRow(
         }
         Slider(
             value = index.toFloat(),
-            onValueChange = { onChange(presets[it.toInt().coerceIn(0, presets.lastIndex)]) },
+            // Rounding, not truncation: a tick that lands on 2.999999 must still select preset 3,
+            // otherwise dragging skips presets.
+            onValueChange = {
+                onChange(presets[kotlin.math.round(it).toInt().coerceIn(0, presets.lastIndex)])
+            },
             valueRange = 0f..(presets.size - 1).toFloat(),
             steps = presets.size - 2,
             modifier = Modifier.fillMaxWidth()

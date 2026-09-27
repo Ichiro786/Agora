@@ -459,7 +459,6 @@
     <string name="pdf_selected">محدد</string>
 
     <!-- Caching & Sync -->
-    <string name="embedding_model_caching">جارٍ تخزين نموذج التضمين \"%1$s\" مؤقتًا…</string>
     <string name="messages_not_cached">%1$d من %2$d رسالة غير مخزّنة مؤقتًا.</string>
     <string name="cache_now">التخزين المؤقت الآن</string>
     <string name="no_messages_to_cache">لا توجد رسائل للتخزين المؤقت.</string>
@@ -567,6 +566,7 @@
     <string name="shell_confirm_notification_desc">يطلب السماح بأمر عن بُعد أو رفضه عندما يكون Agora في الخلفية</string>
     <string name="ask_user_title">المساعد يسأل</string>
     <string name="ask_user_send">إرسال</string>
+    <string name="ask_user_custom_answer">أجب بكلماتك</string>
     <string name="ask_user_skip">تخطي</string>
     <string name="ask_user_notification_channel">سؤال من Agora</string>
     <string name="ask_user_notification_desc">يطلب منك الإجابة على سؤال المساعد عندما لا تكون شاشة المحادثة مفتوحة</string>

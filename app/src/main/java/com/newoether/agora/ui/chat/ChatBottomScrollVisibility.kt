@@ -14,7 +14,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
 /** Directional travel a scroll must cover before it counts as a change of intent. */
-private val ScrollDirectionThreshold = 64.dp
+private val ScrollDirectionThreshold = 32.dp
 
 /**
  * Latches the direction the user is scrolling, but only after they have travelled far enough for the

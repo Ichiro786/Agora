@@ -1,5 +1,8 @@
 package com.newoether.agora.api.util
 
+import com.newoether.agora.api.util.tokens.ContextCostModel
+import com.newoether.agora.api.util.tokens.CostModelContextEstimator
+import com.newoether.agora.api.util.tokens.FixedContextComposition
 import com.newoether.agora.model.ChatMessage
 import com.newoether.agora.model.Participant
 import com.newoether.agora.model.isSuccessfulContextCompact
@@ -102,13 +105,14 @@ fun contextWindowUsage(
     tokenBudget: Int,
     fixedTokenCost: Int = 0,
     includeAssistantReasoning: Boolean = false,
-    fixedComposition: ContextTokenEstimator.FixedContextComposition? = null,
+    fixedComposition: FixedContextComposition? = null,
+    costs: ContextCostModel = ContextCostModel.Default,
 ): ContextWindowUsage {
     val safeBudget = tokenBudget.coerceAtLeast(1)
     val canonical = canonicalContextMessages(messages)
     return ContextWindowUsage(
         estimatedTokenCount = (
-            ContextTokenEstimator.estimate(
+            CostModelContextEstimator(costs).estimate(
                 canonical,
                 includeAssistantReasoning = includeAssistantReasoning,
             ).toLong() +
@@ -129,6 +133,7 @@ fun contextWindowRetainedMessageIds(
     tokenBudget: Int,
     fixedTokenCost: Int = 0,
     includeAssistantReasoning: Boolean = false,
+    costs: ContextCostModel = ContextCostModel.Default,
 ): Set<String> {
     if (messages.isEmpty()) return emptySet()
     val compacted = applyNearestContextCompact(messages)
@@ -137,6 +142,7 @@ fun contextWindowRetainedMessageIds(
         canonicalContextMessages(messages),
         messageBudget,
         includeAssistantReasoning = includeAssistantReasoning,
+        costs = costs,
     )
     val firstRetainedId = retained.firstOrNull()?.id ?: return emptySet()
     val sourceAnchorId = firstRetainedId.removePrefix("context_summary_")

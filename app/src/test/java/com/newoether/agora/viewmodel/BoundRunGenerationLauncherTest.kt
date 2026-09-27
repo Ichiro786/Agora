@@ -64,7 +64,10 @@ class BoundRunGenerationLauncherTest {
             fixture.compactController.automaticNeeded(
                 conversationId = "conversation",
                 contextLimit = 4096,
-                config = fixture.snapshot.automaticCompact,
+                // The threshold measures the main request, so it carries the main model id.
+                config = fixture.snapshot.automaticCompact.copy(
+                    mainModelId = fixture.config.modelId,
+                ),
             )
         }
         fixture.state.dispose()

@@ -461,7 +461,6 @@
     <string name="pdf_selected">Đã chọn</string>
 
     <!-- Caching & Sync -->
-    <string name="embedding_model_caching">Mô hình nhúng \"%1$s\" đang lưu bộ đệm…</string>
     <string name="messages_not_cached">%1$d trên %2$d tin nhắn chưa được lưu bộ đệm.</string>
     <string name="cache_now">Lưu bộ đệm ngay</string>
     <string name="no_messages_to_cache">Không có tin nhắn nào để lưu bộ đệm.</string>
@@ -576,6 +575,7 @@
     <string name="shell_confirm_notification_desc">Yêu cầu cho phép hoặc từ chối lệnh từ xa khi Agora chạy ngầm</string>
     <string name="ask_user_title">Trợ lý đang hỏi</string>
     <string name="ask_user_send">Gửi</string>
+    <string name="ask_user_custom_answer">Trả lời bằng lời của bạn</string>
     <string name="ask_user_skip">Bỏ qua</string>
     <string name="ask_user_notification_channel">Câu hỏi từ Agora</string>
     <string name="ask_user_notification_desc">Yêu cầu bạn trả lời câu hỏi của trợ lý khi màn hình trò chuyện không mở</string>

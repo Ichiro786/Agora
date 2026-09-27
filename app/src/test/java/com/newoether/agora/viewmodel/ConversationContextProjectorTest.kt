@@ -1,6 +1,6 @@
 package com.newoether.agora.viewmodel
 
-import com.newoether.agora.api.util.ContextTokenEstimator
+import com.newoether.agora.api.util.tokens.FixedContextComposition
 import com.newoether.agora.data.local.MessageEntity
 import com.newoether.agora.data.repository.ConversationRepository
 import com.newoether.agora.model.MessageSegment
@@ -549,7 +549,7 @@ class ConversationContextProjectorTest {
      */
     private fun stubFixedComposition(generationManager: GenerationManager) {
         every { generationManager.fixedContextComposition(any(), any()) } returns
-            ContextTokenEstimator.FixedContextComposition(systemPromptTokens = 0, toolTokens = 0)
+            FixedContextComposition(systemPromptTokens = 0, toolTokens = 0)
     }
 
     private fun entity(

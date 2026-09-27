@@ -99,13 +99,14 @@ internal object EmbeddingCacheRowReducer {
     fun refreshRequested(previous: EmbeddingCacheRowSnapshot?) =
         (previous ?: EmbeddingCacheRowSnapshot()).copy(countLoading = true, countFailed = false)
 
+    /** [active] covers every unfinished work state, so an enqueued run already reads as CACHING. */
     fun workChanged(
         previous: EmbeddingCacheRowSnapshot?,
-        running: Boolean,
+        active: Boolean,
         progress: EmbeddingCacheWorkSnapshot? = null,
     ) = (previous ?: EmbeddingCacheRowSnapshot()).copy(
-        workActive = running,
-        progress = progress.takeIf { running },
+        workActive = active,
+        progress = progress.takeIf { active },
     )
 
     fun refreshed(previous: EmbeddingCacheRowSnapshot?, cached: Int, total: Int) =

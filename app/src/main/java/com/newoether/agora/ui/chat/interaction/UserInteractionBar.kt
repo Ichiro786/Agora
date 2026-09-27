@@ -1,5 +1,12 @@
 package com.newoether.agora.ui.chat.interaction
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +36,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,17 +51,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.newoether.agora.R
 import com.newoether.agora.ui.chat.message.ChatMarkdownCodeBlock
+import com.newoether.agora.ui.motion.LocalAgoraMotionPolicy
 import com.newoether.agora.viewmodel.AskUserController
 import com.newoether.agora.viewmodel.ShellConfirmationController
 
 private val ContentMaxWidth = 840.dp
 private val ScrollableContentMaxHeight = 200.dp
+private const val AppearDurationMs = 180
+
+/** The bar grows out of the composer, so it scales from its bottom edge rather than its centre. */
+private val BottomOrigin = TransformOrigin(0.5f, 1f)
 
 /**
  * Bottom bar that answers the requests in [interactions] without covering the conversation.
@@ -70,19 +84,50 @@ private val ScrollableContentMaxHeight = 200.dp
 internal fun UserInteractionBar(
     interactions: List<UserInteraction>,
     autoWrapCodeBlocks: Boolean,
-    onAnswerQuestion: (Long, List<String>) -> Unit,
+    onAnswerQuestion: (Long, List<String>, String?) -> Unit,
     onSkipQuestion: (Long) -> Unit,
     onShellDecision: (Long, Boolean, Boolean) -> Unit,
     onHeightChanged: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (interactions.isEmpty()) {
-        LaunchedEffect(Unit) { onHeightChanged(0f) }
-        return
+    val motionPolicy = LocalAgoraMotionPolicy.current
+    val visible = interactions.isNotEmpty()
+    // The exit animation still needs cards to draw, so the last non-empty list stays around.
+    var shown by remember { mutableStateOf(interactions) }
+    if (visible) shown = interactions
+    // The measured height never reaches zero on its own, because the bar leaves by scaling rather
+    // than shrinking. Reporting zero here is what lets the host drop its lifted controls back down.
+    LaunchedEffect(visible) { if (!visible) onHeightChanged(0f) }
+    val spec = if (motionPolicy.allowContinuousMotion) tween<Float>(AppearDurationMs) else snap()
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(spec) + scaleIn(spec, initialScale = 0.9f, transformOrigin = BottomOrigin),
+        exit = fadeOut(spec) + scaleOut(spec, targetScale = 0.9f, transformOrigin = BottomOrigin),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        UserInteractionPager(
+            interactions = shown,
+            autoWrapCodeBlocks = autoWrapCodeBlocks,
+            onAnswerQuestion = onAnswerQuestion,
+            onSkipQuestion = onSkipQuestion,
+            onShellDecision = onShellDecision,
+            onHeightChanged = onHeightChanged,
+        )
     }
+}
+
+@Composable
+private fun UserInteractionPager(
+    interactions: List<UserInteraction>,
+    autoWrapCodeBlocks: Boolean,
+    onAnswerQuestion: (Long, List<String>, String?) -> Unit,
+    onSkipQuestion: (Long) -> Unit,
+    onShellDecision: (Long, Boolean, Boolean) -> Unit,
+    onHeightChanged: (Float) -> Unit,
+) {
     val pagerState = rememberPagerState(pageCount = { interactions.size })
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .onSizeChanged { onHeightChanged(it.height.toFloat()) },
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -99,7 +144,9 @@ internal fun UserInteractionBar(
                 is UserInteraction.Question -> InteractionCard {
                     QuestionCardContent(
                         request = interaction.request,
-                        onAnswer = { choices -> onAnswerQuestion(interaction.request.id, choices) },
+                        onAnswer = { choices, text ->
+                            onAnswerQuestion(interaction.request.id, choices, text)
+                        },
                         onSkip = { onSkipQuestion(interaction.request.id) },
                     )
                 }
@@ -136,14 +183,26 @@ private fun InteractionCard(content: @Composable () -> Unit) {
     }
 }
 
+/**
+ * One question.
+ *
+ * Options are optional: a request without them is an open question. Even with options the user can
+ * type instead, because the model's list is its guess at what the answers are, and a wrong guess
+ * must not force the user to pick one of it.
+ */
 @Composable
 private fun QuestionCardContent(
     request: AskUserController.Request,
-    onAnswer: (List<String>) -> Unit,
+    onAnswer: (List<String>, String?) -> Unit,
     onSkip: () -> Unit,
 ) {
-    // Selection belongs to this request only: a new request must never inherit an old answer.
+    // Selection and draft belong to this request only: a new request must never inherit an old answer.
     var selected by remember(request.id) { mutableStateOf(emptySet<String>()) }
+    var typed by remember(request.id) { mutableStateOf("") }
+    val hasOptions = request.options.isNotEmpty()
+    // Typing is one of the choices rather than a second control next to them. An open question has
+    // nothing to choose between, so there the field is the answer and is offered straight away.
+    var ownAnswer by remember(request.id) { mutableStateOf(!hasOptions) }
     CardHeader(
         icon = { tint ->
             Icon(Icons.Default.QuestionAnswer, null, modifier = Modifier.size(18.dp), tint = tint)
@@ -162,21 +221,51 @@ private fun QuestionCardContent(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Spacer(Modifier.height(10.dp))
-        request.options.forEach { option ->
+        if (hasOptions) {
+            Spacer(Modifier.height(10.dp))
+            request.options.forEach { option ->
+                OptionRow(
+                    option = option,
+                    checked = option in selected,
+                    allowMultiple = request.allowMultiple,
+                    onToggle = {
+                        selected = when {
+                            !request.allowMultiple -> setOf(option)
+                            option in selected -> selected - option
+                            else -> selected + option
+                        }
+                        // One answer means one choice: picking a listed option puts the typed one
+                        // away, and picking the typed one clears the list.
+                        if (!request.allowMultiple) ownAnswer = false
+                    },
+                )
+            }
             OptionRow(
-                option = option,
-                checked = option in selected,
+                option = stringResource(R.string.ask_user_custom_answer),
+                checked = ownAnswer,
                 allowMultiple = request.allowMultiple,
                 onToggle = {
-                    selected = when {
-                        !request.allowMultiple -> setOf(option)
-                        option in selected -> selected - option
-                        else -> selected + option
-                    }
+                    ownAnswer = if (request.allowMultiple) !ownAnswer else true
+                    if (!request.allowMultiple) selected = emptySet()
                 },
             )
         }
+    }
+    if (ownAnswer) {
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            value = typed,
+            onValueChange = { typed = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = if (hasOptions) {
+                null
+            } else {
+                { Text(stringResource(R.string.ask_user_custom_answer)) }
+            },
+            textStyle = MaterialTheme.typography.bodyMedium,
+            shape = RoundedCornerShape(16.dp),
+            maxLines = 4,
+        )
     }
     Spacer(Modifier.height(6.dp))
     Row(
@@ -187,8 +276,13 @@ private fun QuestionCardContent(
         TextButton(onClick = onSkip) { Text(stringResource(R.string.ask_user_skip)) }
         Spacer(Modifier.width(4.dp))
         Button(
-            onClick = { onAnswer(request.options.filter { it in selected }) },
-            enabled = selected.isNotEmpty(),
+            onClick = {
+                onAnswer(
+                    request.options.filter { it in selected },
+                    typed.trim().takeIf { ownAnswer && it.isNotEmpty() },
+                )
+            },
+            enabled = selected.isNotEmpty() || (ownAnswer && typed.isNotBlank()),
         ) { Text(stringResource(R.string.ask_user_send)) }
     }
 }

@@ -498,7 +498,6 @@
     <string name="deselect_all">取消全選</string>
 
     <!-- Caching & Sync -->
-    <string name="embedding_model_caching">嵌入模型 \"%1$s\" 正在快取…</string>
     <string name="messages_not_cached">%1$d / %2$d 則訊息尚未快取。</string>
     <string name="cache_now">立即快取</string>
     <string name="no_messages_to_cache">沒有需要快取的訊息。</string>
@@ -609,6 +608,7 @@
     <string name="shell_confirm_notification_desc">Agora 於背景執行時，請求你允許或拒絕遠端命令</string>
     <string name="ask_user_title">助手正在提問</string>
     <string name="ask_user_send">傳送</string>
+    <string name="ask_user_custom_answer">用自己的話回答</string>
     <string name="ask_user_skip">略過</string>
     <string name="ask_user_notification_channel">Agora 的提問</string>
     <string name="ask_user_notification_desc">在聊天畫面未開啟時請你回答助手的問題</string>

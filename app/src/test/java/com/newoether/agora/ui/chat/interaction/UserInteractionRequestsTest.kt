@@ -49,5 +49,6 @@ class UserInteractionRequestsTest {
         question = "Which one?",
         options = listOf("A", "B"),
         allowMultiple = false,
+        blocking = true,
     )
 }

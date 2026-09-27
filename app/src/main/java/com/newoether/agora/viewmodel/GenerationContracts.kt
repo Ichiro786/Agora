@@ -122,6 +122,11 @@ internal data class AutomaticCompactConfig(
     val userPostpend: String? = null,
     /** Filled by the effect owner that has the exact frozen tool-definition set. */
     val fixedTokenCost: Int = 0,
+    /**
+     * Main request model, not the Compact model. The threshold measures the main request's context,
+     * so it must be priced with the main model's cost model.
+     */
+    val mainModelId: String? = null,
     /** Main request, not Compact-model, replay policy for ordinary assistant reasoning. */
     val includeAssistantReasoning: Boolean = false,
 )

@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -21,6 +22,7 @@ class AskUserControllerTest {
             question = "Which one?",
             options = listOf("A", "B"),
             allowMultiple = false,
+            blocking = true,
         )
         val answer = async { controller.awaitAnswer(request) }
         runCurrent()
@@ -34,9 +36,48 @@ class AskUserControllerTest {
     }
 
     @Test
+    fun `a typed answer reaches the waiting call next to the picked options`() = runTest {
+        val controller = AskUserController()
+        val request = controller.open("c1", "Which one?", listOf("A"), allowMultiple = false, blocking = true)
+        val answer = async { controller.awaitAnswer(request) }
+        runCurrent()
+
+        controller.submit(request.id, listOf("A"), "and also this")
+
+        assertEquals(listOf("A"), answer.await().choices)
+        assertEquals("and also this", answer.await().text)
+    }
+
+    @Test
+    fun `an open question is answered by text alone`() = runTest {
+        val controller = AskUserController()
+        val request = controller.open("c1", "What should it be called?", emptyList(), allowMultiple = false, blocking = true)
+        val answer = async { controller.awaitAnswer(request) }
+        runCurrent()
+
+        controller.submit(request.id, emptyList(), "Agora")
+
+        assertTrue(answer.await().choices.isEmpty())
+        assertEquals("Agora", answer.await().text)
+        assertTrue(answer.await().answered)
+    }
+
+    @Test
+    fun `blank text is dropped rather than reported as an answer`() = runTest {
+        val controller = AskUserController()
+        val request = controller.open("c1", "Which one?", listOf("A"), allowMultiple = false, blocking = true)
+        val answer = async { controller.awaitAnswer(request) }
+        runCurrent()
+
+        controller.submit(request.id, listOf("A"), "   ")
+
+        assertNull(answer.await().text)
+    }
+
+    @Test
     fun `skipping reports no answer instead of an empty choice`() = runTest {
         val controller = AskUserController()
-        val request = controller.open("c1", "Which one?", listOf("A"), allowMultiple = false)
+        val request = controller.open("c1", "Which one?", listOf("A"), allowMultiple = false, blocking = true)
         val answer = async { controller.awaitAnswer(request) }
         runCurrent()
 
@@ -50,7 +91,7 @@ class AskUserControllerTest {
     @Test
     fun `a question waits indefinitely because no timeout may answer it`() = runTest {
         val controller = AskUserController()
-        val request = controller.open("c1", "Which one?", listOf("A", "B"), allowMultiple = false)
+        val request = controller.open("c1", "Which one?", listOf("A", "B"), allowMultiple = false, blocking = true)
         val answer = async { controller.awaitAnswer(request) }
         runCurrent()
 
@@ -66,13 +107,13 @@ class AskUserControllerTest {
     @Test
     fun `an answer carrying a stale request id decides nothing`() = runTest {
         val controller = AskUserController()
-        val first = controller.open("c1", "First?", listOf("A"), allowMultiple = false)
+        val first = controller.open("c1", "First?", listOf("A"), allowMultiple = false, blocking = true)
         val firstAnswer = async { controller.awaitAnswer(first) }
         runCurrent()
         controller.submit(first.id, listOf("A"))
         firstAnswer.await()
 
-        val second = controller.open("c1", "Second?", listOf("B"), allowMultiple = false)
+        val second = controller.open("c1", "Second?", listOf("B"), allowMultiple = false, blocking = true)
         val secondAnswer = async { controller.awaitAnswer(second) }
         runCurrent()
 
@@ -88,8 +129,8 @@ class AskUserControllerTest {
     @Test
     fun `requests keep the order they were asked in and stay addressable by id`() = runTest {
         val controller = AskUserController()
-        val first = controller.open("c1", "First?", listOf("A"), allowMultiple = false)
-        val second = controller.open("c2", "Second?", listOf("B", "C"), allowMultiple = true)
+        val first = controller.open("c1", "First?", listOf("A"), allowMultiple = false, blocking = true)
+        val second = controller.open("c2", "Second?", listOf("B", "C"), allowMultiple = true, blocking = true)
 
         assertEquals(listOf(first, second), controller.requests.value)
         assertEquals(second, controller.requestById(second.id))
@@ -98,5 +139,47 @@ class AskUserControllerTest {
         controller.dismiss(first.id)
         assertEquals(listOf(second), controller.requests.value)
         assertEquals(null, controller.requestById(first.id))
+    }
+
+    @Test
+    fun `a non-blocking answer is published for the send queue instead of resuming a caller`() = runTest {
+        val controller = AskUserController()
+        val delivered = mutableListOf<AskUserController.DeferredAnswer>()
+        val collector = async { controller.deferredAnswers.collect { delivered += it } }
+        runCurrent()
+        val request = controller.open(
+            conversationId = "c1",
+            question = "Which one?",
+            options = listOf("A", "B"),
+            allowMultiple = false,
+            blocking = false,
+        )
+        assertEquals(listOf(request), controller.requests.value)
+
+        controller.submit(request.id, listOf("B"), "because of this")
+        runCurrent()
+
+        assertEquals(1, delivered.size)
+        assertEquals("c1", delivered.single().conversationId)
+        // The question travels with the answer: the message lands turns after it was asked.
+        assertEquals("Which one?\nB\nbecause of this", delivered.single().text)
+        assertTrue(controller.requests.value.isEmpty())
+        collector.cancel()
+    }
+
+    @Test
+    fun `skipping a non-blocking question sends nothing`() = runTest {
+        val controller = AskUserController()
+        val delivered = mutableListOf<AskUserController.DeferredAnswer>()
+        val collector = async { controller.deferredAnswers.collect { delivered += it } }
+        runCurrent()
+        val request = controller.open("c1", "Which one?", listOf("A"), allowMultiple = false, blocking = false)
+
+        controller.dismiss(request.id)
+        runCurrent()
+
+        assertTrue(delivered.isEmpty())
+        assertTrue(controller.requests.value.isEmpty())
+        collector.cancel()
     }
 }

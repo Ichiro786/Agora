@@ -459,7 +459,6 @@
     <string name="pdf_selected">Sélectionné</string>
 
     <!-- Caching & Sync -->
-    <string name="embedding_model_caching">Le modèle d\'embedding \"%1$s\" est en cours de mise en cache…</string>
     <string name="messages_not_cached">%1$d sur %2$d messages non mis en cache.</string>
     <string name="cache_now">Mettre en cache</string>
     <string name="no_messages_to_cache">Aucun message à mettre en cache.</string>
@@ -567,6 +566,7 @@
     <string name="shell_confirm_notification_desc">Demande à autoriser ou refuser une commande distante pendant qu\'Agora est en arrière-plan</string>
     <string name="ask_user_title">L\'assistant vous demande</string>
     <string name="ask_user_send">Envoyer</string>
+    <string name="ask_user_custom_answer">Répondez avec vos mots</string>
     <string name="ask_user_skip">Ignorer</string>
     <string name="ask_user_notification_channel">Question d\'Agora</string>
     <string name="ask_user_notification_desc">Vous demande de répondre à une question de l\'assistant lorsque le chat n\'est pas ouvert</string>

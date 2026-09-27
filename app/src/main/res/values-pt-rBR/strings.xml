@@ -459,7 +459,6 @@
     <string name="pdf_selected">Selecionado</string>
 
     <!-- Caching & Sync -->
-    <string name="embedding_model_caching">O modelo de embedding \"%1$s\" está sendo armazenado em cache…</string>
     <string name="messages_not_cached">%1$d de %2$d mensagens sem cache.</string>
     <string name="cache_now">Armazenar em cache agora</string>
     <string name="no_messages_to_cache">Nenhuma mensagem para armazenar em cache.</string>
@@ -567,6 +566,7 @@
     <string name="shell_confirm_notification_desc">Pede para permitir ou negar um comando remoto enquanto o Agora está em segundo plano</string>
     <string name="ask_user_title">O assistente está perguntando</string>
     <string name="ask_user_send">Enviar</string>
+    <string name="ask_user_custom_answer">Responda com suas palavras</string>
     <string name="ask_user_skip">Ignorar</string>
     <string name="ask_user_notification_channel">Pergunta do Agora</string>
     <string name="ask_user_notification_desc">Pede que você responda a uma pergunta do assistente quando o chat não está aberto</string>

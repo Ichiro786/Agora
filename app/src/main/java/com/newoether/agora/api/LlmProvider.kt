@@ -5,6 +5,7 @@ import com.newoether.agora.model.CitationRecord
 import com.newoether.agora.model.ContextBudget
 import com.newoether.agora.model.TokenUsage
 import com.newoether.agora.api.util.prepareMessages
+import com.newoether.agora.api.util.tokens.ContextCostModels
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -97,6 +98,9 @@ suspend fun ProviderConfig.resolveRequest(messages: List<ChatMessage>): Provider
                 messages,
                 maxContextWindow,
                 includeAssistantReasoning = includeAssistantReasoning,
+                // Trimming must price context the same way the indicator does, so the fallback
+                // resolver counts with this model's own cost model too.
+                costs = ContextCostModels.forModel(modelId),
             ),
             systemPrompt = systemPrompt,
         )
@@ -162,7 +166,12 @@ data class ToolParameters(
 data class ToolProperty(
     val type: String,
     val description: String,
-    val items: ToolProperty? = null
+    /** For an array: the schema of one element. */
+    val items: ToolProperty? = null,
+    /** For an object: the schema of each field it carries. */
+    val properties: Map<String, ToolProperty>? = null,
+    /** For an object: which of its own fields are mandatory. */
+    val required: List<String>? = null,
 )
 
 @Serializable

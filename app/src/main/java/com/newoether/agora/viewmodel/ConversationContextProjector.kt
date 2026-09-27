@@ -3,6 +3,8 @@ package com.newoether.agora.viewmodel
 import com.newoether.agora.api.util.ContextWindowUsage
 import com.newoether.agora.api.util.contextWindowRetainedMessageIds
 import com.newoether.agora.api.util.contextWindowUsage
+import com.newoether.agora.api.util.tokens.ContextCostModel
+import com.newoether.agora.api.util.tokens.ContextCostModels
 import com.newoether.agora.data.repository.ConversationRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -108,6 +110,11 @@ internal class ConversationContextProjector(
             val fixedComposition = snapshot?.let {
                 generationManager().fixedContextComposition(it.config, it.context)
             }
+            // The indicator must price context exactly like dispatch does, so it uses the selected
+            // model's cost model too.
+            val costs = snapshot
+                ?.let { ContextCostModels.forModel(it.config.modelId) }
+                ?: ContextCostModel.Default
             ConversationContextProjection(
                 conversationId = conversationId,
                 selectedBranchesJson = selectedBranchesJson,
@@ -117,12 +124,14 @@ internal class ConversationContextProjector(
                     fixedTokenCost = fixedTokenCost,
                     includeAssistantReasoning = includeAssistantReasoning,
                     fixedComposition = fixedComposition,
+                    costs = costs,
                 ),
                 retainedMessageIds = contextWindowRetainedMessageIds(
                     messages = contextMessages,
                     tokenBudget = tokenBudget,
                     fixedTokenCost = fixedTokenCost,
                     includeAssistantReasoning = includeAssistantReasoning,
+                    costs = costs,
                 ),
                 completed = true,
             )

@@ -31,6 +31,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import com.newoether.agora.api.util.ToolSchemaJson
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.util.UUID
@@ -367,31 +368,7 @@ class GeminiProvider(
             GeminiFunctionDeclaration(
                 name = td.function.name,
                 description = td.function.description,
-                parameters = JsonObject(
-                    mapOf(
-                        "type" to JsonPrimitive(td.function.parameters.type),
-                        "properties" to JsonObject(
-                            td.function.parameters.properties.mapValues { (_, prop) ->
-                                val propMap = mutableMapOf<String, kotlinx.serialization.json.JsonElement>(
-                                    "type" to JsonPrimitive(prop.type),
-                                    "description" to JsonPrimitive(prop.description)
-                                )
-                                if (prop.items != null) {
-                                    propMap["items"] = JsonObject(
-                                        mapOf(
-                                            "type" to JsonPrimitive(prop.items.type),
-                                            "description" to JsonPrimitive(prop.items.description)
-                                        )
-                                    )
-                                }
-                                JsonObject(propMap)
-                            }
-                        ),
-                        "required" to kotlinx.serialization.json.JsonArray(
-                            td.function.parameters.required.map { JsonPrimitive(it) }
-                        )
-                    )
-                )
+                parameters = ToolSchemaJson.of(td.function.parameters)
             )
         }
         if (!functionDeclarations.isNullOrEmpty()) {

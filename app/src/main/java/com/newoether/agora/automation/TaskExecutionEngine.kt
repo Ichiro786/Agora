@@ -382,6 +382,7 @@ class TaskExecutionEngine(
             )
             val automaticCompactConfig = generationSnapshot.automaticCompact.copy(
                 fixedTokenCost = fixedTokenCost,
+                mainModelId = generationSnapshot.config.modelId,
             )
 
             // Pre-send Compact is an isolated standard generation. Only a fresh durable SUCCESS

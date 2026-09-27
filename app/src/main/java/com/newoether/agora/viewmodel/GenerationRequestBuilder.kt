@@ -4,8 +4,9 @@ import android.content.Context
 import com.newoether.agora.R
 import com.newoether.agora.api.ProviderRequestInput
 import com.newoether.agora.api.ProviderRequestResolver
-import com.newoether.agora.api.util.ContextTokenEstimator
 import com.newoether.agora.api.util.prepareMessages
+import com.newoether.agora.api.util.tokens.ContextCostModels
+import com.newoether.agora.api.util.tokens.CostModelContextEstimator
 import com.newoether.agora.data.ConversationSettings
 import com.newoether.agora.data.MemoryManager
 import com.newoether.agora.data.SkillManager
@@ -655,7 +656,9 @@ class GenerationRequestBuilder(
         activeModel: String,
     ): ProviderRequestResolver = ProviderRequestResolver { messages, providerConfig ->
         val resolved = resolvePromptTemplate(promptTemplate, activeModel)
-        val fixedTokenCost = ContextTokenEstimator.estimateFixed(
+        // One cost model per request: the fixed cost, the trimming and the indicator must agree.
+        val costs = ContextCostModels.forModel(providerConfig.modelId)
+        val fixedTokenCost = CostModelContextEstimator(costs).estimateFixed(
             systemPrompt = resolved.systemPrompt,
             tools = providerConfig.tools.orEmpty(),
             initialUserPrompt = null,
@@ -674,7 +677,7 @@ class GenerationRequestBuilder(
             assistantPostpend = resolved.assistantPostpend,
         )
         ProviderRequestInput(
-            messages = prepareMessages(projectedMessages, providerTokenBudget),
+            messages = prepareMessages(projectedMessages, providerTokenBudget, costs = costs),
             systemPrompt = resolved.systemPrompt,
         )
     }
