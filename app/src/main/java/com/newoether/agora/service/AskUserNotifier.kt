@@ -49,8 +49,14 @@ object AskUserNotifier {
                 controller.requests,
                 AppForegroundTracker.foreground,
                 AppForegroundTracker.chatPresented,
-            ) { requests, foreground, chatPresented ->
-                requests.firstOrNull()?.takeIf { !foreground || !chatPresented }
+                AppForegroundTracker.presentedConversation,
+            ) { requests, foreground, chatPresented, presented ->
+                // A question of another conversation is not on screen even while the chat is.
+                requests.firstOrNull { request ->
+                    !AppForegroundTracker.isShownInChat(
+                        request.conversationId, foreground, chatPresented, presented,
+                    )
+                }
             }.distinctUntilChanged().collect { request ->
                 if (request == null) {
                     cancel(appContext)

@@ -44,10 +44,16 @@ object ShellConfirmationNotifier {
                 controller.pendingShellCommand,
                 AppForegroundTracker.foreground,
                 AppForegroundTracker.chatPresented,
-            ) { pending, foreground, chatPresented ->
+                AppForegroundTracker.presentedConversation,
+            ) { pending, foreground, chatPresented, presented ->
                 // The interaction bar that answers a prompt lives in the chat screen, so being in
                 // the foreground on any other screen is as invisible as being backgrounded.
-                pending?.takeIf { !foreground || !chatPresented }
+                // A command of another conversation is not on screen even while the chat is.
+                pending?.takeIf {
+                    !AppForegroundTracker.isShownInChat(
+                        it.conversationId, foreground, chatPresented, presented,
+                    )
+                }
             }.collect { pending ->
                 if (pending == null) {
                     cancel(appContext)

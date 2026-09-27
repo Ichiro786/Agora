@@ -23,19 +23,43 @@ class UserInteractionRequestsTest {
     }
 
     @Test
-    fun `the shell confirmation is always last so the oldest question is answered first`() {
+    fun `the shell confirmation comes first because its command is held`() {
         val first = question(id = 7, conversationId = "c1")
         val pending = ShellConfirmationController.PendingShellCommand(
             id = 7,
             server = "tinybox",
             summary = "ls",
             deferred = CompletableDeferred(),
+            conversationId = "c1",
         )
 
         val interactions = userInteractions("c1", listOf(first), pending)
 
         // Both controllers number requests independently, so identical ids must stay distinct.
-        assertEquals(listOf("question:7", "shell:7"), interactions.map { it.key })
+        assertEquals(listOf("shell:7", "question:7"), interactions.map { it.key })
+    }
+
+    @Test
+    fun `a shell confirmation of another conversation is not shown here`() {
+        val pending = ShellConfirmationController.PendingShellCommand(
+            id = 1,
+            server = "tinybox",
+            summary = "ls",
+            deferred = CompletableDeferred(),
+            conversationId = "c2",
+        )
+        assertEquals(emptyList<UserInteraction>(), userInteractions("c1", emptyList(), pending))
+        assertEquals(listOf("shell:1"), userInteractions("c2", emptyList(), pending).map { it.key })
+    }
+
+    @Test
+    fun `a request is on screen only in its own conversation`() {
+        val tracker = com.newoether.agora.service.AppForegroundTracker
+        assertEquals(true, tracker.isShownInChat("c1", true, true, "c1"))
+        assertEquals(false, tracker.isShownInChat("c1", true, true, "c2"))
+        assertEquals(true, tracker.isShownInChat(null, true, true, "c2"))
+        assertEquals(false, tracker.isShownInChat("c1", false, true, "c1"))
+        assertEquals(false, tracker.isShownInChat("c1", true, false, "c1"))
     }
 
     @Test
