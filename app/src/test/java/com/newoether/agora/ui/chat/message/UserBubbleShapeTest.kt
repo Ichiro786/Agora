@@ -41,9 +41,9 @@ class UserBubbleShapeTest {
     @Test
     fun tallBubbleKeepsFixedRadius() {
         val rect = rounded(Size(200f, 300f))
-        assertEquals(24f, rect.topLeftCornerRadius.x, 0.001f)
-        assertEquals(24f, rect.topRightCornerRadius.x, 0.001f)
-        assertEquals(24f, rect.bottomLeftCornerRadius.x, 0.001f)
+        assertEquals(26f, rect.topLeftCornerRadius.x, 0.001f)
+        assertEquals(26f, rect.topRightCornerRadius.x, 0.001f)
+        assertEquals(26f, rect.bottomLeftCornerRadius.x, 0.001f)
         assertEquals(8f, rect.bottomRightCornerRadius.x, 0.001f)
     }
 
@@ -51,6 +51,6 @@ class UserBubbleShapeTest {
     fun rtlMovesTailToBottomLeft() {
         val rect = rounded(Size(200f, 300f), LayoutDirection.Rtl)
         assertEquals(8f, rect.bottomLeftCornerRadius.x, 0.001f)
-        assertEquals(24f, rect.bottomRightCornerRadius.x, 0.001f)
+        assertEquals(26f, rect.bottomRightCornerRadius.x, 0.001f)
     }
 }

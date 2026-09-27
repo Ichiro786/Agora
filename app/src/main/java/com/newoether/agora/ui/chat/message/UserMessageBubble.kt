@@ -153,7 +153,9 @@ internal fun UserMessageBubble(
             if (isEditing) {
                 val editState = rememberTextFieldState(message.text)
                 val editScrollState = rememberScrollState()
-                Column(modifier = Modifier.padding(8.dp)) {
+                // Same inset as the read-only bubble, so the text stays put when editing starts;
+                // the field keeps only a bottom gap above its indicator line.
+                Column(modifier = Modifier.padding(USER_BUBBLE_CONTENT_PADDING)) {
                     Box(modifier = Modifier.noOpBringIntoView()) {
                         TextField(
                             state = editState,
@@ -161,6 +163,7 @@ internal fun UserMessageBubble(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(editFocusRequester),
+                            contentPadding = PaddingValues(bottom = 8.dp),
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent

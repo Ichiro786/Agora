@@ -117,10 +117,10 @@ fun FileThumbnail(
 }
 
 /** Content padding of a user message bubble. */
-internal val USER_BUBBLE_CONTENT_PADDING = 12.dp
+internal val USER_BUBBLE_CONTENT_PADDING = 14.dp
 
 /**
- * Corner radius of attachments inside a user bubble: the bubble's 24dp corner minus its 12dp content
+ * Corner radius of attachments inside a user bubble: the bubble's 26dp corner minus its 14dp content
  * padding, so the attachment corner runs parallel to the bubble corner.
  */
 internal val USER_BUBBLE_ATTACHMENT_CORNER = 12.dp

@@ -685,12 +685,12 @@ The composer controls capsule may grow from the bar's inner start edge up to the
 fixed `8 dp` gap, in ordinary and externally owned conversations alike. Every control in it has a
 fixed width except the model selector label, which is the only flexible child; there is no fixed
 label cap. User message bubbles (`UserBubbleShape`) give the top-start, top-end, and bottom-start
-corners one shared radius, `min(24 dp, half the bubble's smaller side)`, and keep an `8 dp` bottom-end
+corners one shared radius, `min(26 dp, half the bubble's smaller side)`, and keep an `8 dp` bottom-end
 tail (never larger than that radius). The three large corners always match, including short or
 narrow bubbles; `RoundedCornerShape` is not used because it shrinks each side's corner pair on its
-own. The radius does not grow with bubble height. Content padding is `12 dp`, so `24 dp` is half of a
-single-line bubble. Attachments inside the bubble (images, video,
-files, PDFs) use `12 dp` corners, the bubble corner minus its `12 dp` padding, so inner and outer
+own. The radius does not grow with bubble height. Content padding is `14 dp` in both reading and edit mode
+(the edit field adds only an `8 dp` gap above its indicator), so `26 dp` is half of a single-line bubble. Attachments inside the bubble (images, video,
+files, PDFs) use `12 dp` corners, the bubble corner minus its `14 dp` padding, so inner and outer
 corners run parallel; the composer attachment preview keeps its own `8 dp`. The `ask_user` interaction
 capsule and its Settings toggle use the outlined help icon (a question mark in a circle). The drawer
 search indicator shows exactly while the newest search runs: a cancelled search never clears it.
