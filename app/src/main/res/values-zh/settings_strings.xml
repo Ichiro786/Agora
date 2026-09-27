@@ -503,6 +503,4 @@
     <string name="settings_interaction_desc">助手向你提问的方式</string>
     <string name="ask_user_enable">允许助手提问</string>
     <string name="ask_user_enable_desc">让模型可以用工具向你提问，并等你做出选择</string>
-    <string name="ask_user_blocking_default">默认等待回答</string>
-    <string name="ask_user_blocking_default_desc">助手未指定时，会暂停直到你回答。关闭后，问题等待期间助手会继续工作。</string>
 </resources>

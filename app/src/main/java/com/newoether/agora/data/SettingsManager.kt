@@ -201,8 +201,6 @@ class SettingsManager(private val context: Context) {
     // Confirm before the model runs state-changing commands on remote shell servers. Default on.
     val shellConfirmEnabled: Flow<Boolean> = context.dataStore.data.map { it[SHELL_CONFIRM_ENABLED] ?: true }
     val askUserEnabled: Flow<Boolean> = context.dataStore.data.map { it[ASK_USER_ENABLED] ?: true }
-    val askUserBlockingDefault: Flow<Boolean> =
-        context.dataStore.data.map { it[ASK_USER_BLOCKING_DEFAULT] ?: true }
     val shellDevices: Flow<List<ShellDeviceConfig>> =
         context.dataStore.data.map { preferences -> decodeEncryptedShellDevices(preferences, json) }
     val mcpServers: Flow<List<McpServerConfig>> = context.dataStore.data.map { pref ->
@@ -674,9 +672,6 @@ class SettingsManager(private val context: Context) {
     }
     suspend fun saveAskUserEnabled(enabled: Boolean) {
         context.dataStore.edit { it[ASK_USER_ENABLED] = enabled }
-    }
-    suspend fun saveAskUserBlockingDefault(blocking: Boolean) {
-        context.dataStore.edit { it[ASK_USER_BLOCKING_DEFAULT] = blocking }
     }
     suspend fun saveShellDevices(devices: List<ShellDeviceConfig>) {
         context.dataStore.edit { it[SHELL_DEVICES_JSON] = com.newoether.agora.util.SecretCrypto.encrypt(json.encodeToString(devices)) }

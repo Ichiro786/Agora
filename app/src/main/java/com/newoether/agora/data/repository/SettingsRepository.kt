@@ -202,7 +202,6 @@ class SettingsRepository(
     val proxyBypass: StateFlow<String> = hot(settingsManager.proxyBypass, com.newoether.agora.data.SettingsManager.DEFAULT_PROXY_BYPASS)
     val shellConfirmEnabled: StateFlow<Boolean> = hot(settingsManager.shellConfirmEnabled, true)
     val askUserEnabled: StateFlow<Boolean> = hot(settingsManager.askUserEnabled, true)
-    val askUserBlockingDefault: StateFlow<Boolean> = hot(settingsManager.askUserBlockingDefault, true)
     val shellDevices: StateFlow<List<ShellDeviceConfig>> = hot(settingsManager.shellDevices, emptyList())
     val mcpServers: StateFlow<List<McpServerConfig>> = hot(settingsManager.mcpServers, emptyList())
     val sandboxEnabled: StateFlow<Boolean> = hot(settingsManager.sandboxEnabled, false)
@@ -705,7 +704,6 @@ class SettingsRepository(
 
     fun setShellConfirmEnabled(enabled: Boolean) = scope.launch { settingsManager.saveShellConfirmEnabled(enabled) }
     fun setAskUserEnabled(enabled: Boolean) = scope.launch { settingsManager.saveAskUserEnabled(enabled) }
-    fun setAskUserBlockingDefault(blocking: Boolean) = scope.launch { settingsManager.saveAskUserBlockingDefault(blocking) }
     fun addShellDevice(device: ShellDeviceConfig) = scope.launch { settingsManager.saveShellDevices(shellDevices.value + device) }
     fun updateShellDevice(device: ShellDeviceConfig) = scope.launch {
         settingsManager.saveShellDevices(shellDevices.value.map { if (it.id == device.id) device else it })

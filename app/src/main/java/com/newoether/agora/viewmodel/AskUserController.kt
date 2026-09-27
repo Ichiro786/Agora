@@ -141,19 +141,39 @@ class AskUserController {
      * a stale answer cannot decide a newer request.
      */
     fun submit(id: Long, choices: List<String>, text: String? = null) {
-        val request = _requests.value.firstOrNull { it.id == id } ?: return
-        val answer = Answer(choices, text?.takeIf { it.isNotBlank() }, answered = true)
-        if (request.blocking) {
-            // The card leaves now, while the answer stays until its caller collects it.
+        submitAll(listOf(id to Answer(choices, text, answered = true)))
+    }
+
+    /**
+     * Answers several requests with one Send, in the order the user saw them. An [Answer] with
+     * `answered = false` marks a question left blank. Ids no longer waiting are ignored.
+     *
+     * Blocking requests resume their own callers. The non-blocking ones of one conversation become
+     * a single user message, so one Send is one turn for the model rather than a queue of them;
+     * blank questions are named in it so the model knows they went unanswered.
+     */
+    fun submitAll(answers: List<Pair<Long, Answer>>) {
+        val deferred = LinkedHashMap<String, MutableList<Pair<Request, Answer>>>()
+        for ((id, given) in answers) {
+            val request = _requests.value.firstOrNull { it.id == id } ?: continue
+            val answer = given.copy(text = given.text?.takeIf { it.isNotBlank() })
+            // The card leaves now, while a blocking answer stays until its caller collects it.
             dropRequest(id)
-            waiters[id]?.complete(answer)
-            return
+            if (request.blocking) {
+                waiters[id]?.complete(if (answer.answered) answer else Answer.Unanswered)
+                continue
+            }
+            // A non-blocking request without a conversation has nowhere to deliver the answer; the
+            // tool refuses that combination, so this is only a guard.
+            val conversationId = request.conversationId ?: continue
+            deferred.getOrPut(conversationId) { mutableListOf() } += request to answer
         }
-        dropRequest(id)
-        // A non-blocking request without a conversation has nowhere to deliver the answer; the tool
-        // refuses that combination, so this is only a guard.
-        val conversationId = request.conversationId ?: return
-        _deferredAnswers.tryEmit(DeferredAnswer(conversationId, deferredAnswerText(request, answer)))
+        deferred.forEach { (conversationId, items) ->
+            // Nothing answered means nothing said, so a fully blank set sends no message.
+            if (items.none { it.second.answered }) return@forEach
+            val text = items.joinToString("\n\n") { (request, answer) -> deferredAnswerText(request, answer) }
+            _deferredAnswers.tryEmit(DeferredAnswer(conversationId, text))
+        }
     }
 
     /** The user declined to answer. A blocking caller resumes with [Answer.Unanswered]. */
@@ -176,13 +196,15 @@ class AskUserController {
         /**
          * What a non-blocking answer says as a user message. It repeats the question because the
          * message arrives one or more turns after the model asked, where the question is no longer
-         * the last thing said.
+         * the last thing said. A question the user left blank says so.
          */
         fun deferredAnswerText(request: Request, answer: Answer): String = buildString {
             append(request.question)
             append("\n")
-            append(answerBody(answer))
+            append(if (answer.answered) answerBody(answer) else NO_ANSWER)
         }
+
+        const val NO_ANSWER = "(No answer)"
 
         /** The user's answer on its own: picked options first, then whatever they typed. */
         fun answerBody(answer: Answer): String = listOfNotNull(

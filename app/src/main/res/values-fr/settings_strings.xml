@@ -487,6 +487,4 @@
     <string name="settings_interaction_desc">Questions que l\'assistant vous pose</string>
     <string name="ask_user_enable">Autoriser l\'assistant à demander</string>
     <string name="ask_user_enable_desc">Donne au modèle un outil pour vous poser une question et attendre votre choix</string>
-    <string name="ask_user_blocking_default">Attendre les réponses par défaut</string>
-    <string name="ask_user_blocking_default_desc">Sauf indication contraire de l’assistant, il s’interrompt jusqu’à votre réponse. Désactivez pour qu’il continue pendant qu’une question attend.</string>
 </resources>

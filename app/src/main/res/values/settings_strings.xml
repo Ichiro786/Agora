@@ -503,6 +503,4 @@
     <string name="settings_interaction_desc">Questions the assistant asks you</string>
     <string name="ask_user_enable">Let the assistant ask me</string>
     <string name="ask_user_enable_desc">Gives the model a tool to ask you a question and wait for your choice</string>
-    <string name="ask_user_blocking_default">Wait for answers by default</string>
-    <string name="ask_user_blocking_default_desc">When the assistant does not say otherwise, it pauses until you answer. Turn off to let it keep working while a question waits.</string>
 </resources>

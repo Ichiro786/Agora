@@ -53,6 +53,15 @@ internal fun BoxScope.ChatUserInteractionBar(
     LaunchedEffect(minimizedKey, interactions.isEmpty()) {
         if (interactions.isEmpty()) minimizedIn = minimizedIn - minimizedKey
     }
+    // Picks, typing and the current page belong to the requests, not to the card on screen, so they
+    // live here for every conversation at once: switching away and back or rotating keeps them,
+    // and a request that is answered, skipped or withdrawn takes its draft with it.
+    val drafts = rememberSaveable(saver = QuestionDrafts.Saver) { QuestionDrafts() }
+    drafts.retainOnly(questions)
+    var pageIn by rememberSaveable(saver = PageSaver) { mutableStateOf(emptyMap<String, String>()) }
+    LaunchedEffect(minimizedKey, interactions.isEmpty()) {
+        if (interactions.isEmpty()) pageIn = pageIn - minimizedKey
+    }
     UserInteractionBar(
         conversationId = minimizedKey,
         interactions = interactions,
@@ -61,7 +70,10 @@ internal fun BoxScope.ChatUserInteractionBar(
             minimizedIn = if (folded) minimizedIn + owner else minimizedIn - owner
         },
         autoWrapCodeBlocks = autoWrapCodeBlocks,
-        onAnswerQuestion = { id, choices, text -> viewModel.askUser.submit(id, choices, text) },
+        drafts = drafts,
+        pageIn = pageIn,
+        onPageChange = { owner, key -> pageIn = pageIn + (owner to key) },
+        onSubmitQuestions = { answers -> viewModel.askUser.submitAll(answers) },
         onSkipQuestion = { id -> viewModel.askUser.dismiss(id) },
         onShellDecision = { id, allow, alwaysAllowServer ->
             viewModel.shellConfirmation.resolve(id, allow, alwaysAllowServer)
@@ -72,6 +84,12 @@ internal fun BoxScope.ChatUserInteractionBar(
             .padding(bottom = bottomBarHeight),
     )
 }
+
+// Alternating conversation id and page key, so the saved value is a plain list of strings.
+private val PageSaver = listSaver<androidx.compose.runtime.MutableState<Map<String, String>>, String>(
+    save = { state -> state.value.flatMap { (owner, key) -> listOf(owner, key) } },
+    restore = { saved -> mutableStateOf(saved.chunked(2).associate { (owner, key) -> owner to key }) },
+)
 
 private val MinimizedSaver = listSaver<androidx.compose.runtime.MutableState<Set<String>>, String>(
     save = { it.value.toList() },

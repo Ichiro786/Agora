@@ -182,4 +182,57 @@ class AskUserControllerTest {
         assertTrue(controller.requests.value.isEmpty())
         collector.cancel()
     }
+
+    @Test
+    fun `one send of several non-blocking questions is one message naming the blank ones`() = runTest {
+        val controller = AskUserController()
+        val delivered = mutableListOf<AskUserController.DeferredAnswer>()
+        val collector = async { controller.deferredAnswers.collect { delivered += it } }
+        runCurrent()
+        val first = controller.open("c1", "First?", listOf("A", "B"), allowMultiple = true, blocking = false)
+        val second = controller.open("c1", "Second?", emptyList(), allowMultiple = false, blocking = false)
+        val third = controller.open("c1", "Third?", listOf("C"), allowMultiple = false, blocking = false)
+
+        controller.submitAll(
+            listOf(
+                first.id to AskUserController.Answer(listOf("A", "B"), answered = true),
+                second.id to AskUserController.Answer.Unanswered,
+                third.id to AskUserController.Answer(emptyList(), "typed", answered = true),
+            ),
+        )
+        runCurrent()
+
+        assertEquals(1, delivered.size)
+        assertEquals(
+            "First?\nA, B\n\nSecond?\n${AskUserController.NO_ANSWER}\n\nThird?\ntyped",
+            delivered.single().text,
+        )
+        assertTrue(controller.requests.value.isEmpty())
+        collector.cancel()
+    }
+
+    @Test
+    fun `one send resumes blocking callers and still sends nothing for an all-blank set`() = runTest {
+        val controller = AskUserController()
+        val delivered = mutableListOf<AskUserController.DeferredAnswer>()
+        val collector = async { controller.deferredAnswers.collect { delivered += it } }
+        runCurrent()
+        val blocking = controller.open("c1", "Wait?", listOf("Y"), allowMultiple = false, blocking = true)
+        val waiting = async { controller.awaitAnswer(blocking) }
+        val queued = controller.open("c1", "Later?", listOf("Z"), allowMultiple = false, blocking = false)
+        runCurrent()
+
+        controller.submitAll(
+            listOf(
+                blocking.id to AskUserController.Answer(listOf("Y"), answered = true),
+                queued.id to AskUserController.Answer.Unanswered,
+            ),
+        )
+        runCurrent()
+
+        assertEquals(listOf("Y"), waiting.await().choices)
+        assertTrue(delivered.isEmpty())
+        assertTrue(controller.requests.value.isEmpty())
+        collector.cancel()
+    }
 }

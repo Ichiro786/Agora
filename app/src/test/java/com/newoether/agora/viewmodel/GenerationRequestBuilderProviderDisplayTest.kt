@@ -233,7 +233,6 @@ class GenerationRequestBuilderProviderDisplayTest {
         every { settings.webSearchEnabled } returns MutableStateFlow(true)
         every { settings.shellEnabled } returns MutableStateFlow(true)
         every { settings.askUserEnabled } returns MutableStateFlow(true)
-        every { settings.askUserBlockingDefault } returns MutableStateFlow(true)
         every { settings.localLowContextModeEnabled } returns MutableStateFlow(true)
         val builder = GenerationRequestBuilder(
             settings = settings,
@@ -538,7 +537,6 @@ private class RequestBuilderFixture(
         every { settings.webSearchEnabled } returns MutableStateFlow(true)
         every { settings.shellEnabled } returns MutableStateFlow(true)
         every { settings.askUserEnabled } returns MutableStateFlow(true)
-        every { settings.askUserBlockingDefault } returns MutableStateFlow(true)
         every { settings.localLowContextModeEnabled } returns MutableStateFlow(false)
         every { settings.contextCompactModel } returns MutableStateFlow(null)
         every { settings.contextCompactPrompt } returns MutableStateFlow(COMPACT_PROMPT)

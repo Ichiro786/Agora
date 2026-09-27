@@ -112,12 +112,15 @@ internal fun UserInteractionBar(
     conversationId: String,
     interactions: List<UserInteraction>,
     autoWrapCodeBlocks: Boolean,
-    onAnswerQuestion: (Long, List<String>, String?) -> Unit,
+    onSubmitQuestions: (List<Pair<Long, AskUserController.Answer>>) -> Unit,
     onSkipQuestion: (Long) -> Unit,
     onShellDecision: (Long, Boolean, Boolean) -> Unit,
     onHeightChanged: (Float) -> Unit,
     minimizedIn: Set<String>,
     onMinimizedChange: (String, Boolean) -> Unit,
+    drafts: QuestionDrafts,
+    pageIn: Map<String, String>,
+    onPageChange: (String, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val motionPolicy = LocalAgoraMotionPolicy.current
@@ -156,12 +159,15 @@ internal fun UserInteractionBar(
             InteractionDeck(
                 interactions = waiting,
                 autoWrapCodeBlocks = autoWrapCodeBlocks,
-                onAnswerQuestion = onAnswerQuestion,
+                onSubmitQuestions = onSubmitQuestions,
                 onSkipQuestion = onSkipQuestion,
                 onShellDecision = onShellDecision,
                 onHeightChanged = onHeightChanged,
                 minimized = owner in minimizedIn,
                 onMinimizedChange = { folded -> onMinimizedChange(owner, folded) },
+                drafts = drafts,
+                pageKey = pageIn[owner],
+                onPageChange = { key -> onPageChange(owner, key) },
             )
         }
     }
@@ -171,25 +177,25 @@ internal fun UserInteractionBar(
 private fun InteractionDeck(
     interactions: List<UserInteraction>,
     autoWrapCodeBlocks: Boolean,
-    onAnswerQuestion: (Long, List<String>, String?) -> Unit,
+    onSubmitQuestions: (List<Pair<Long, AskUserController.Answer>>) -> Unit,
     onSkipQuestion: (Long) -> Unit,
     onShellDecision: (Long, Boolean, Boolean) -> Unit,
     onHeightChanged: (Float) -> Unit,
     minimized: Boolean,
     onMinimizedChange: (Boolean) -> Unit,
+    drafts: QuestionDrafts,
+    pageKey: String?,
+    onPageChange: (String) -> Unit,
 ) {
     val shell = interactions.firstNotNullOfOrNull { (it as? UserInteraction.ShellCommand)?.pending }
     val questions = interactions.filterIsInstance<UserInteraction.Question>().flatMap { it.requests }
     val pages = listOfNotNull<DeckPage>(shell?.let(DeckPage::Shell)) +
         questions.map(DeckPage::Question)
     val keys = pages.map { it.key }
-    // Drafts outlive page changes and new arrivals, so a question joining the card never wipes
-    // what was already picked or typed for the others.
-    val drafts = remember { QuestionDrafts() }
-    drafts.retainOnly(questions)
-    var page by rememberSaveable { mutableIntStateOf(0) }
     if (pages.isEmpty()) return
-    val current = pages[page.coerceIn(0, pages.lastIndex)]
+    // The host remembers the page by key, so a request joining or leaving the card never moves the
+    // user off the page they were on; a page that left falls back to the first one.
+    val current = pages.firstOrNull { it.key == pageKey } ?: pages.first()
     val motion = LocalAgoraMotionPolicy.current
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
@@ -223,11 +229,11 @@ private fun InteractionDeck(
                                 // The new page arrives fast and settles; the old one
                                 // starts slowly and speeds away.
                                 slideInHorizontally(tween(PageDurationMs, easing = LinearOutSlowInEasing)) {
-                                    sign * it / 5
+                                    sign * it / 2
                                 } + fadeIn(tween(PageDurationMs, easing = LinearOutSlowInEasing))
                                 ) togetherWith (
                                 slideOutHorizontally(tween(PageDurationMs, easing = FastOutLinearInEasing)) {
-                                    -sign * it / 5
+                                    -sign * it / 2
                                 } + fadeOut(tween(PageFadeOutMs, easing = FastOutLinearInEasing))
                                 ) using SizeTransform(clip = false) { _, _ ->
                                 tween<IntSize>(PageDurationMs)
@@ -241,9 +247,9 @@ private fun InteractionDeck(
                     val index = keys.indexOf(shownPage.key)
                     val live = index >= 0
                     val position = if (live && pages.size > 1) "${index + 1} / ${pages.size}" else null
-                    val back: (() -> Unit)? = if (live && index > 0) ({ page = index - 1 }) else null
+                    val back: (() -> Unit)? = if (live && index > 0) ({ onPageChange(keys[index - 1]) }) else null
                     val next: (() -> Unit)? =
-                        if (live && index < pages.lastIndex) ({ page = index + 1 }) else null
+                        if (live && index < pages.lastIndex) ({ onPageChange(keys[index + 1]) }) else null
                     Column(modifier = Modifier.fillMaxWidth()) {
                         when (shownPage) {
                             is DeckPage.Shell -> ShellCardContent(
@@ -264,7 +270,7 @@ private fun InteractionDeck(
                                     position = position,
                                     onBack = back,
                                     onNext = next,
-                                    onAnswer = { id, choices, text -> if (live) onAnswerQuestion(id, choices, text) },
+                                    onSubmit = { answers -> if (live) onSubmitQuestions(answers) },
                                     onSkip = { id -> if (live) onSkipQuestion(id) },
                                 )
                             }

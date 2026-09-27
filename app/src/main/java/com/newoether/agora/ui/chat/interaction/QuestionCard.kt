@@ -1,8 +1,14 @@
 package com.newoether.agora.ui.chat.interaction
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +19,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -30,14 +38,23 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.newoether.agora.R
+import com.newoether.agora.ui.motion.LocalAgoraMotionPolicy
 import com.newoether.agora.viewmodel.AskUserController
+
+private const val FieldDurationMs = 180
 
 /** What the user has picked and typed for one question, kept while they move between pages. */
 @Stable
@@ -50,9 +67,25 @@ internal class QuestionDraft(hasOptions: Boolean) {
     var ownAnswer by mutableStateOf(!hasOptions)
 
     val answered: Boolean get() = selected.isNotEmpty() || (ownAnswer && typed.isNotBlank())
+
+    /** What this draft sends, or [AskUserController.Answer.Unanswered] when it was left blank. */
+    fun answerFor(request: AskUserController.Request): AskUserController.Answer =
+        if (!answered) {
+            AskUserController.Answer.Unanswered
+        } else {
+            AskUserController.Answer(
+                choices = request.options.filter { it in selected },
+                text = typed.trim().takeIf { ownAnswer && it.isNotEmpty() },
+                answered = true,
+            )
+        }
 }
 
-/** Drafts for every question on the card, keyed by request id. A new card never inherits one. */
+/**
+ * Drafts for every waiting question, keyed by request id. The chat screen holds one instance for
+ * all conversations, so a draft survives switching away and back; [Saver] lets it survive a
+ * configuration change too. A new request never inherits a draft.
+ */
 internal class QuestionDrafts {
     private val drafts = HashMap<Long, QuestionDraft>()
 
@@ -64,14 +97,47 @@ internal class QuestionDrafts {
         val live = requests.mapTo(HashSet()) { it.id }
         drafts.keys.retainAll(live)
     }
+
+    companion object {
+        // Flat so every value is a plain Bundle type: id, ownAnswer, typed, count, then the picks.
+        val Saver: Saver<QuestionDrafts, Any> = Saver(
+            save = { state ->
+                ArrayList<Any>().apply {
+                    state.drafts.forEach { (id, draft) ->
+                        add(id)
+                        add(draft.ownAnswer)
+                        add(draft.typed)
+                        add(draft.selected.size)
+                        addAll(draft.selected)
+                    }
+                }
+            },
+            restore = { saved ->
+                QuestionDrafts().apply {
+                    val values = saved as List<*>
+                    var i = 0
+                    while (i < values.size) {
+                        val draft = QuestionDraft(hasOptions = true)
+                        val id = values[i++] as Long
+                        draft.ownAnswer = values[i++] as Boolean
+                        draft.typed = values[i++] as String
+                        val count = values[i++] as Int
+                        draft.selected = values.subList(i, i + count).mapTo(LinkedHashSet()) { it as String }
+                        i += count
+                        drafts[id] = draft
+                    }
+                }
+            },
+        )
+    }
 }
 
 /**
  * One question page of the interaction card.
  *
  * Every waiting question shares the card: Back and Next move between pages, and Send on the last
- * page answers them all at once, declining any left blank. Skip declines every question on the
- * card. [position] is the "current / total" count across the whole card.
+ * page hands all of them over in one [onSubmit], marking any left blank. Skip declines every
+ * question on the card. [position] is the "current / total" count across the whole card.
  *
  * Options are optional: a question without them is an open question. Even with options the user can
  * type instead, because the model's list is its guess at what the answers are, and a wrong guess must
@@ -85,7 +151,7 @@ internal fun QuestionCardContent(
     position: String?,
     onBack: (() -> Unit)?,
     onNext: (() -> Unit)?,
-    onAnswer: (Long, List<String>, String?) -> Unit,
+    onSubmit: (List<Pair<Long, AskUserController.Answer>>) -> Unit,
     onSkip: (Long) -> Unit,
 ) {
     val request = requests[index.coerceIn(0, requests.lastIndex)]
@@ -116,21 +182,8 @@ internal fun QuestionCardContent(
             Button(onClick = onNext) { Text(stringResource(R.string.ask_user_next)) }
         } else {
             Button(
-                onClick = {
-                    // A question left blank on an earlier page is declined, not invented.
-                    requests.forEach { question ->
-                        val answer = drafts.of(question)
-                        if (answer.answered) {
-                            onAnswer(
-                                question.id,
-                                question.options.filter { it in answer.selected },
-                                answer.typed.trim().takeIf { answer.ownAnswer && it.isNotEmpty() },
-                            )
-                        } else {
-                            onSkip(question.id)
-                        }
-                    }
-                },
+                // A question left blank on an earlier page is marked unanswered, not invented.
+                onClick = { onSubmit(requests.map { it.id to drafts.of(it).answerFor(it) }) },
                 enabled = requests.any { drafts.of(it).answered },
             ) { Text(stringResource(R.string.ask_user_send)) }
         }
@@ -143,14 +196,29 @@ private fun QuestionPage(
     draft: QuestionDraft,
 ) {
     val hasOptions = request.options.isNotEmpty()
-    // The field lives inside the scrolling content, so choosing to type can land it below the
-    // visible part; [revealed] marks that choice so the field is scrolled up once it is placed.
+    val motion = LocalAgoraMotionPolicy.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    // Choosing to type opens the field inside the scrolling content, focuses it for the keyboard
+    // and scrolls it into view; [revealed] marks that choice so it happens once the field exists.
     val field = remember { BringIntoViewRequester() }
+    val focus = remember { FocusRequester() }
     var revealed by remember { mutableStateOf(false) }
     LaunchedEffect(revealed) {
         if (revealed) {
+            focus.requestFocus()
             field.bringIntoView()
             revealed = false
+        }
+    }
+    fun setOwnAnswer(on: Boolean) {
+        if (on == draft.ownAnswer) return
+        draft.ownAnswer = on
+        revealed = on
+        if (!on) {
+            // The field is leaving, so it must not keep the keyboard up behind it.
+            keyboard?.hide()
+            focusManager.clearFocus()
         }
     }
     Column(
@@ -179,7 +247,7 @@ private fun QuestionPage(
                         }
                         // One answer means one choice: picking a listed option puts the typed one
                         // away, and picking the typed one clears the list.
-                        if (!request.allowMultiple) draft.ownAnswer = false
+                        if (!request.allowMultiple) setOwnAnswer(false)
                     },
                 )
             }
@@ -188,29 +256,45 @@ private fun QuestionPage(
                 checked = draft.ownAnswer,
                 allowMultiple = request.allowMultiple,
                 onToggle = {
-                    draft.ownAnswer = if (request.allowMultiple) !draft.ownAnswer else true
-                    revealed = draft.ownAnswer
+                    setOwnAnswer(if (request.allowMultiple) !draft.ownAnswer else true)
                     if (!request.allowMultiple) draft.selected = emptySet()
                 },
             )
         }
-        if (draft.ownAnswer) {
-            Spacer(Modifier.height(10.dp))
-            OutlinedTextField(
-                value = draft.typed,
-                onValueChange = { draft.typed = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .bringIntoViewRequester(field),
-                placeholder = if (hasOptions) {
-                    null
-                } else {
-                    { Text(stringResource(R.string.ask_user_custom_answer)) }
-                },
-                textStyle = MaterialTheme.typography.bodyMedium,
-                shape = RoundedCornerShape(16.dp),
-                maxLines = 4,
-            )
+        val spec = tween<Float>(FieldDurationMs)
+        val sizeSpec = tween<IntSize>(FieldDurationMs)
+        AnimatedVisibility(
+            visible = draft.ownAnswer,
+            enter = if (motion.allowContinuousMotion) {
+                expandVertically(sizeSpec) + fadeIn(spec)
+            } else {
+                EnterTransition.None
+            },
+            exit = if (motion.allowContinuousMotion) {
+                shrinkVertically(sizeSpec) + fadeOut(spec)
+            } else {
+                ExitTransition.None
+            },
+        ) {
+            Column {
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = draft.typed,
+                    onValueChange = { draft.typed = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focus)
+                        .bringIntoViewRequester(field),
+                    placeholder = if (hasOptions) {
+                        null
+                    } else {
+                        { Text(stringResource(R.string.ask_user_custom_answer)) }
+                    },
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    shape = RoundedCornerShape(16.dp),
+                    maxLines = 4,
+                )
+            }
         }
     }
 }

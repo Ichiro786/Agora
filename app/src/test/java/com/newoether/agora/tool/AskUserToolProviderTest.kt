@@ -162,15 +162,15 @@ class AskUserToolProviderTest {
     }
 
     @Test
-    fun `the blocking setting decides when the model leaves blocking out`() = runTest {
+    fun `leaving blocking out waits for the answer`() = runTest {
         val controller = AskUserController()
-        val result = AskUserToolProvider(controller).execute(
-            "ask_user",
-            """{"question":"Now?"}""",
-            ctx.copy(askUserBlockingDefault = false),
-        )
-        assertEquals("queued", body(result)["delivery"]?.jsonPrimitive?.content)
-        assertEquals(1, controller.requests.value.size)
+        val call = async {
+            AskUserToolProvider(controller).execute("ask_user", """{"question":"Now?"}""", ctx)
+        }
+        runCurrent()
+        assertTrue(controller.requests.value.single().blocking)
+        assertFalse(call.isCompleted)
+        call.cancel()
     }
 
     @Test
