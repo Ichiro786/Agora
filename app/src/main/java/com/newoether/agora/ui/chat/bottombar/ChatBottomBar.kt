@@ -48,13 +48,19 @@ import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 import com.newoether.agora.ui.components.AgoraExposedDropdownMenu
 internal val CHAT_BOTTOM_BAR_OUTER_RADIUS = 28.dp
 internal val CHAT_BOTTOM_BAR_OUTER_SHAPE = RoundedCornerShape(CHAT_BOTTOM_BAR_OUTER_RADIUS)
-// Rounded children of the non-expanded bar stay concentric with it: outer radius = child radius +
-// inset. The controls capsule and the send button share one height, so both sit 4 dp from the
-// start/end and bottom edges; the 40 dp expand button sits 8 dp from the top and end edges.
-internal val COMPOSER_CONTROL_HEIGHT = 48.dp
+// Non-expanded bar geometry, measured from the bar's outer edge.
+// The controls capsule and the send button share one height and stay concentric with the outer
+// corners (outer radius = child radius + inset), so both sit 6 dp from the start/end and bottom edges.
+internal val COMPOSER_CONTROL_HEIGHT = 44.dp
 internal val COMPOSER_CONTROLS_INSET = CHAT_BOTTOM_BAR_OUTER_RADIUS - COMPOSER_CONTROL_HEIGHT / 2
+// The input text and the expand icon sit 14 dp from the top and start/end edges. The expand
+// button's circle is a fade to transparent, so only its 20 dp icon is placed, not the circle.
+internal val COMPOSER_CORNER_CONTENT_INSET = 14.dp
 internal val COMPOSER_EXPAND_BUTTON_SIZE = 40.dp
-internal val COMPOSER_EXPAND_BUTTON_INSET = CHAT_BOTTOM_BAR_OUTER_RADIUS - COMPOSER_EXPAND_BUTTON_SIZE / 2
+internal val COMPOSER_EXPAND_ICON_SIZE = 20.dp
+// The host padding the status rows, attachment previews and expanded collapse button share.
+internal val COMPOSER_HOST_SIDE_PADDING = 4.dp
+internal val COMPOSER_HOST_TOP_PADDING = 8.dp
 internal fun contextUsageExceedsCompactThreshold(
     estimatedTokens: Int, tokenBudget: Int, thresholdPercent: Int,
 ): Boolean {
