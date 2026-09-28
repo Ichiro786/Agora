@@ -6,13 +6,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** Non-expanded composer geometry: concentric controls and fixed insets for the text and expand icon. */
+/** Non-expanded composer geometry: control size and inset, and fixed insets for the text and expand icon. */
 class ComposerConcentricInsetTest {
-    @Test fun controlsAreConcentricWithTheOuterCorners() {
+    @Test fun controlsKeepTheirSizeAndInset() {
         assertEquals(28.dp, CHAT_BOTTOM_BAR_OUTER_RADIUS)
-        assertEquals(40.dp, COMPOSER_CONTROL_HEIGHT)
+        assertEquals(48.dp, COMPOSER_CONTROL_HEIGHT)
         assertEquals(8.dp, COMPOSER_CONTROLS_INSET)
-        assertEquals(CHAT_BOTTOM_BAR_OUTER_RADIUS, COMPOSER_CONTROL_HEIGHT / 2 + COMPOSER_CONTROLS_INSET)
     }
 
     @Test fun textAndExpandIconSitAtTheCornerInset() {
@@ -32,7 +31,7 @@ class ComposerConcentricInsetTest {
         assertTrue(layout.contains("start = COMPOSER_CONTROLS_INSET - COMPOSER_HOST_SIDE_PADDING, end = COMPOSER_CONTROLS_INSET - COMPOSER_HOST_SIDE_PADDING"))
         assertTrue(source("ComposerSendButton.kt").contains("Modifier.size(COMPOSER_CONTROL_HEIGHT)"))
         assertTrue(source("ChatBottomBarComponents.kt").contains(".height(COMPOSER_CONTROL_HEIGHT)"))
-        // Capsule children: 32 dp buttons 4 dp from its ends, so 16 + 4 = 20 = capsule radius.
+        // Capsule children: 32 dp buttons 8 dp from its ends, so 16 + 8 = 24 = capsule radius.
         assertTrue(source("ChatBottomBarComponents.kt").contains(".padding(horizontal = COMPOSER_CONTROL_HEIGHT / 2 - 16.dp)"))
     }
 
