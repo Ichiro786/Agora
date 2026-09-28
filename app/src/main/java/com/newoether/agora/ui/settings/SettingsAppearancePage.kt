@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.WrapText
 import androidx.compose.material.icons.filled.BlurOn
@@ -188,8 +187,7 @@ fun SettingsAppearancePage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                             expanded = expanded,
                                             onDismissRequest = { expanded = false },
                                             containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                            tonalElevation = 16.dp,
-                                            shape = RoundedCornerShape(12.dp)
+                                            tonalElevation = 16.dp
                                         ) {
                                             options.forEach { (mode, pair) ->
                                                 val (label, icon) = pair
@@ -290,8 +288,7 @@ fun SettingsAppearancePage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                         expanded = expanded,
                                         onDismissRequest = { expanded = false },
                                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                        tonalElevation = 16.dp,
-                                        shape = RoundedCornerShape(12.dp)
+                                        tonalElevation = 16.dp
                                     ) {
                                         ColorSchemePreset.entries.forEach { preset ->
                                             val presetPrimary = remember(preset, currentStyle, isDark) {
@@ -343,8 +340,7 @@ fun SettingsAppearancePage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                         expanded = expanded,
                                         onDismissRequest = { expanded = false },
                                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                        tonalElevation = 16.dp,
-                                        shape = RoundedCornerShape(12.dp)
+                                        tonalElevation = 16.dp
                                     ) {
                                         SchemeStyle.entries.forEach { style ->
                                             AgoraDropdownMenuItem(
@@ -542,8 +538,7 @@ fun SettingsAppearancePage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                             containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                             tonalElevation = 16.dp,
                                             expanded = expanded,
-                                            onDismissRequest = { expanded = false },
-                                            shape = RoundedCornerShape(12.dp)
+                                            onDismissRequest = { expanded = false }
                                         ) {
                                             options.forEach { (mode, label) ->
                                                 AgoraDropdownMenuItem(
@@ -605,7 +600,6 @@ fun SettingsAppearancePage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                                 onDismissRequest = { expanded = false },
                                                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                                 tonalElevation = 16.dp,
-                                                shape = RoundedCornerShape(12.dp),
                                             ) {
                                                 listOf(
                                                     ThinkingSegmentDisplayModes.CARD to
@@ -730,8 +724,7 @@ fun SettingsAppearancePage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                             expanded = expanded,
                                             onDismissRequest = { expanded = false },
                                             containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                            tonalElevation = 16.dp,
-                                            shape = RoundedCornerShape(12.dp)
+                                            tonalElevation = 16.dp
                                         ) {
                                             options.forEach { (value, label) ->
                                                 AgoraDropdownMenuItem(

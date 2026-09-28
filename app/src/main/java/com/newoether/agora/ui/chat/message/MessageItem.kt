@@ -647,7 +647,6 @@ internal fun ContextCompactPill(
                 AgoraDropdownMenu(
                     expanded = actionsExpanded,
                     onDismissRequest = { actionsExpanded = false },
-                    shape = RoundedCornerShape(12.dp),
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                     tonalElevation = 16.dp,
                 ) {

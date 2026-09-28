@@ -452,7 +452,6 @@ private fun TaskCard(
                         expanded = menuOpen,
                         onDismissRequest = { menuOpen = false },
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        shape = RoundedCornerShape(12.dp),
                     ) {
                         AgoraDropdownMenuItem(
                             text = { Text(stringResource(R.string.task_run_now)) },

@@ -602,7 +602,6 @@ private fun ScheduleGroup(
                         expanded = showRepeatMenu,
                         onDismissRequest = { showRepeatMenu = false },
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        shape = RoundedCornerShape(16.dp),
                     ) {
                         ScheduleEditorMode.entries.forEach { mode ->
                             AgoraDropdownMenuItem(

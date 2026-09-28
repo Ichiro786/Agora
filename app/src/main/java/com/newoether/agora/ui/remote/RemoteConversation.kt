@@ -438,7 +438,6 @@ internal fun RemoteConversation(
                                     }
                                 },
                                 matchAnchorWidth = false,
-                                shape = CHAT_DROPDOWN_MENU_SHAPE,
                             ) {
                                 AgoraDropdownMenuItem(
                                     text = {

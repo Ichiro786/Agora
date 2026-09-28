@@ -6,7 +6,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -140,8 +139,7 @@ private fun AutoBackupPeriodDropdown(currentHours: Int, onSelect: (Int) -> Unit)
         )
         AgoraDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            shape = RoundedCornerShape(16.dp)
+            onDismissRequest = { expanded = false }
         ) {
             periods.forEach { (hours, labelRes) ->
                 AgoraDropdownMenuItem(
@@ -175,8 +173,7 @@ private fun AutoDeletePeriodDropdown(currentHours: Int, backupHours: Int, onSele
         )
         AgoraDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            shape = RoundedCornerShape(16.dp)
+            onDismissRequest = { expanded = false }
         ) {
             validPeriods.forEach { (hours, labelRes) ->
                 AgoraDropdownMenuItem(

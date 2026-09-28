@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
@@ -81,7 +80,6 @@ internal fun AttachmentAddMenu(
                 }
             },
             matchAnchorWidth = false,
-            shape = RoundedCornerShape(16.dp),
         ) {
             if (showCamera) AttachmentMenuItem(Icons.Default.PhotoCamera, R.string.camera) { select(onCamera) }
             AttachmentMenuItem(Icons.Default.Image, R.string.photos) { select(onPhotos) }

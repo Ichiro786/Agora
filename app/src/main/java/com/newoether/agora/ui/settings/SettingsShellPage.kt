@@ -320,8 +320,7 @@ private fun DeviceEditor(
                     )
                     AgoraExposedDropdownMenu(
                         expanded = typeMenuExpanded,
-                        onDismissRequest = { typeMenuExpanded = false },
-                        shape = RoundedCornerShape(16.dp)
+                        onDismissRequest = { typeMenuExpanded = false }
                     ) {
                         AgoraDropdownMenuItem(text = { Text("Conch") }, onClick = { typeInput = "conch"; typeMenuExpanded = false }, leadingIcon = { Icon(Icons.Default.Cable, null) })
                         AgoraDropdownMenuItem(text = { Text("SSH") }, onClick = { typeInput = "ssh"; typeMenuExpanded = false }, leadingIcon = { Icon(Icons.Default.Cable, null) })

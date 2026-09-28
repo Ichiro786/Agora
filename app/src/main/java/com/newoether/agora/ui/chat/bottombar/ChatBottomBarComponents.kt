@@ -161,7 +161,6 @@ internal fun RowScope.ComposerModelSelector(
                 expanded = expanded && enabled,
                 onDismissRequest = onDismissRequest,
                 matchAnchorWidth = false,
-                shape = CHAT_DROPDOWN_MENU_SHAPE,
                 content = menuContent,
             )
         }
@@ -240,7 +239,6 @@ internal fun ComposerContextIndicator(
             expanded = expanded && available,
             onDismissRequest = onDismissRequest,
             matchAnchorWidth = false,
-            shape = CHAT_DROPDOWN_MENU_SHAPE,
         ) {
             Column(
                 modifier = Modifier.width(CONTEXT_MENU_WIDTH).padding(horizontal = 16.dp, vertical = 12.dp),

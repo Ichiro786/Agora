@@ -423,8 +423,7 @@ private fun InsertBetweenButton(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 tonalElevation = 16.dp,
                 expanded = expanded,
-                onDismissRequest = { expanded = false },
-                shape = RoundedCornerShape(12.dp)
+                onDismissRequest = { expanded = false }
             ) {
                 AgoraDropdownMenuItem(
                     text = { Text(stringResource(R.string.template_add_text)) },

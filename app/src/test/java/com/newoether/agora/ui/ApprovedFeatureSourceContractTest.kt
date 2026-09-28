@@ -271,7 +271,7 @@ internal class ApprovedFeatureSourceContractTest : UiSourceContractFixture() {
         assertTrue(capture.contains("Icons.Default.MoreVert"))
         assertTrue(capture.contains("containerColor = MaterialTheme.colorScheme.surfaceContainer"))
         assertTrue(capture.contains("tonalElevation = 16.dp"))
-        assertTrue(capture.contains("shape = RoundedCornerShape(12.dp)"))
+        assertTrue(capture.contains("AgoraDropdownMenu("))
         assertTrue(
             capture.contains("R.string.developer_options_clear_diagnostics_action"),
         )

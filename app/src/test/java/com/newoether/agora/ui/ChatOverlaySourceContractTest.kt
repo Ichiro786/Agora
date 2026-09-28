@@ -61,33 +61,6 @@ internal class ChatOverlaySourceContractTest : UiSourceContractFixture() {
     }
 
     @Test
-    fun `chat dropdown menus share the same sixteen dp rounded shape`() {
-        val bottomBar = sourceFile(
-            "app/src/main/java/com/newoether/agora/ui/chat/bottombar/ChatBottomBar.kt",
-        ) + sourceFile(
-            "app/src/main/java/com/newoether/agora/ui/chat/bottombar/ChatBottomBarComponents.kt",
-        )
-        val compactDialog = sourceFile(
-            "app/src/main/java/com/newoether/agora/ui/chat/ChatManualCompactDialog.kt",
-        )
-
-        assertTrue(bottomBar.contains(
-            "internal val CHAT_DROPDOWN_MENU_SHAPE = RoundedCornerShape(16.dp)",
-        ))
-        assertEquals(
-            3,
-            Regex("shape = CHAT_DROPDOWN_MENU_SHAPE").findAll(bottomBar).count(),
-        )
-        assertTrue(compactDialog.contains(
-            "import com.newoether.agora.ui.chat.bottombar.CHAT_DROPDOWN_MENU_SHAPE",
-        ))
-        assertEquals(
-            1,
-            Regex("shape = CHAT_DROPDOWN_MENU_SHAPE").findAll(compactDialog).count(),
-        )
-    }
-
-    @Test
     fun `both fork entry points require the shared confirmation dialog`() {
         val source = sourceFile("app/src/main/java/com/newoether/agora/ui/chat/ChatApp.kt")
         val dialogs = sourceFile("app/src/main/java/com/newoether/agora/ui/chat/ChatDialogs.kt")

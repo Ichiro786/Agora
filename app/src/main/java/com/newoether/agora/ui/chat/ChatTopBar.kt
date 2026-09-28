@@ -454,7 +454,6 @@ internal fun ChatTopBar(
                             AgoraDropdownMenu(
                                 expanded = moreMenuOpen,
                                 onDismissRequest = { moreMenuOpen = false },
-                                shape = RoundedCornerShape(12.dp),
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                 tonalElevation = 16.dp,
                             ) {

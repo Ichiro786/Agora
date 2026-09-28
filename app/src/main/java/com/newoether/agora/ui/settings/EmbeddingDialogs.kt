@@ -107,8 +107,7 @@ internal fun AddRemoteEmbeddingDialog(
                             AgoraDropdownMenu(
                                 expanded = provExpanded,
                                 onDismissRequest = { provExpanded = false },
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                shape = RoundedCornerShape(12.dp)
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer
                             ) {
                                 providers.forEachIndexed { idx, p ->
                                     AgoraDropdownMenuItem(
@@ -189,8 +188,7 @@ internal fun AddRemoteEmbeddingDialog(
                             AgoraDropdownMenu(
                                 expanded = state.showModelDropdown,
                                 onDismissRequest = { state.showModelDropdown = false },
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                shape = RoundedCornerShape(12.dp)
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer
                             ) {
                                 provider.models.forEach { model ->
                                     AgoraDropdownMenuItem(

@@ -48,7 +48,6 @@ import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 import com.newoether.agora.ui.components.AgoraExposedDropdownMenu
 internal val CHAT_BOTTOM_BAR_OUTER_RADIUS = 28.dp
 internal val CHAT_BOTTOM_BAR_OUTER_SHAPE = RoundedCornerShape(CHAT_BOTTOM_BAR_OUTER_RADIUS)
-internal val CHAT_DROPDOWN_MENU_SHAPE = RoundedCornerShape(16.dp)
 internal fun contextUsageExceedsCompactThreshold(
     estimatedTokens: Int, tokenBudget: Int, thresholdPercent: Int,
 ): Boolean {
@@ -535,7 +534,6 @@ internal fun ChatBottomBar(
                             }
                         },
                         matchAnchorWidth = false,
-                        shape = CHAT_DROPDOWN_MENU_SHAPE,
                     ) {
                         ComposerToolsMenuContent(
                             activeMenuState = activeMenuState,

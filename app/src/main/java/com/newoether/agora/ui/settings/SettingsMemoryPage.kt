@@ -189,8 +189,7 @@ fun SettingsMemoryPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                                 tonalElevation = 16.dp,
                                                 expanded = showFileMenu,
-                                                onDismissRequest = { showFileMenu = false },
-                                                shape = RoundedCornerShape(12.dp)
+                                                onDismissRequest = { showFileMenu = false }
                                             ) {
                                                 AgoraDropdownMenuItem(
                                                     text = { Text(stringResource(R.string.provider_edit)) },

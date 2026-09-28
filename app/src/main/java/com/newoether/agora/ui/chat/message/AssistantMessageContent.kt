@@ -714,7 +714,6 @@ internal fun AssistantMessageContent(
                             AgoraDropdownMenu(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                 tonalElevation = 16.dp,
-                                shape = RoundedCornerShape(12.dp),
                                 expanded = showMenu && actionAvailability.informationVisible,
                                 onDismissRequest = { showMenu = false },
                             ) {

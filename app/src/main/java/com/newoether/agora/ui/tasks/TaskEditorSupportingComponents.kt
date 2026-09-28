@@ -122,7 +122,6 @@ internal fun TaskMonthDayPickerDialog(
                         expanded = showMonthMenu,
                         onDismissRequest = { showMonthMenu = false },
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        shape = RoundedCornerShape(16.dp),
                     ) {
                         monthNames.forEachIndexed { index, monthName ->
                             val month = index + 1
@@ -545,7 +544,6 @@ internal fun ExecutionRow(
                     AgoraDropdownMenu(
                         expanded = menuOpen,
                         onDismissRequest = { menuOpen = false },
-                        shape = RoundedCornerShape(12.dp),
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         tonalElevation = 16.dp,
                     ) {

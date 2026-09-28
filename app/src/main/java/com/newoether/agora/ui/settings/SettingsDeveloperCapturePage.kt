@@ -251,7 +251,6 @@ internal fun SettingsDeveloperCapturePage(
                     onDismissRequest = { showActionsMenu = false },
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                     tonalElevation = 16.dp,
-                    shape = RoundedCornerShape(12.dp),
                 ) {
                     AgoraDropdownMenuItem(
                         text = {

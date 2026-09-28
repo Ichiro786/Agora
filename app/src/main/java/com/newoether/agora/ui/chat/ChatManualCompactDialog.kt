@@ -1,6 +1,5 @@
 package com.newoether.agora.ui.chat
 
-import com.newoether.agora.ui.chat.bottombar.CHAT_DROPDOWN_MENU_SHAPE
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -104,7 +103,6 @@ internal fun ChatManualCompactDialog(
                     AgoraExposedDropdownMenu(
                         expanded = modelMenu,
                         onDismissRequest = { modelMenu = false },
-                        shape = CHAT_DROPDOWN_MENU_SHAPE,
                     ) {
                         enabledModels.sorted().forEach { candidate ->
                             AgoraDropdownMenuItem(

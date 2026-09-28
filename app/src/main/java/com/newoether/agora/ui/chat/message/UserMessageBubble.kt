@@ -304,7 +304,6 @@ internal fun UserMessageBubble(
             AgoraDropdownMenu(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 tonalElevation = 16.dp,
-                shape = RoundedCornerShape(12.dp),
                 expanded = showMenu && showActions && !isEditing,
                 onDismissRequest = { showMenu = false },
             ) {

@@ -291,7 +291,6 @@ fun SettingsSkillsPage(
                                                 tonalElevation = 16.dp,
                                                 expanded = showFileMenu,
                                                 onDismissRequest = { showFileMenu = false },
-                                                shape = RoundedCornerShape(12.dp),
                                             ) {
                                                 AgoraDropdownMenuItem(
                                                     text = {

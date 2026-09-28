@@ -66,7 +66,6 @@ internal fun CustomModelProviderPicker(
                 onExpandedChange(false)
             },
             matchAnchorWidth = false,
-            shape = RoundedCornerShape(16.dp),
         ) {
             providerChoices.forEach { providerName ->
                 AgoraDropdownMenuItem(

@@ -551,8 +551,7 @@ internal fun ChatDrawerContent(
                                             tonalElevation = 16.dp,
                                             expanded = showMenu,
                                             onDismissRequest = { showMenu = false },
-                                            offset = pressOffset,
-                                            shape = RoundedCornerShape(12.dp)
+                                            offset = pressOffset
                                         ) {
                                             AgoraDropdownMenuItem(
                                                 text = {

@@ -11,7 +11,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -207,7 +206,7 @@ private fun RemoteScreen(vm: RemoteViewModel, settings: SettingsRepository, acti
                                                     }
                                                     AgoraDropdownMenu(
                                                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                                        tonalElevation = 16.dp, shape = RoundedCornerShape(12.dp),
+                                                        tonalElevation = 16.dp,
                                                         expanded = showMenu, onDismissRequest = { showMenu = false },
                                                     ) {
                                                         AgoraDropdownMenuItem(
@@ -333,8 +332,7 @@ private fun RemoteDevices(state: RemoteState, vm: RemoteViewModel, onBack: () ->
                             IconButton(onClick = { menuOpen = true }, enabled = enabled) {
                                 Icon(Icons.Default.MoreVert, stringResource(R.string.options))
                             }
-                            AgoraDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false },
-                                shape = RoundedCornerShape(12.dp), containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            AgoraDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                 tonalElevation = 16.dp) {
                                 AgoraDropdownMenuItem(text = { Text(stringResource(R.string.edit)) }, enabled = enabled,
                                     leadingIcon = { Icon(Icons.Default.Edit, null) },

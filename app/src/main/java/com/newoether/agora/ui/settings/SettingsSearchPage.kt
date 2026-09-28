@@ -236,8 +236,7 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                         tonalElevation = 16.dp,
                                         expanded = expanded,
-                                        onDismissRequest = { expanded = false },
-                                        shape = RoundedCornerShape(12.dp)
+                                        onDismissRequest = { expanded = false }
                                     ) {
                                         val noEmbedding = embeddingModels.isEmpty()
                                         searchMethods.forEach { method ->
@@ -281,8 +280,7 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                         tonalElevation = 16.dp,
                                         expanded = expanded,
-                                        onDismissRequest = { expanded = false },
-                                        shape = RoundedCornerShape(12.dp)
+                                        onDismissRequest = { expanded = false }
                                     ) {
                                         val noEmbedding = embeddingModels.isEmpty()
                                         searchMethods.forEach { method ->
@@ -457,8 +455,7 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                                     tonalElevation = 16.dp,
                                                     expanded = showMenuForModel == model.id,
-                                                    onDismissRequest = { showMenuForModel = null },
-                                                    shape = RoundedCornerShape(12.dp)
+                                                    onDismissRequest = { showMenuForModel = null }
                                                 ) {
                                                     AgoraDropdownMenuItem(
                                                         text = { Text(stringResource(R.string.edit)) },
