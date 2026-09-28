@@ -721,6 +721,13 @@ segment cards, calendar days) and clicks without an indication are unchanged.
 Every bottom sheet has the same `28 dp` top corners (Material's extra-large corner), from`
 `BOTTOM_SHEET_SHAPE` in `ui/components/DialogWindowEdgeToEdge.kt`. `MotionAwareModalBottomSheet` and`
 `SmoothBottomSheet` own the shape and take no shape parameter.
+## 33. Secret field visibility
+Every secret text input (API keys, passwords, tokens, MCP header values) is masked by default and
+has a trailing eye button that shows or hides its value. `ui/components/SecretFieldVisibility.kt` is
+the only owner: `rememberSecretVisible()` (plain `remember`, so the value is hidden again whenever its
+page or dialog leaves composition), `secretVisualTransformation(visible)`, and
+`SecretVisibilityToggle` (open eye while hidden, crossed eye while shown; described as
+`secret_show` / `secret_hide`). No other file uses `PasswordVisualTransformation`.
 ## 15. Verification
 
 Focused verification must cover the onboarding action's fixed 32 dp inset and 48 dp height, absence

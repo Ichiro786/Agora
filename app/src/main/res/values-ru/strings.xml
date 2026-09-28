@@ -515,8 +515,8 @@
     <string name="onboarding_no_models">Модели не загружены.</string>
     <string name="onboarding_invalid_gguf_title">Недопустимый файл GGUF</string>
     <string name="onboarding_invalid_gguf_desc">Выбранный файл, похоже, не является допустимой моделью GGUF.</string>
-    <string name="onboarding_hide_key">Скрыть ключ</string>
-    <string name="onboarding_show_key">Показать ключ</string>
+    <string name="secret_hide">Скрыть значение</string>
+    <string name="secret_show">Показать значение</string>
     <!-- ── Auto Backup ── -->
     <string name="auto_backup_title">Автоматическое резервное копирование</string>
     <string name="auto_backup_subtitle">Автоматически экспортировать данные по расписанию</string>

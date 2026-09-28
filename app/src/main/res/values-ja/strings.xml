@@ -515,8 +515,8 @@
     <string name="onboarding_no_models">モデルが読み込まれていません。</string>
     <string name="onboarding_invalid_gguf_title">無効な GGUF ファイル</string>
     <string name="onboarding_invalid_gguf_desc">選択したファイルは有効な GGUF モデルではないようです。</string>
-    <string name="onboarding_hide_key">キーを隠す</string>
-    <string name="onboarding_show_key">キーを表示</string>
+    <string name="secret_hide">値を隠す</string>
+    <string name="secret_show">値を表示</string>
     <!-- ── Auto Backup ── -->
     <string name="auto_backup_title">自動バックアップ</string>
     <string name="auto_backup_subtitle">スケジュールに従ってデータを自動エクスポート</string>

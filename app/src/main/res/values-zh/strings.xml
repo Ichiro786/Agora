@@ -566,8 +566,8 @@
     <string name="onboarding_no_models">暂无可用模型。</string>
     <string name="onboarding_invalid_gguf_title">无效的 GGUF 文件</string>
     <string name="onboarding_invalid_gguf_desc">所选文件不是有效的 GGUF 模型。</string>
-    <string name="onboarding_hide_key">隐藏密钥</string>
-    <string name="onboarding_show_key">显示密钥</string>
+    <string name="secret_hide">隐藏内容</string>
+    <string name="secret_show">显示内容</string>
     <!-- ── Auto Backup ── -->
     <string name="auto_backup_title">自动备份</string>
     <string name="auto_backup_subtitle">按计划自动导出数据</string>

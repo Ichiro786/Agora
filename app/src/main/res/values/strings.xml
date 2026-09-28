@@ -562,8 +562,8 @@
     <string name="onboarding_no_models">No models loaded.</string>
     <string name="onboarding_invalid_gguf_title">Invalid GGUF File</string>
     <string name="onboarding_invalid_gguf_desc">The selected file does not appear to be a valid GGUF model.</string>
-    <string name="onboarding_hide_key">Hide key</string>
-    <string name="onboarding_show_key">Show key</string>
+    <string name="secret_hide">Hide Value</string>
+    <string name="secret_show">Show Value</string>
     <!-- ── Auto Backup ── -->
     <string name="auto_backup_title">Auto Backup</string>
     <string name="auto_backup_subtitle">Automatically export data on a schedule</string>

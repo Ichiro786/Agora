@@ -14,7 +14,6 @@ import com.newoether.agora.ui.motion.MotionAwareCircularProgressIndicator as Cir
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.newoether.agora.R
@@ -24,6 +23,9 @@ import com.newoether.agora.viewmodel.ChatViewModel
 import kotlinx.coroutines.launch
 import com.newoether.agora.ui.components.AgoraDropdownMenu
 import com.newoether.agora.ui.components.AgoraDropdownMenuItem
+import com.newoether.agora.ui.components.SecretVisibilityToggle
+import com.newoether.agora.ui.components.rememberSecretVisible
+import com.newoether.agora.ui.components.secretVisualTransformation
 
 /** A preset (provider name, base URL, known model ids) for the remote-embedding dialog. */
 internal data class EmbeddingProviderPreset(val name: String, val baseUrl: String, val models: List<String>)
@@ -148,12 +150,14 @@ internal fun AddRemoteEmbeddingDialog(
                 Spacer(modifier = Modifier.height(12.dp))
                 // API Key
                 val currentKey = state.apiKeys[state.selectedProviderIdx]
+                var keyVisible by rememberSecretVisible()
                 OutlinedTextField(
                     value = currentKey,
                     onValueChange = { state.apiKeys[state.selectedProviderIdx] = it },
                     label = { Text(stringResource(R.string.embedding_api_key)) },
                     placeholder = { Text(stringResource(R.string.embedding_api_key_hint)) },
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = secretVisualTransformation(keyVisible),
+                    trailingIcon = { SecretVisibilityToggle(keyVisible) { keyVisible = !keyVisible } },
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()

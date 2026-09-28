@@ -515,8 +515,8 @@
     <string name="onboarding_no_models">لم يتم تحميل نماذج.</string>
     <string name="onboarding_invalid_gguf_title">ملف GGUF غير صالح</string>
     <string name="onboarding_invalid_gguf_desc">لا يبدو الملف المحدد نموذج GGUF صالحًا.</string>
-    <string name="onboarding_hide_key">إخفاء المفتاح</string>
-    <string name="onboarding_show_key">إظهار المفتاح</string>
+    <string name="secret_hide">إخفاء القيمة</string>
+    <string name="secret_show">إظهار القيمة</string>
     <!-- ── Auto Backup ── -->
     <string name="auto_backup_title">النسخ الاحتياطي التلقائي</string>
     <string name="auto_backup_subtitle">تصدير البيانات تلقائيًا وفق جدول</string>

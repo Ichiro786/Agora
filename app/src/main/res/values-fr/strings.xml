@@ -515,8 +515,8 @@
     <string name="onboarding_no_models">Aucun modèle chargé.</string>
     <string name="onboarding_invalid_gguf_title">Fichier GGUF non valide</string>
     <string name="onboarding_invalid_gguf_desc">Le fichier sélectionné ne semble pas être un modèle GGUF valide.</string>
-    <string name="onboarding_hide_key">Masquer la clé</string>
-    <string name="onboarding_show_key">Afficher la clé</string>
+    <string name="secret_hide">Masquer la valeur</string>
+    <string name="secret_show">Afficher la valeur</string>
     <!-- ── Auto Backup ── -->
     <string name="auto_backup_title">Sauvegarde automatique</string>
     <string name="auto_backup_subtitle">Exporter les données automatiquement selon un calendrier</string>

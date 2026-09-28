@@ -24,8 +24,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -51,7 +49,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.newoether.agora.R
@@ -64,6 +61,9 @@ import com.newoether.agora.viewmodel.ChatViewModel
 import java.util.UUID
 import com.newoether.agora.ui.components.AgoraDropdownMenu
 import com.newoether.agora.ui.components.AgoraDropdownMenuItem
+import com.newoether.agora.ui.components.SecretVisibilityToggle
+import com.newoether.agora.ui.components.rememberSecretVisible
+import com.newoether.agora.ui.components.secretVisualTransformation
 
 private data class McpEditorRoute(
     val initial: McpServerConfig,
@@ -74,7 +74,6 @@ private data class McpHeaderDraft(
     val id: String = UUID.randomUUID().toString(),
     val name: String = "",
     val value: String = "",
-    val revealValue: Boolean = false,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -579,30 +578,8 @@ private fun McpHeaderItem(
                     label = stringResource(R.string.mcp_header_value),
                     value = header.value,
                     onValueChange = { onHeaderChange(header.copy(value = it)) },
-                    password = !header.revealValue,
+                    password = true,
                     modifier = Modifier.fillMaxWidth(),
-                    trailingContent = {
-                        IconButton(
-                            onClick = {
-                                onHeaderChange(header.copy(revealValue = !header.revealValue))
-                            },
-                        ) {
-                            Icon(
-                                if (header.revealValue) {
-                                    Icons.Default.VisibilityOff
-                                } else {
-                                    Icons.Default.Visibility
-                                },
-                                stringResource(
-                                    if (header.revealValue) {
-                                        R.string.mcp_hide_header_value
-                                    } else {
-                                        R.string.mcp_show_header_value
-                                    },
-                                ),
-                            )
-                        }
-                    },
                 )
             }
         },
@@ -627,18 +604,19 @@ private fun McpHeaderField(
     password: Boolean = false,
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
+    var secretVisible by rememberSecretVisible()
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.noOpBringIntoView(),
         label = { Text(label, maxLines = 1) },
         singleLine = true,
-        visualTransformation = if (password) {
-            PasswordVisualTransformation()
+        visualTransformation = if (password) secretVisualTransformation(secretVisible) else VisualTransformation.None,
+        trailingIcon = if (password) {
+            { SecretVisibilityToggle(secretVisible) { secretVisible = !secretVisible } }
         } else {
-            VisualTransformation.None
+            trailingContent
         },
-        trailingIcon = trailingContent,
         shape = RoundedCornerShape(16.dp),
         textStyle = MaterialTheme.typography.bodyMedium.copy(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -659,6 +637,7 @@ internal fun McpLabeledField(
     trailingContent: (@Composable () -> Unit)? = null,
     placeholder: String? = null,
 ) {
+    var secretVisible by rememberSecretVisible()
     Column(modifier) {
         Text(
             label,
@@ -677,12 +656,12 @@ internal fun McpLabeledField(
                     Text(text)
                 } },
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                visualTransformation = if (password) {
-                    PasswordVisualTransformation()
+                visualTransformation = if (password) secretVisualTransformation(secretVisible) else VisualTransformation.None,
+                trailingIcon = if (password) {
+                    { SecretVisibilityToggle(secretVisible) { secretVisible = !secretVisible } }
                 } else {
-                    VisualTransformation.None
+                    trailingContent
                 },
-                trailingIcon = trailingContent,
                 shape = RoundedCornerShape(16.dp),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

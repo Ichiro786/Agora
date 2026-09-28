@@ -515,8 +515,8 @@
     <string name="onboarding_no_models">로드된 모델이 없습니다.</string>
     <string name="onboarding_invalid_gguf_title">잘못된 GGUF 파일</string>
     <string name="onboarding_invalid_gguf_desc">선택한 파일은 유효한 GGUF 모델이 아닌 것 같습니다.</string>
-    <string name="onboarding_hide_key">키 숨기기</string>
-    <string name="onboarding_show_key">키 표시</string>
+    <string name="secret_hide">값 숨기기</string>
+    <string name="secret_show">값 표시</string>
     <!-- ── Auto Backup ── -->
     <string name="auto_backup_title">자동 백업</string>
     <string name="auto_backup_subtitle">일정에 따라 데이터 자동 내보내기</string>

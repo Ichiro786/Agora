@@ -520,8 +520,8 @@
     <string name="onboarding_no_models">Chưa tải mô hình nào.</string>
     <string name="onboarding_invalid_gguf_title">Tệp GGUF không hợp lệ</string>
     <string name="onboarding_invalid_gguf_desc">Tệp được chọn dường như không phải là mô hình GGUF hợp lệ.</string>
-    <string name="onboarding_hide_key">Ẩn khóa</string>
-    <string name="onboarding_show_key">Hiển thị khóa</string>
+    <string name="secret_hide">Ẩn giá trị</string>
+    <string name="secret_show">Hiện giá trị</string>
 
     <!-- ── Auto Backup ── -->
     <string name="auto_backup_title">Tự động sao lưu</string>
