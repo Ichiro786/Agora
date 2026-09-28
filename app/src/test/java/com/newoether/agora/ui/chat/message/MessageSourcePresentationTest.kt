@@ -32,6 +32,11 @@ class MessageSourcePresentationTest {
         val dimmed = styled.spanStyles.map { styled.text.substring(it.start, it.end) }
         assertEquals(listOf("Which port?", "Restart now?", "未回答"), dimmed)
         styled.spanStyles.forEach { assertEquals(ASK_USER_DIM_ALPHA, it.item.color.alpha, 0.01f) }
+        // Questions are one size smaller; the skipped-answer label keeps the body size.
+        assertEquals(
+            listOf(ASK_USER_QUESTION_FONT_SIZE, ASK_USER_QUESTION_FONT_SIZE, androidx.compose.ui.unit.TextUnit.Unspecified),
+            styled.spanStyles.map { it.item.fontSize },
+        )
     }
 
     @Test

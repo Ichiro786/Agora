@@ -22,12 +22,16 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.newoether.agora.R
 import com.newoether.agora.model.ChatMessage
 import com.newoether.agora.model.MessageSource
 
 /** Alpha of the question lines and the unanswered label inside an ask_user bubble. */
 internal const val ASK_USER_DIM_ALPHA = 0.6f
+
+/** Questions sit one size below the 15 sp user body so they read apart from the answers. */
+internal val ASK_USER_QUESTION_FONT_SIZE = 13.sp
 
 /**
  * The readable text of an ask_user bubble as the user sees it: question, answer, blank line
@@ -44,9 +48,10 @@ internal fun askUserDisplayAnnotated(
     textColor: Color,
 ): AnnotatedString = buildAnnotatedString {
     val dim = SpanStyle(color = textColor.copy(alpha = textColor.alpha * ASK_USER_DIM_ALPHA))
+    val question = dim.copy(fontSize = ASK_USER_QUESTION_FONT_SIZE)
     source.askUser.forEachIndexed { index, item ->
         if (index > 0) append("\n\n")
-        withStyle(dim) { append(item.question) }
+        withStyle(question) { append(item.question) }
         append("\n")
         if (item.answer == null) withStyle(dim) { append(unansweredLabel) } else append(item.answer)
     }

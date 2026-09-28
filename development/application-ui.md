@@ -746,7 +746,8 @@ answers to non-blocking `ask_user` questions) shows a label above the bubble, en
 icon and the source name in `labelSmall`, both `onSurfaceVariant` (Task: Schedule icon,
 `message_source_task`; Loop: Repeat icon, `message_source_loop`; Ask User: QuestionAnswer icon,
 `message_source_ask_user`). The label names the source only. An ask_user bubble lists each question
-(dimmed to `ASK_USER_DIM_ALPHA`) with its answer on the next line, groups separated by a blank line; a
+(dimmed to `ASK_USER_DIM_ALPHA` and one size smaller, `13 sp` against the `15 sp` body,
+`ASK_USER_QUESTION_FONT_SIZE`) with its answer on the next line, groups separated by a blank line; a
 skipped question shows the dimmed `message_source_unanswered`. Copy and Select Text use exactly the
 displayed text. Typed messages, blocking answers, Compact summaries and messages from before this
 feature have no label. Editing and resending a labeled message produces an ordinary unlabeled message.
