@@ -36,6 +36,7 @@ import com.newoether.agora.R
 import com.newoether.agora.util.noOpBringIntoView
 import com.newoether.agora.model.AttachmentItem
 import com.newoether.agora.model.ChatMessage
+import com.newoether.agora.model.MessageSource
 import com.newoether.agora.ui.chat.AttachmentThumbnailItem
 import com.newoether.agora.ui.chat.ThumbnailClickHandlers
 import com.newoether.agora.ui.chat.USER_BUBBLE_CONTENT_PADDING
@@ -134,6 +135,9 @@ internal fun UserMessageBubble(
             },
         ),
     ) {
+        message.source?.let { source ->
+            MessageSourceLabel(source = source, modifier = contextAlpha)
+        }
         Box {
             Surface(
             shape = shape,
@@ -289,11 +293,18 @@ internal fun UserMessageBubble(
                         }
                     }
                     if (message.text.isNotEmpty()) {
+                        val askUser = message.source
+                            ?.takeIf { it.kind == MessageSource.Kind.ASK_USER }
+                        val unansweredLabel = stringResource(R.string.message_source_unanswered)
+                        val styledText = remember(askUser, unansweredLabel, textColor) {
+                            askUser?.let { askUserDisplayAnnotated(it, unansweredLabel, textColor) }
+                        }
                         SearchHighlightedPlainText(
                             text = message.text,
                             style = ChatType.userBody,
                             color = textColor,
                             spec = searchHighlight,
+                            styledText = styledText,
                         )
                     }
                 }

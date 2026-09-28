@@ -44,6 +44,7 @@ import com.newoether.agora.R
 import com.newoether.agora.data.forDisplay
 import com.newoether.agora.data.replaceCustomProviderIdsForDisplay
 import com.newoether.agora.model.ChatMessage
+import com.newoether.agora.model.MessageSource
 import com.newoether.agora.model.MessageStatus
 import com.newoether.agora.model.isContextCompact
 import com.newoether.agora.model.Participant
@@ -161,11 +162,17 @@ internal fun MessageItem(
     onLayoutMutationSettled: (String) -> Unit = {},
     thoughtExpandedStates: SnapshotStateMap<String, Boolean> = remember { mutableStateMapOf() }
 ) {
-    val displayMessage = remember(message, customProviders) {
-        message.forDisplay(customProviders)
+    val unansweredLabel = stringResource(R.string.message_source_unanswered)
+    val displayMessage = remember(message, customProviders, unansweredLabel) {
+        message.forDisplay(customProviders).withAskUserDisplayText(unansweredLabel)
     }
-    val displayActionCopyText = remember(actionCopyText, customProviders) {
-        actionCopyText?.let { replaceCustomProviderIdsForDisplay(it, customProviders) }
+    val displayActionCopyText = remember(actionCopyText, customProviders, displayMessage) {
+        // An ask_user bubble copies exactly what it shows, including the localized label.
+        if (displayMessage.source?.kind == MessageSource.Kind.ASK_USER) {
+            actionCopyText?.let { displayMessage.text }
+        } else {
+            actionCopyText?.let { replaceCustomProviderIdsForDisplay(it, customProviders) }
+        }
     }
     var showInfoDialog by remember { mutableStateOf(false) }
     var showUserTextSelection by remember(message.id) { mutableStateOf(false) }

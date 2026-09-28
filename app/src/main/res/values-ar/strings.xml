@@ -804,4 +804,8 @@
     <string name="rating_origin_modified_title_b64">2YbYs9iu2Kkg2YXYudiv2ZHZhNip</string>
     <string name="rating_origin_modified_body_b64">2YrYs9iq2K7Yr9mFINmH2LDYpyDYp9mE2KrYt9io2YrZgiDYp9iz2YUg2K3YstmF2Kkg2YXYrtiq2YTZgdmL2Kcg2LnZhiDYp9mE2YXYtNix2YjYuSDYp9mE2KPYtdmE2YrYjCDZiNmC2K8g2KPZj9i52YrYryDYqtit2LLZitmF2Ycg2KPZiCDYqti52K/ZitmE2YcuINin2YTZhdi02LHZiNi5INin2YTYo9i12YTZiiDZh9mIIEFnb3Jh2Iwg2YXZhiDYqti32YjZitixIG5ld28tZXRoZXIuINmK2KrYrdmF2YQg2YXZiNiy2ZHYuSDZh9iw2Ycg2KfZhNmG2LPYrtipINmF2LPYpNmI2YTZitipINin2YTYqti52K/ZitmE2KfYqtiMINmI2YfZiiDZhNinINiq2YXYq9mEINin2YTZhdik2YTZgSDYp9mE2KPYtdmE2You</string>
     <string name="rating_origin_view_project_b64">2LnYsdi2INin2YTZhdi02LHZiNi5INin2YTYo9i12YTZig==</string>
+    <string name="message_source_task">مهمة</string>
+    <string name="message_source_loop">حلقة</string>
+    <string name="message_source_ask_user">سؤال</string>
+    <string name="message_source_unanswered">بلا إجابة</string>
 </resources>

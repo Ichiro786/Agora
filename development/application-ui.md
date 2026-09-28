@@ -740,6 +740,17 @@ above the controls (`COMPOSER_TEXT_CONTROLS_GAP`). The
 TextField's Material `56 dp` minimum height is replaced so a single line leaves no empty band. The expand button's circle is a fade to transparent, so only its icon is placed. The host padding shared by status rows, attachment previews and the
 expanded collapse button is unchanged (`4 dp` sides, `8 dp` top). The constants live next to
 `CHAT_BOTTOM_BAR_OUTER_RADIUS` in `ChatBottomBar.kt`. The expanded composer is not covered by this rule.
+## 35. Automatic message source
+A user bubble the app sent on the user's behalf (a Task run prompt, a Loop cycle prompt, or the
+answers to non-blocking `ask_user` questions) shows a label above the bubble, end-aligned: a `14 dp`
+icon and the source name in `labelSmall`, both `onSurfaceVariant` (Task: Schedule icon,
+`message_source_task`; Loop: Repeat icon, `message_source_loop`; Ask User: QuestionAnswer icon,
+`message_source_ask_user`). The label names the source only. An ask_user bubble lists each question
+(dimmed to `ASK_USER_DIM_ALPHA`) with its answer on the next line, groups separated by a blank line; a
+skipped question shows the dimmed `message_source_unanswered`. Copy and Select Text use exactly the
+displayed text. Typed messages, blocking answers, Compact summaries and messages from before this
+feature have no label. Editing and resending a labeled message produces an ordinary unlabeled message.
+`ui/chat/message/MessageSourcePresentation.kt` owns the label and the ask_user text.
 ## 15. Verification
 
 Focused verification must cover the onboarding action's fixed 32 dp inset and 48 dp height, absence

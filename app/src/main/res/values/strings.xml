@@ -789,4 +789,8 @@
     <string name="rating_origin_modified_title_b64">TW9kaWZpZWQgVmVyc2lvbg==</string>
     <string name="rating_origin_modified_body_b64">VGhpcyBhcHAgdXNlcyBhIGRpZmZlcmVudCBwYWNrYWdlIG5hbWUgZnJvbSB0aGUgb3JpZ2luYWwgcHJvamVjdCBhbmQgaGFzIGJlZW4gcmVwYWNrYWdlZCBvciBtb2RpZmllZC4gVGhlIG9yaWdpbmFsIHByb2plY3QgaXMgQWdvcmEsIGRldmVsb3BlZCBieSBuZXdvLWV0aGVyLiBDaGFuZ2VzIGluIHRoaXMgdmVyc2lvbiBhcmUgdGhlIHJlc3BvbnNpYmlsaXR5IG9mIGl0cyBkaXN0cmlidXRvciBhbmQgZG8gbm90IHJlcHJlc2VudCB0aGUgb3JpZ2luYWwgYXV0aG9yLg==</string>
     <string name="rating_origin_view_project_b64">VmlldyBPcmlnaW5hbCBQcm9qZWN0</string>
+    <string name="message_source_task">Task</string>
+    <string name="message_source_loop">Loop</string>
+    <string name="message_source_ask_user">Ask User</string>
+    <string name="message_source_unanswered">Unanswered</string>
 </resources>
