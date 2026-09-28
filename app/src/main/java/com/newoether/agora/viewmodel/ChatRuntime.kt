@@ -47,6 +47,9 @@ class ChatRuntime(
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
+    /** Clients currently attached to this runtime (see [ChatClient]). */
+    internal val clients = ChatClients()
+
     /** Runtime-wide messages every connected client may show (for example RAG cache prompts). */
     val snackbarEvents: SharedFlow<SnackbarEvent> = _snackbarEvents.asSharedFlow()
 

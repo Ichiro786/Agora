@@ -266,6 +266,7 @@ class ChatViewModel(
         // The engine and the registry are process-scoped while this ViewModel is not, so every
         // reference either of them holds must be released here or the whole graph leaks.
         foregroundAutomationBridge.close()
+        chatRuntime.clients.detach(phoneClient)
         generationRegistry.detachUiCallbacks(generationCallbackOwner)
         dataControl.destroy()
     }
@@ -355,6 +356,16 @@ class ChatViewModel(
         onConversationLoadFailed = selectionController::failConversationLoad,
     )
     private val renderStore: ConversationRenderStore get() = conversationUi.renderStore
+
+    /** This phone UI as a [ChatClient] of the process runtime; attached in init, detached in onCleared. */
+    private val phoneClient = object : ChatClient {
+        override val openConversationId: String? get() = currentConversationId.value
+        override val renderStore: ConversationRenderStore get() = conversationUi.renderStore
+        override fun isConversationVisible(conversationId: String): Boolean =
+            AppForegroundTracker.isInForeground &&
+                AppForegroundTracker.isChatPresented &&
+                currentConversationId.value == conversationId
+    }
     val allMessages: StateFlow<List<ChatMessage>> = conversationUi.allMessages
     val loadedMessagesConversationId: StateFlow<String?> =
         conversationUi.loadedMessagesConversationId
@@ -565,6 +576,7 @@ class ChatViewModel(
             providerRegistry = providerRegistry,
             localProvider = localProvider,
             executionCoordinator = conversationExecutionCoordinator,
+            clients = chatRuntime.clients,
             renderStore = renderStore,
             currentConversationId = currentConversationId,
             isNewChatMode = isNewChatMode,
@@ -647,6 +659,7 @@ class ChatViewModel(
         selectionController.failSwitchingScroll(requestId, reason)
 
     init {
+        chatRuntime.clients.attach(phoneClient)
         startInitJobs()
         unreadGenerationAcknowledger.start()
         conversationUi.start()
