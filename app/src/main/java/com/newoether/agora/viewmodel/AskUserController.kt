@@ -1,5 +1,6 @@
 package com.newoether.agora.viewmodel
 
+import com.newoether.agora.model.MessageSource
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,8 +58,15 @@ class AskUserController {
         }
     }
 
-    /** An answer to a non-blocking request, on its way to [conversationId] as a user message. */
-    data class DeferredAnswer(val conversationId: String, val text: String)
+    /** Answers to non-blocking requests, on their way to [conversationId] as one user message. */
+    data class DeferredAnswer(val conversationId: String, val source: MessageSource) {
+        init {
+            require(source.kind == MessageSource.Kind.ASK_USER)
+        }
+
+        /** The clean readable message text; the model sees the structured [source]. */
+        val text: String get() = source.askUserReadableText()
+    }
 
     private val _requests = MutableStateFlow<List<Request>>(emptyList())
 
@@ -180,8 +188,10 @@ class AskUserController {
         deferred.forEach { (conversationId, items) ->
             // Nothing answered means nothing said, so a fully blank set sends no message.
             if (items.none { it.second.answered }) return@forEach
-            val text = items.joinToString("\n\n") { (request, answer) -> deferredAnswerText(request, answer) }
-            _deferredAnswers.tryEmit(DeferredAnswer(conversationId, text))
+            val source = MessageSource.askUser(
+                items.map { (request, answer) -> deferredAnswerItem(request, answer) },
+            )
+            _deferredAnswers.tryEmit(DeferredAnswer(conversationId, source))
         }
     }
 
@@ -203,17 +213,15 @@ class AskUserController {
 
     companion object {
         /**
-         * What a non-blocking answer says as a user message. It repeats the question because the
-         * message arrives one or more turns after the model asked, where the question is no longer
-         * the last thing said. A question the user left blank says so.
+         * One question/answer pair of a non-blocking answer message. It keeps the question because
+         * the message arrives one or more turns after the model asked, where the question is no
+         * longer the last thing said. A question the user left blank has no answer.
          */
-        fun deferredAnswerText(request: Request, answer: Answer): String = buildString {
-            append(request.question)
-            append("\n")
-            append(if (answer.answered) answerBody(answer) else NO_ANSWER)
-        }
-
-        const val NO_ANSWER = "(No answer)"
+        fun deferredAnswerItem(request: Request, answer: Answer): MessageSource.AskUserItem =
+            MessageSource.AskUserItem(
+                question = request.question,
+                answer = if (answer.answered) answerBody(answer) else null,
+            )
 
         /** The user's answer on its own: picked options first, then whatever they typed. */
         fun answerBody(answer: Answer): String = listOfNotNull(

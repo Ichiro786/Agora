@@ -39,9 +39,33 @@ data class MessageSource(
         require(kind == Kind.ASK_USER || askUser.isEmpty())
     }
 
+    /**
+     * The clean readable text stored as the message text for an ask_user source: each question on
+     * its own line followed by its answer, groups separated by a blank line.
+     */
+    fun askUserReadableText(): String {
+        check(kind == Kind.ASK_USER)
+        return askUser.joinToString("\n\n") { item -> item.question + "\n" + (item.answer ?: NO_ANSWER) }
+    }
+
     companion object {
         val TASK = MessageSource(Kind.TASK)
         val LOOP = MessageSource(Kind.LOOP)
+
+        /** Stored text for a skipped question; the UI shows its own localized label instead. */
+        const val NO_ANSWER = "(No answer)"
+
+        fun askUser(items: List<AskUserItem>): MessageSource {
+            require(items.isNotEmpty())
+            return MessageSource(Kind.ASK_USER, items)
+        }
+
+        /** The source a run started by automation stamps on its prompt; ordinary sends have none. */
+        fun forAutomationRequestKind(requestKind: String): MessageSource? = when (requestKind) {
+            "task" -> TASK
+            "loop" -> LOOP
+            else -> null
+        }
 
         private val codec = Json {
             ignoreUnknownKeys = true

@@ -8,6 +8,7 @@ import com.newoether.agora.data.local.NewChatPersistEntity
 import com.newoether.agora.data.repository.ConversationRepository
 import com.newoether.agora.data.repository.SettingsRepository
 import com.newoether.agora.model.ChatMessage
+import com.newoether.agora.model.MessageSource
 import com.newoether.agora.model.MessageStatus
 import com.newoether.agora.model.RunEffect
 import com.newoether.agora.util.DebugLog
@@ -234,6 +235,7 @@ internal class DirectAcceptedInputEffectExecutor(
                         newConversation = request.newConversation,
                         newConversationSettings = request.newConversationSettings,
                         newChatPersistSnapshot = request.newChatPersistSnapshot,
+                        source = MessageSource.forAutomationRequestKind(request.requestKind),
                     ),
                     beforeRoomCommit = {
                         if (!request.wasNewChat && isConversationOpen(request.conversationId)) {

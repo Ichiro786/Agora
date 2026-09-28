@@ -10,6 +10,7 @@ import com.newoether.agora.data.repository.ConversationRepository
 import com.newoether.agora.data.repository.SettingsRepository
 import com.newoether.agora.diagnostics.DeveloperDiagnostics
 import com.newoether.agora.model.ChatMessage
+import com.newoether.agora.model.MessageSource
 import com.newoether.agora.model.MessageStatus
 import com.newoether.agora.model.Participant
 import com.newoether.agora.model.RunEffect
@@ -459,6 +460,7 @@ class TaskExecutionEngine(
                     modelId = generationSnapshot.selectedModelId,
                     userTimestamp = now,
                     touchConversationOnAdmission = false,
+                    source = MessageSource.forAutomationRequestKind(requestKind),
                 ),
             )
             runCreated = true

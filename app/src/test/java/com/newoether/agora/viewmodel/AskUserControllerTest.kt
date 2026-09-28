@@ -205,7 +205,7 @@ class AskUserControllerTest {
 
         assertEquals(1, delivered.size)
         assertEquals(
-            "First?\nA, B\n\nSecond?\n${AskUserController.NO_ANSWER}\n\nThird?\ntyped",
+            "First?\nA, B\n\nSecond?\n${com.newoether.agora.model.MessageSource.NO_ANSWER}\n\nThird?\ntyped",
             delivered.single().text,
         )
         assertTrue(controller.requests.value.isEmpty())

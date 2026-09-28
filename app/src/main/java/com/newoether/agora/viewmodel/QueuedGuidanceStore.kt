@@ -1,6 +1,7 @@
 package com.newoether.agora.viewmodel
 
 import com.newoether.agora.model.AttachmentMeta
+import com.newoether.agora.model.MessageSource
 import com.newoether.agora.model.SelectedAttachment
 import com.newoether.agora.util.AttachmentFiles
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +30,8 @@ internal data class QueuedSend(
     /** Immutable foreground admission; legacy/internal queue producers may capture at drain time. */
     val generationSnapshot: GenerationAdmissionSnapshot? = null,
     val createdAt: Long = System.currentTimeMillis(),
+    /** Null for a message the user typed; set for automatic input such as ask_user answers. */
+    val source: MessageSource? = null,
 )
 
 internal data class GuidanceBatchLease(
@@ -41,10 +44,31 @@ internal data class GuidanceBatchLease(
     }
 }
 
-/** One queue drain becomes one durable user bubble while preserving FIFO content and ownership. */
-internal fun mergeQueuedGuidance(batch: List<QueuedSend>): QueuedSend {
+/**
+ * One queue drain becomes one Run whose user bubbles are the FIFO batch with ADJACENT sends of the
+ * same kind merged: consecutive typed messages form one bubble, consecutive ask_user answers form
+ * another. Order, content and attachment ownership are preserved.
+ */
+internal fun mergeQueuedGuidance(batch: List<QueuedSend>): List<QueuedSend> {
     require(batch.isNotEmpty())
+    val groups = mutableListOf<MutableList<QueuedSend>>()
+    batch.forEach { queued ->
+        val last = groups.lastOrNull()
+        if (last != null && last.last().source?.kind == queued.source?.kind) last += queued
+        else groups += mutableListOf(queued)
+    }
+    return groups.map(::mergeSameKind)
+}
+
+private fun mergeSameKind(batch: List<QueuedSend>): QueuedSend {
     val first = batch.first()
+    val source = first.source?.let { firstSource ->
+        if (firstSource.kind == MessageSource.Kind.ASK_USER) {
+            MessageSource.askUser(batch.flatMap { checkNotNull(it.source).askUser })
+        } else {
+            firstSource
+        }
+    }
     val attachmentItems = buildList {
         var imageOffset = 0
         batch.forEach { queued ->
@@ -62,7 +86,12 @@ internal fun mergeQueuedGuidance(batch: List<QueuedSend>): QueuedSend {
         }
     }
     return first.copy(
-        text = batch.joinToString(separator = "\n\n", transform = QueuedSend::text),
+        text = if (source != null && source.kind == MessageSource.Kind.ASK_USER) {
+            source.askUserReadableText()
+        } else {
+            batch.joinToString(separator = "\n\n", transform = QueuedSend::text)
+        },
+        source = source,
         modelId = batch.last().modelId,
         attachments = batch.flatMap(QueuedSend::attachments),
         preparedImages = batch.flatMap(QueuedSend::preparedImages),
