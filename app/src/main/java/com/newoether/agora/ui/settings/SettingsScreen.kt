@@ -129,6 +129,9 @@ fun SettingsIconContent(
     }
 }
 
+/** SettingsItem side padding for rows using sheetOptionClickable: 16dp less the 8dp sheet inset. */
+internal val SETTINGS_ITEM_SHEET_PADDING = 16.dp - com.newoether.agora.ui.components.SHEET_OPTION_INSET
+
 @Composable
 fun SettingsItem(
     modifier: Modifier = Modifier,
@@ -137,6 +140,7 @@ fun SettingsItem(
     leadingContent: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
     leadingSpacing: Dp = 16.dp,
+    startPadding: Dp = 16.dp,
     endPadding: Dp = 16.dp,
 ) {
     val verticalPadding = if (supportingContent == null) 12.dp else 16.dp
@@ -144,7 +148,7 @@ fun SettingsItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(
-                start = 16.dp,
+                start = startPadding,
                 end = endPadding,
                 top = verticalPadding,
                 bottom = verticalPadding,

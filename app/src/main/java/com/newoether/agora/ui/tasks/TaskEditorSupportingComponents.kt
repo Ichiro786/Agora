@@ -73,6 +73,7 @@ import java.util.Calendar
 import java.util.TimeZone
 import com.newoether.agora.ui.components.AgoraDropdownMenu
 import com.newoether.agora.ui.components.AgoraDropdownMenuItem
+import com.newoether.agora.ui.components.optionClickable
 
 internal fun daysInYearlyMonth(month: Int): Int = when (month) {
     2 -> 29 // A yearly cron may intentionally target leap day.
@@ -403,7 +404,7 @@ internal fun WeekdayDialog(
                 items(7) { dow ->
                     val checked = dow in working
                     SettingsItem(
-                        modifier = Modifier.clickable {
+                        modifier = Modifier.optionClickable {
                             working = if (checked) working - dow else working + dow
                         },
                         headlineContent = {

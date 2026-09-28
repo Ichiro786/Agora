@@ -40,6 +40,7 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import com.newoether.agora.ui.components.AgoraDropdownMenu
 import com.newoether.agora.ui.components.AgoraDropdownMenuItem
+import com.newoether.agora.ui.components.sheetOptionClickable
 
 private const val DUPLICATE_TITLE_TOKEN = "__AGORA_PROMPT_TITLE__"
 
@@ -172,7 +173,9 @@ fun SettingsPromptsPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                 leadingContent = {
                     Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 },
-                modifier = Modifier.fillMaxWidth().clickable(
+                startPadding = SETTINGS_ITEM_SHEET_PADDING,
+                endPadding = SETTINGS_ITEM_SHEET_PADDING,
+                modifier = Modifier.fillMaxWidth().sheetOptionClickable(
                     enabled = !templateActionInFlight,
                 ) {
                     pickTemplate(SystemPromptEntry(title = ""))
@@ -184,7 +187,9 @@ fun SettingsPromptsPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                 leadingContent = {
                     Icon(Icons.Default.Psychology, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 },
-                modifier = Modifier.fillMaxWidth().clickable(
+                startPadding = SETTINGS_ITEM_SHEET_PADDING,
+                endPadding = SETTINGS_ITEM_SHEET_PADDING,
+                modifier = Modifier.fillMaxWidth().sheetOptionClickable(
                     enabled = !templateActionInFlight,
                 ) {
                     pickTemplate(

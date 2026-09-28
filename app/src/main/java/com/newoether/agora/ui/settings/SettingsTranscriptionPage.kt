@@ -29,6 +29,7 @@ import com.newoether.agora.util.Constants
 import com.newoether.agora.viewmodel.ChatViewModel
 import com.newoether.agora.ui.components.AgoraDropdownMenu
 import com.newoether.agora.ui.components.AgoraDropdownMenuItem
+import com.newoether.agora.ui.components.optionClickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -319,7 +320,7 @@ fun SettingsTranscriptionPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                     showModelDialog = false
                                 })
                             },
-                            modifier = Modifier.clickable {
+                            modifier = Modifier.optionClickable {
                                 viewModel.settings.setImageTranscriptionModel(model)
                                 showModelDialog = false
                             }
@@ -356,7 +357,7 @@ fun SettingsTranscriptionPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                     selected = if (checked) selected - model else selected + model
                                 })
                             },
-                            modifier = Modifier.clickable {
+                            modifier = Modifier.optionClickable {
                                 selected = if (checked) selected - model else selected + model
                             }
                         )

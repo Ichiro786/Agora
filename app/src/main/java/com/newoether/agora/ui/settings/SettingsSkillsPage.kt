@@ -59,6 +59,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.newoether.agora.ui.components.AgoraDropdownMenu
 import com.newoether.agora.ui.components.AgoraDropdownMenuItem
+import com.newoether.agora.ui.components.sheetOptionClickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -426,9 +427,11 @@ fun SettingsSkillsPage(
                         tint = MaterialTheme.colorScheme.primary,
                     )
                 },
+                startPadding = SETTINGS_ITEM_SHEET_PADDING,
+                endPadding = SETTINGS_ITEM_SHEET_PADDING,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(enabled = !addSkillActionInFlight) {
+                    .sheetOptionClickable(enabled = !addSkillActionInFlight) {
                         runAddSkillAction {
                             markdownPicker.launch(
                                 arrayOf("text/markdown", "text/plain", "application/octet-stream"),
@@ -456,9 +459,11 @@ fun SettingsSkillsPage(
                         tint = MaterialTheme.colorScheme.primary,
                     )
                 },
+                startPadding = SETTINGS_ITEM_SHEET_PADDING,
+                endPadding = SETTINGS_ITEM_SHEET_PADDING,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(enabled = !addSkillActionInFlight) {
+                    .sheetOptionClickable(enabled = !addSkillActionInFlight) {
                         runAddSkillAction {
                             showNewFileDialog = true
                         }

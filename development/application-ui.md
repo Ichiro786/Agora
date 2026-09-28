@@ -708,6 +708,15 @@ corner, and every item's press and hover highlight is clipped to a `24 dp` corne
 capsule at the `48 dp` item height. The highlight is inset `8 dp` from the menu sides, matching the
 `8 dp` Material leaves above the first and below the last item, and item content padding drops
 from `12 dp` to `4 dp` so item text stays where it was.
+## 31. Dialog and sheet option highlight
+Option rows in dialogs and bottom sheets use the dropdown item highlight: `Modifier.optionClickable`
+(`ui/components/AgoraOptionHighlight.kt`) clips the press and hover ripple to the same `24 dp`
+corner, for one- and two-line rows alike. Dialog rows use it directly because dialog content is
+already inset from the container. Rows that span a bottom sheet's full width use
+`Modifier.sheetOptionClickable`, which also insets the highlight `8 dp` from both sides; those rows
+drop their own horizontal padding by `8 dp` (`SETTINGS_ITEM_SHEET_PADDING` for `SettingsItem`) so
+content stays where it was. Controls that are already rounded or circular (citation source rows,
+segment cards, calendar days) and clicks without an indication are unchanged.
 ## 15. Verification
 
 Focused verification must cover the onboarding action's fixed 32 dp inset and 48 dp height, absence

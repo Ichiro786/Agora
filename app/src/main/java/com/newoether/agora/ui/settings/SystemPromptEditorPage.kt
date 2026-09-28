@@ -55,6 +55,7 @@ import com.newoether.agora.ui.motion.LocalAgoraMotionPolicy
 import com.newoether.agora.ui.motion.MotionAwareModalBottomSheet as ModalBottomSheet
 import com.newoether.agora.ui.components.AgoraDropdownMenu
 import com.newoether.agora.ui.components.AgoraDropdownMenuItem
+import com.newoether.agora.ui.components.sheetOptionClickable
 
 private fun variableDisplayName(key: String): String = when (key) {
     PredefinedVariables.TIME -> "Current Time"
@@ -375,7 +376,9 @@ fun SystemPromptEditorPage(
                     leadingContent = {
                         Icon(variableIcon(key), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     },
-                    modifier = Modifier.fillMaxWidth().clickable {
+                    startPadding = SETTINGS_ITEM_SHEET_PADDING,
+                    endPadding = SETTINGS_ITEM_SHEET_PADDING,
+                    modifier = Modifier.fillMaxWidth().sheetOptionClickable {
                         val item = PromptTemplateItem(type = PromptItemType.PREDEFINED, value = key)
                         if (targetIndex >= 0 && targetIndex <= currentItems.size) {
                             currentItems.add(targetIndex, item)
