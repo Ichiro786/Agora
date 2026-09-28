@@ -685,7 +685,7 @@ The composer controls capsule may grow from the bar's inner start edge up to the
 fixed `8 dp` gap, in ordinary and externally owned conversations alike. Every control in it has a
 fixed width except the model selector label, which is the only flexible child; there is no fixed
 label cap. User message bubbles (`UserBubbleShape`) give the top-start, top-end, and bottom-start
-corners one shared radius, `min(27 dp, half the bubble's smaller side)`, and keep an `8 dp` bottom-end
+corners one shared radius, `min(27 dp, half the bubble's smaller side)`, and keep a `5 dp` bottom-end
 tail (never larger than that radius). The three large corners always match, including short or
 narrow bubbles; `RoundedCornerShape` is not used because it shrinks each side's corner pair on its
 own. The radius does not grow with bubble height. A bubble is at least `54 dp` wide (its single-line height), so a
@@ -717,6 +717,10 @@ already inset from the container. Rows that span a bottom sheet's full width use
 drop their own horizontal padding by `8 dp` (`SETTINGS_ITEM_SHEET_PADDING` for `SettingsItem`) so
 content stays where it was. Controls that are already rounded or circular (citation source rows,
 segment cards, calendar days) and clicks without an indication are unchanged.
+## 32. Bottom sheet corners
+Every bottom sheet has the same `28 dp` top corners (Material's extra-large corner), from`
+`BOTTOM_SHEET_SHAPE` in `ui/components/DialogWindowEdgeToEdge.kt`. `MotionAwareModalBottomSheet` and`
+`SmoothBottomSheet` own the shape and take no shape parameter.
 ## 15. Verification
 
 Focused verification must cover the onboarding action's fixed 32 dp inset and 48 dp height, absence

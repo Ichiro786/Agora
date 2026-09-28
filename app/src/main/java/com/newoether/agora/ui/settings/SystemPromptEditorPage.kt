@@ -357,7 +357,6 @@ fun SystemPromptEditorPage(
         val targetIndex = insertAtIndex
         ModalBottomSheet(
             onDismissRequest = { showVariablePicker = false; insertAtIndex = -1 },
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         ) {
             DialogWindowEdgeToEdge()
