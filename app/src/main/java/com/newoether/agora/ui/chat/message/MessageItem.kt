@@ -58,6 +58,8 @@ import com.newoether.agora.ui.components.*
 import com.newoether.agora.ui.motion.LocalAgoraMotionPolicy
 import com.mikepenz.markdown.compose.components.markdownComponents
 import kotlinx.coroutines.flow.StateFlow
+import com.newoether.agora.ui.components.AgoraDropdownMenu
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 
 
 
@@ -642,14 +644,14 @@ internal fun ContextCompactPill(
                         modifier = Modifier.size(18.dp),
                     )
                 }
-                DropdownMenu(
+                AgoraDropdownMenu(
                     expanded = actionsExpanded,
                     onDismissRequest = { actionsExpanded = false },
                     shape = RoundedCornerShape(12.dp),
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                     tonalElevation = 16.dp,
                 ) {
-                    DropdownMenuItem(
+                    AgoraDropdownMenuItem(
                         text = {
                             Text(
                                 text = stringResource(com.newoether.agora.R.string.recompact),
@@ -667,7 +669,7 @@ internal fun ContextCompactPill(
                             onRecompact()
                         },
                     )
-                    DropdownMenuItem(
+                    AgoraDropdownMenuItem(
                         text = {
                             Text(
                                 text = stringResource(com.newoether.agora.R.string.delete),

@@ -27,8 +27,6 @@ import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,6 +62,8 @@ import com.newoether.agora.mcp.McpServerSnapshot
 import com.newoether.agora.util.noOpBringIntoView
 import com.newoether.agora.viewmodel.ChatViewModel
 import java.util.UUID
+import com.newoether.agora.ui.components.AgoraDropdownMenu
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 
 private data class McpEditorRoute(
     val initial: McpServerConfig,
@@ -217,7 +217,7 @@ fun SettingsMcpPage(
                                                                 stringResource(R.string.options),
                                                             )
                                                         }
-                                                        DropdownMenu(
+                                                        AgoraDropdownMenu(
                                                             expanded = menuExpanded,
                                                             onDismissRequest = {
                                                                 menuExpanded = false
@@ -226,7 +226,7 @@ fun SettingsMcpPage(
                                                             tonalElevation = 16.dp,
                                                             shape = RoundedCornerShape(12.dp),
                                                         ) {
-                                                            DropdownMenuItem(
+                                                            AgoraDropdownMenuItem(
                                                                 text = {
                                                                     Text(stringResource(R.string.mcp_refresh))
                                                                 },
@@ -241,7 +241,7 @@ fun SettingsMcpPage(
                                                                     viewModel.refreshMcpServer(server.id)
                                                                 },
                                                             )
-                                                            DropdownMenuItem(
+                                                            AgoraDropdownMenuItem(
                                                                 text = {
                                                                     Text(
                                                                         stringResource(R.string.delete),

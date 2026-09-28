@@ -21,6 +21,8 @@ import com.newoether.agora.R
 import com.newoether.agora.ui.settings.SettingsGroup
 import com.newoether.agora.ui.settings.SettingsItem
 import com.newoether.agora.viewmodel.ChatViewModel
+import com.newoether.agora.ui.components.AgoraDropdownMenu
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 
 private fun categoryLabelRes(key: String): Int = when (key) {
     "conversations" -> R.string.export_category_conversations
@@ -136,13 +138,13 @@ private fun AutoBackupPeriodDropdown(currentHours: Int, onSelect: (Int) -> Unit)
             },
             modifier = Modifier.clickable { expanded = true }
         )
-        DropdownMenu(
+        AgoraDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             shape = RoundedCornerShape(16.dp)
         ) {
             periods.forEach { (hours, labelRes) ->
-                DropdownMenuItem(
+                AgoraDropdownMenuItem(
                     text = { Text(stringResource(labelRes)) },
                     onClick = { onSelect(hours); expanded = false },
                     leadingIcon = if (hours == currentHours) {{ Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }} else {{}}
@@ -171,13 +173,13 @@ private fun AutoDeletePeriodDropdown(currentHours: Int, backupHours: Int, onSele
             },
             modifier = Modifier.clickable { expanded = true }
         )
-        DropdownMenu(
+        AgoraDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             shape = RoundedCornerShape(16.dp)
         ) {
             validPeriods.forEach { (hours, labelRes) ->
-                DropdownMenuItem(
+                AgoraDropdownMenuItem(
                     text = { Text(stringResource(labelRes)) },
                     onClick = { onSelect(hours); expanded = false },
                     leadingIcon = if (hours == currentHours) {{ Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }} else {{}}

@@ -53,6 +53,8 @@ import com.newoether.agora.data.PromptTemplateItem
 import com.newoether.agora.data.SystemPromptEntry
 import com.newoether.agora.ui.motion.LocalAgoraMotionPolicy
 import com.newoether.agora.ui.motion.MotionAwareModalBottomSheet as ModalBottomSheet
+import com.newoether.agora.ui.components.AgoraDropdownMenu
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 
 private fun variableDisplayName(key: String): String = when (key) {
     PredefinedVariables.TIME -> "Current Time"
@@ -417,19 +419,19 @@ private fun InsertBetweenButton(
                     modifier = Modifier.size(12.dp)
                 )
             }
-            DropdownMenu(
+            AgoraDropdownMenu(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 tonalElevation = 16.dp,
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
                 shape = RoundedCornerShape(12.dp)
             ) {
-                DropdownMenuItem(
+                AgoraDropdownMenuItem(
                     text = { Text(stringResource(R.string.template_add_text)) },
                     leadingIcon = { Icon(Icons.Default.TextFields, null) },
                     onClick = { expanded = false; onInsertText() }
                 )
-                DropdownMenuItem(
+                AgoraDropdownMenuItem(
                     text = { Text(stringResource(R.string.template_add_variable)) },
                     leadingIcon = { Icon(Icons.AutoMirrored.Outlined.PlaylistAdd, null) },
                     onClick = { expanded = false; onInsertVariable() }

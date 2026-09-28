@@ -26,8 +26,6 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -73,6 +71,8 @@ import com.newoether.agora.ui.settings.SettingsItem
 import com.newoether.agora.viewmodel.ChatViewModel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.Locale
+import com.newoether.agora.ui.components.AgoraDropdownMenu
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 
 /**
  * The schedule editor mode is explicit UI state. In particular, CUSTOM must not be inferred from
@@ -598,14 +598,14 @@ private fun ScheduleGroup(
                             Icon(Icons.Default.Repeat, null, tint = MaterialTheme.colorScheme.primary)
                         },
                     )
-                    DropdownMenu(
+                    AgoraDropdownMenu(
                         expanded = showRepeatMenu,
                         onDismissRequest = { showRepeatMenu = false },
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         shape = RoundedCornerShape(16.dp),
                     ) {
                         ScheduleEditorMode.entries.forEach { mode ->
-                            DropdownMenuItem(
+                            AgoraDropdownMenuItem(
                                 text = { Text(repeatLabel(mode)) },
                                 leadingIcon = {
                                     if (editorMode == mode) {

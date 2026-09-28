@@ -28,6 +28,8 @@ import com.newoether.agora.ui.common.PersistedSliderFeedbackGate
 import com.newoether.agora.ui.components.providerIcon
 import com.newoether.agora.util.Constants
 import com.newoether.agora.viewmodel.ChatViewModel
+import com.newoether.agora.ui.components.AgoraDropdownMenu
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -177,14 +179,14 @@ fun SettingsTranscriptionPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                             IconButton(onClick = { showMenuForModel = model }, modifier = Modifier.size(24.dp)) {
                                                 Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.options), modifier = Modifier.size(18.dp))
                                             }
-                                            DropdownMenu(
+                                            AgoraDropdownMenu(
                                                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                                 tonalElevation = 16.dp,
                                                 expanded = showMenuForModel == model,
                                                 onDismissRequest = { showMenuForModel = null },
                                                 shape = RoundedCornerShape(12.dp)
                                             ) {
-                                                DropdownMenuItem(
+                                                AgoraDropdownMenuItem(
                                                     text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
                                                     leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
                                                     onClick = {

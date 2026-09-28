@@ -44,6 +44,8 @@ import kotlinx.coroutines.withContext
 import com.newoether.agora.data.CustomProviderConfig
 import com.newoether.agora.data.providerDisplayName
 import com.newoether.agora.data.modelDisplayName
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
+import com.newoether.agora.ui.components.AgoraExposedDropdownMenu
 internal val CHAT_BOTTOM_BAR_OUTER_RADIUS = 28.dp
 internal val CHAT_BOTTOM_BAR_OUTER_SHAPE = RoundedCornerShape(CHAT_BOTTOM_BAR_OUTER_RADIUS)
 internal val CHAT_DROPDOWN_MENU_SHAPE = RoundedCornerShape(16.dp)
@@ -444,7 +446,7 @@ internal fun ChatBottomBar(
                     },
                 ) {
                     if (enabledModels.isEmpty()) {
-                        DropdownMenuItem(
+                        AgoraDropdownMenuItem(
                             text = { Text(stringResource(R.string.models_no_models)) },
                             onClick = {
                                 activeMenu = null
@@ -523,7 +525,7 @@ internal fun ChatBottomBar(
                         Icon(Icons.Default.MoreVert, stringResource(R.string.tools), modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     
-                    ExposedDropdownMenu(
+                    AgoraExposedDropdownMenu(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         expanded = activeMenu == "tools",
                         onDismissRequest = {
@@ -532,7 +534,7 @@ internal fun ChatBottomBar(
                                 lastToolsDismissTime = System.currentTimeMillis()
                             }
                         },
-                        matchTextFieldWidth = false,
+                        matchAnchorWidth = false,
                         shape = CHAT_DROPDOWN_MENU_SHAPE,
                     ) {
                         ComposerToolsMenuContent(

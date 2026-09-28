@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +55,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import com.newoether.agora.ui.motion.rememberIdentityClipWidth
 import com.newoether.agora.R
 import com.newoether.agora.ui.theme.ChatType
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
+import com.newoether.agora.ui.components.AgoraExposedDropdownMenu
 
 internal const val CHAT_DROPDOWN_MENU_ICON_SIZE_DP = 24
 
@@ -155,11 +156,11 @@ internal fun RowScope.ComposerModelSelector(
                     }
                 }
             }
-            ExposedDropdownMenu(
+            AgoraExposedDropdownMenu(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 expanded = expanded && enabled,
                 onDismissRequest = onDismissRequest,
-                matchTextFieldWidth = false,
+                matchAnchorWidth = false,
                 shape = CHAT_DROPDOWN_MENU_SHAPE,
                 content = menuContent,
             )
@@ -169,7 +170,7 @@ internal fun RowScope.ComposerModelSelector(
 
 @Composable
 internal fun ComposerModelMenuItem(displayText: String, selected: Boolean, onClick: () -> Unit) {
-    DropdownMenuItem(
+    AgoraDropdownMenuItem(
         text = { Text(displayText) },
         leadingIcon = {
             if (selected) Icon(Icons.Default.Check, null, Modifier.size(CHAT_DROPDOWN_MENU_ICON_SIZE_DP.dp))
@@ -234,11 +235,11 @@ internal fun ComposerContextIndicator(
                 color = contextProgressColor,
             )
         }
-        ExposedDropdownMenu(
+        AgoraExposedDropdownMenu(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             expanded = expanded && available,
             onDismissRequest = onDismissRequest,
-            matchTextFieldWidth = false,
+            matchAnchorWidth = false,
             shape = CHAT_DROPDOWN_MENU_SHAPE,
         ) {
             Column(
@@ -292,7 +293,7 @@ internal fun NativeSearchMenuItem(
     enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    DropdownMenuItem(
+    AgoraDropdownMenuItem(
         text = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(

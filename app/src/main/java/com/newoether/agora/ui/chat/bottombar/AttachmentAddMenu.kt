@@ -11,7 +11,6 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
@@ -30,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.newoether.agora.R
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
+import com.newoether.agora.ui.components.AgoraExposedDropdownMenu
 
 @androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
@@ -70,7 +71,7 @@ internal fun AttachmentAddMenu(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        ExposedDropdownMenu(
+        AgoraExposedDropdownMenu(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             expanded = enabled && showAddMenu,
             onDismissRequest = {
@@ -79,7 +80,7 @@ internal fun AttachmentAddMenu(
                     lastAddDismissTime = System.currentTimeMillis()
                 }
             },
-            matchTextFieldWidth = false,
+            matchAnchorWidth = false,
             shape = RoundedCornerShape(16.dp),
         ) {
             if (showCamera) AttachmentMenuItem(Icons.Default.PhotoCamera, R.string.camera) { select(onCamera) }
@@ -96,7 +97,7 @@ private fun AttachmentMenuItem(
     label: Int,
     onClick: () -> Unit,
 ) {
-    DropdownMenuItem(
+    AgoraDropdownMenuItem(
         text = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(icon, null, modifier = Modifier.size(CHAT_DROPDOWN_MENU_ICON_SIZE_DP.dp))

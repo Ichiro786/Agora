@@ -27,8 +27,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +58,8 @@ import com.newoether.agora.model.ContextBudget
 import com.newoether.agora.ui.motion.LocalAgoraMotionPolicy
 import com.newoether.agora.ui.motion.rememberIdentityClipWidth
 import com.newoether.agora.ui.theme.ChatType
+import com.newoether.agora.ui.components.AgoraDropdownMenu
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 
 private const val TITLE_CAPSULE_MAX_WIDTH_DP = 260
 
@@ -451,7 +451,7 @@ internal fun ChatTopBar(
                                     modifier = Modifier.size(26.dp),
                                 )
                             }
-                            DropdownMenu(
+                            AgoraDropdownMenu(
                                 expanded = moreMenuOpen,
                                 onDismissRequest = { moreMenuOpen = false },
                                 shape = RoundedCornerShape(12.dp),
@@ -459,7 +459,7 @@ internal fun ChatTopBar(
                                 tonalElevation = 16.dp,
                             ) {
                                 if (moreMenuContent != null) moreMenuContent { moreMenuOpen = false } else {
-                                DropdownMenuItem(
+                                AgoraDropdownMenuItem(
                                     text = { Text(stringResource(R.string.conversation_search)) },
                                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                                     enabled = conversationActionsEnabled,
@@ -468,7 +468,7 @@ internal fun ChatTopBar(
                                         onSearchClick()
                                     },
                                 )
-                                DropdownMenuItem(
+                                AgoraDropdownMenuItem(
                                     text = { Text(stringResource(R.string.system_prompt)) },
                                     leadingIcon = {
                                         Icon(Icons.Default.Psychology, contentDescription = null)
@@ -479,7 +479,7 @@ internal fun ChatTopBar(
                                         onSystemPromptClick()
                                     },
                                 )
-                                DropdownMenuItem(
+                                AgoraDropdownMenuItem(
                                     text = { Text(stringResource(R.string.conversation_fork_menu)) },
                                     leadingIcon = {
                                         Icon(Icons.Default.CallSplit, contentDescription = null)
@@ -490,7 +490,7 @@ internal fun ChatTopBar(
                                         onForkConversation()
                                     },
                                 )
-                                DropdownMenuItem(
+                                AgoraDropdownMenuItem(
                                     text = { Text(stringResource(R.string.conversation_share)) },
                                     leadingIcon = {
                                         Icon(Icons.Default.Share, contentDescription = null)

@@ -38,8 +38,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import com.newoether.agora.ui.motion.MotionAwareCircularProgressIndicator as CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -93,6 +91,8 @@ import com.newoether.agora.viewmodel.ChatViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import com.newoether.agora.ui.components.AgoraDropdownMenu
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 
 internal enum class DrawerConversationIndicator {
     NONE,
@@ -545,7 +545,7 @@ internal fun ChatDrawerContent(
                                             }
                                         }
 
-                                        DropdownMenu(
+                                        AgoraDropdownMenu(
                                             containerColor =
                                                 MaterialTheme.colorScheme.surfaceContainer,
                                             tonalElevation = 16.dp,
@@ -554,7 +554,7 @@ internal fun ChatDrawerContent(
                                             offset = pressOffset,
                                             shape = RoundedCornerShape(12.dp)
                                         ) {
-                                            DropdownMenuItem(
+                                            AgoraDropdownMenuItem(
                                                 text = {
                                                     Text(stringResource(R.string.generate_title))
                                                 },
@@ -570,7 +570,7 @@ internal fun ChatDrawerContent(
                                                     viewModel.generateTitle(conversation.id)
                                                 }
                                             )
-                                            DropdownMenuItem(
+                                            AgoraDropdownMenuItem(
                                                 text = { Text(stringResource(R.string.rename)) },
                                                 leadingIcon = {
                                                     Icon(
@@ -587,7 +587,7 @@ internal fun ChatDrawerContent(
                                                     )
                                                 }
                                             )
-                                            DropdownMenuItem(
+                                            AgoraDropdownMenuItem(
                                                 text = {
                                                     Text(
                                                         stringResource(R.string.delete),

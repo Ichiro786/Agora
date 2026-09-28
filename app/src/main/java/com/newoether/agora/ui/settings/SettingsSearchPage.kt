@@ -43,6 +43,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.newoether.agora.ui.components.AgoraDropdownMenu
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 
 private data class SearchMethodOption(val key: String, @androidx.annotation.StringRes val labelRes: Int)
 
@@ -230,7 +232,7 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                         modifier = Modifier.width(80.dp),
                                         textAlign = TextAlign.Center
                                     )
-                                    DropdownMenu(
+                                    AgoraDropdownMenu(
                                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                         tonalElevation = 16.dp,
                                         expanded = expanded,
@@ -240,7 +242,7 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                         val noEmbedding = embeddingModels.isEmpty()
                                         searchMethods.forEach { method ->
                                             val ragDisabled = method.key == Constants.SEARCH_METHOD_RAG && noEmbedding
-                                            DropdownMenuItem(
+                                            AgoraDropdownMenuItem(
                                                 text = { Text(stringResource(method.labelRes), color = if (ragDisabled) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) else MaterialTheme.colorScheme.onSurface) },
                                                 leadingIcon = {
                                                     if (modelSearchMethod == method.key)
@@ -275,7 +277,7 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                         modifier = Modifier.width(80.dp),
                                         textAlign = TextAlign.Center
                                     )
-                                    DropdownMenu(
+                                    AgoraDropdownMenu(
                                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                         tonalElevation = 16.dp,
                                         expanded = expanded,
@@ -285,7 +287,7 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                         val noEmbedding = embeddingModels.isEmpty()
                                         searchMethods.forEach { method ->
                                             val ragDisabled = method.key == Constants.SEARCH_METHOD_RAG && noEmbedding
-                                            DropdownMenuItem(
+                                            AgoraDropdownMenuItem(
                                                 text = { Text(stringResource(method.labelRes), color = if (ragDisabled) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) else MaterialTheme.colorScheme.onSurface) },
                                                 leadingIcon = {
                                                     if (manualSearchMethod == method.key)
@@ -451,14 +453,14 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                                 IconButton(onClick = { showMenuForModel = model.id }) {
                                                     Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.options))
                                                 }
-                                                DropdownMenu(
+                                                AgoraDropdownMenu(
                                                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                                     tonalElevation = 16.dp,
                                                     expanded = showMenuForModel == model.id,
                                                     onDismissRequest = { showMenuForModel = null },
                                                     shape = RoundedCornerShape(12.dp)
                                                 ) {
-                                                    DropdownMenuItem(
+                                                    AgoraDropdownMenuItem(
                                                         text = { Text(stringResource(R.string.edit)) },
                                                         leadingIcon = { Icon(Icons.Default.Edit, null) },
                                                         onClick = {
@@ -467,7 +469,7 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                                             showRenameDialog = model.id
                                                         }
                                                     )
-                                                    DropdownMenuItem(
+                                                    AgoraDropdownMenuItem(
                                                         text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
                                                         leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
                                                         onClick = {

@@ -22,6 +22,8 @@ import com.newoether.agora.ui.components.clearFocusOnTap
 import com.newoether.agora.util.Constants
 import com.newoether.agora.viewmodel.ChatViewModel
 import kotlinx.coroutines.launch
+import com.newoether.agora.ui.components.AgoraDropdownMenu
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 
 /** A preset (provider name, base URL, known model ids) for the remote-embedding dialog. */
 internal data class EmbeddingProviderPreset(val name: String, val baseUrl: String, val models: List<String>)
@@ -102,14 +104,14 @@ internal fun AddRemoteEmbeddingDialog(
                             IconButton(onClick = { provExpanded = true }) {
                                 Icon(Icons.Default.ArrowDropDown, null)
                             }
-                            DropdownMenu(
+                            AgoraDropdownMenu(
                                 expanded = provExpanded,
                                 onDismissRequest = { provExpanded = false },
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 providers.forEachIndexed { idx, p ->
-                                    DropdownMenuItem(
+                                    AgoraDropdownMenuItem(
                                         text = { Text(p.name) },
                                         onClick = {
                                             state.selectedProviderIdx = idx
@@ -184,14 +186,14 @@ internal fun AddRemoteEmbeddingDialog(
                             IconButton(onClick = { state.showModelDropdown = true }) {
                                 Icon(Icons.Default.ArrowDropDown, null)
                             }
-                            DropdownMenu(
+                            AgoraDropdownMenu(
                                 expanded = state.showModelDropdown,
                                 onDismissRequest = { state.showModelDropdown = false },
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 provider.models.forEach { model ->
-                                    DropdownMenuItem(
+                                    AgoraDropdownMenuItem(
                                         text = { Text(model) },
                                         onClick = {
                                             state.modelName = model
@@ -200,7 +202,7 @@ internal fun AddRemoteEmbeddingDialog(
                                         }
                                     )
                                 }
-                                DropdownMenuItem(
+                                AgoraDropdownMenuItem(
                                     text = { Text(stringResource(R.string.embedding_custom)) },
                                     onClick = {
                                         state.modelName = ""

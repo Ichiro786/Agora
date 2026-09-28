@@ -700,6 +700,16 @@ capsule and its Settings toggle use the outlined help icon (a question mark in a
 search indicator shows exactly while the newest search runs: a cancelled search never clears it.
 The conversation switching overlay keeps its full-body background and centers its indicator between
 the top bar and the measured bottom bar, so it follows the IME like the welcome text.
+## 30. Dropdown item highlight
+
+Every dropdown and exposed dropdown goes through `AgoraDropdownMenu`, `AgoraExposedDropdownMenu`, and
+`AgoraDropdownMenuItem` (`ui/components/AgoraDropdownMenu.kt`); raw Material menu calls are not used
+elsewhere. An item's press and hover highlight is inset `8 dp` from the menu sides, matching the
+`8 dp` Material leaves above the first and below the last item, and its corner is the menu corner
+minus `8 dp` (never below zero): `4 dp` in a `12 dp` menu, `8 dp` in a `16 dp` menu. The highlight
+therefore runs parallel to the menu outline at every corner. Menu corners are unchanged, and item
+content padding drops from `12 dp` to `4 dp` so item text stays where it was.
+
 ## 15. Verification
 
 Focused verification must cover the onboarding action's fixed 32 dp inset and 48 dp height, absence

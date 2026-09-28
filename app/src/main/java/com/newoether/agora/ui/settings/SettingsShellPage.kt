@@ -34,6 +34,8 @@ import com.newoether.agora.viewmodel.ChatViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
+import com.newoether.agora.ui.components.AgoraExposedDropdownMenu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -316,13 +318,13 @@ private fun DeviceEditor(
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
-                    ExposedDropdownMenu(
+                    AgoraExposedDropdownMenu(
                         expanded = typeMenuExpanded,
                         onDismissRequest = { typeMenuExpanded = false },
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        DropdownMenuItem(text = { Text("Conch") }, onClick = { typeInput = "conch"; typeMenuExpanded = false }, leadingIcon = { Icon(Icons.Default.Cable, null) })
-                        DropdownMenuItem(text = { Text("SSH") }, onClick = { typeInput = "ssh"; typeMenuExpanded = false }, leadingIcon = { Icon(Icons.Default.Cable, null) })
+                        AgoraDropdownMenuItem(text = { Text("Conch") }, onClick = { typeInput = "conch"; typeMenuExpanded = false }, leadingIcon = { Icon(Icons.Default.Cable, null) })
+                        AgoraDropdownMenuItem(text = { Text("SSH") }, onClick = { typeInput = "ssh"; typeMenuExpanded = false }, leadingIcon = { Icon(Icons.Default.Cable, null) })
                     }
                 }
                 Spacer(Modifier.height(10.dp))

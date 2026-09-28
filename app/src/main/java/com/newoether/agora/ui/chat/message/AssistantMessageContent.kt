@@ -50,6 +50,8 @@ import com.newoether.agora.model.citationRecords
 import com.newoether.agora.ui.chat.GenerationActivityDot
 import com.newoether.agora.ui.chat.shouldShowStreamingTailIndicator
 import com.newoether.agora.ui.common.LocalAgoraHaptics
+import com.newoether.agora.ui.components.AgoraDropdownMenu
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 
 internal val AssistantMessageHorizontalInset = 8.dp
 private val FormerAssistantStatusSpacerHeight = 6.dp
@@ -709,14 +711,14 @@ internal fun AssistantMessageContent(
                                     tint = enabledActionTint,
                                 )
                             }
-                            DropdownMenu(
+                            AgoraDropdownMenu(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                 tonalElevation = 16.dp,
                                 shape = RoundedCornerShape(12.dp),
                                 expanded = showMenu && actionAvailability.informationVisible,
                                 onDismissRequest = { showMenu = false },
                             ) {
-                                DropdownMenuItem(
+                                AgoraDropdownMenuItem(
                                     text = { Text(stringResource(R.string.info)) },
                                     onClick = {
                                         showMenu = false
@@ -725,7 +727,7 @@ internal fun AssistantMessageContent(
                                     enabled = actionAvailability.informationEnabled,
                                     leadingIcon = { Icon(Icons.Default.Info, null) },
                                 )
-                                DropdownMenuItem(
+                                AgoraDropdownMenuItem(
                                     text = {
                                         Text(
                                             stringResource(R.string.delete),

@@ -43,6 +43,8 @@ import com.newoether.agora.ui.chat.resolveAttachmentType
 import com.newoether.agora.ui.common.LocalAgoraHaptics
 import com.newoether.agora.ui.motion.LocalAgoraMotionPolicy
 import com.newoether.agora.ui.theme.ChatType
+import com.newoether.agora.ui.components.AgoraDropdownMenu
+import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 
 /**
  * The right-aligned user message bubble: attachment thumbnails, the message text
@@ -299,7 +301,7 @@ internal fun UserMessageBubble(
             }
         }
 
-            DropdownMenu(
+            AgoraDropdownMenu(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 tonalElevation = 16.dp,
                 shape = RoundedCornerShape(12.dp),
@@ -307,7 +309,7 @@ internal fun UserMessageBubble(
                 onDismissRequest = { showMenu = false },
             ) {
                 if (!actionCopyText.isNullOrBlank()) {
-                    DropdownMenuItem(
+                    AgoraDropdownMenuItem(
                         text = { Text(stringResource(R.string.copy)) },
                         onClick = {
                             clipboardManager.setText(AnnotatedString(actionCopyText))
@@ -317,7 +319,7 @@ internal fun UserMessageBubble(
                         leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
                     )
                 }
-                if (allowMutations) DropdownMenuItem(
+                if (allowMutations) AgoraDropdownMenuItem(
                     text = { Text(stringResource(R.string.edit)) },
                     onClick = {
                         showMenu = false
@@ -327,7 +329,7 @@ internal fun UserMessageBubble(
                     leadingIcon = { Icon(Icons.Default.Edit, null) },
                 )
                 if (message.text.isNotBlank()) {
-                    DropdownMenuItem(
+                    AgoraDropdownMenuItem(
                         text = { Text(stringResource(R.string.select_text)) },
                         onClick = {
                             showMenu = false
@@ -336,7 +338,7 @@ internal fun UserMessageBubble(
                         leadingIcon = { Icon(Icons.Default.SelectAll, null) },
                     )
                 }
-                DropdownMenuItem(
+                AgoraDropdownMenuItem(
                     text = { Text(stringResource(R.string.info)) },
                     onClick = {
                         showMenu = false
@@ -344,7 +346,7 @@ internal fun UserMessageBubble(
                     },
                     leadingIcon = { Icon(Icons.Default.Info, null) },
                 )
-                if (allowMutations) DropdownMenuItem(
+                if (allowMutations) AgoraDropdownMenuItem(
                     text = {
                         Text(
                             stringResource(R.string.delete),
