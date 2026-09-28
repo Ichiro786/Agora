@@ -26,10 +26,10 @@ import com.newoether.agora.model.MessageSource
 internal const val ASK_USER_DIM_ALPHA = 0.6f
 
 /** Questions sit one size below the 15 sp user body so they read apart from the answers. */
-internal val ASK_USER_QUESTION_FONT_SIZE = 13.sp
+internal val ASK_USER_QUESTION_FONT_SIZE = 14.sp
 
 /** Line height inside a wrapped question; only the question's own lines use it. */
-internal val ASK_USER_QUESTION_LINE_HEIGHT = 19.sp
+internal val ASK_USER_QUESTION_LINE_HEIGHT = 20.sp
 
 /**
  * The readable text of an ask_user bubble as the user sees it: question, answer, blank line

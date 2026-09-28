@@ -698,7 +698,7 @@ because the Cancel/Send buttons already carry `10 dp` of invisible height below 
 `1 dp` tuned by eye. The `15 dp` reading padding makes `27 dp` half of a single-line bubble. Attachments inside the bubble (images, video,
 files, PDFs) use `15 dp` corners, equal to the content padding (user choice over the strictly
 concentric `12 dp`); the composer attachment preview keeps its own `8 dp`. The `ask_user` interaction
-capsule and its Settings toggle use the outlined help icon (a question mark in a circle). The drawer
+capsule and its Settings toggle use the outlined help icon (a question mark in a circle). In the capsule's question card only the question text is long-press selectable (`NoAutoScrollSelectionContainer`, like message bubbles); option rows and the answer field are not. The drawer
 search indicator shows exactly while the newest search runs: a cancelled search never clears it.
 The conversation switching overlay keeps its full-body background and centers its indicator between
 the top bar and the measured bottom bar, so it follows the IME like the welcome text.
@@ -748,10 +748,10 @@ answers to non-blocking `ask_user` questions) shows a label above the bubble, en
 icon and the source name in `labelSmall`, both `onSurfaceVariant` (Task: Schedule icon,
 `message_source_task`; Loop: Repeat icon, `message_source_loop`; Ask User: QuestionAnswer icon,
 `message_source_ask_user`). The label names the source only. An ask_user bubble lists each question
-(dimmed to `ASK_USER_DIM_ALPHA` and one size smaller, `13 sp` against the `15 sp` body,
+(dimmed to `ASK_USER_DIM_ALPHA` and one size smaller, `14 sp` against the `15 sp` body,
 `ASK_USER_QUESTION_FONT_SIZE`) with its answer on the next line, groups separated by a blank line; a
 skipped question shows the dimmed `message_source_unanswered`. Only a wrapped question's own lines
-are tighter (`19 sp`, `ASK_USER_QUESTION_LINE_HEIGHT`); `AskUserAnswerBlocks` lays questions and
+are tighter (`20 sp`, `ASK_USER_QUESTION_LINE_HEIGHT`); `AskUserAnswerBlocks` lays questions and
 answers out as separate blocks and pads back the space above each question and below its last line,
 measured from the font, so the question-to-answer gap, the blank line between groups and the bubble
 edges stay what a single `15 sp` / `24.2 sp` text gives. Search highlights map onto each block by its
