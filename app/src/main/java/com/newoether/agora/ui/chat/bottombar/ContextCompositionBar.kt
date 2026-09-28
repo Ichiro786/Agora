@@ -89,7 +89,7 @@ internal fun ContextCompositionBar(
     val messageColor = if (overCompactThreshold) MaterialTheme.colorScheme.error else MessagesColor
     val freeColor = MaterialTheme.colorScheme.surfaceVariant
     val reservedColor = MaterialTheme.colorScheme.outline
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SegmentedBar(
             fractions = listOf(
                 system.toFloat() / budget,
