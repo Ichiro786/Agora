@@ -51,7 +51,7 @@ internal val CHAT_BOTTOM_BAR_OUTER_SHAPE = RoundedCornerShape(CHAT_BOTTOM_BAR_OU
 // Non-expanded bar geometry, measured from the bar's outer edge.
 // The controls capsule and the send button share one height and sit 8 dp from the start/end and
 // bottom edges. They are not concentric with the outer corners: the owner chose larger controls.
-internal val COMPOSER_CONTROL_HEIGHT = 48.dp
+internal val COMPOSER_CONTROL_HEIGHT = 44.dp
 internal val COMPOSER_CONTROLS_INSET = 8.dp
 // The input text's top and the expand icon sit 16 dp from the top and end edges. The expand
 // button's circle is a fade to transparent, so only its 20 dp icon is placed, not the circle.

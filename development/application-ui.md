@@ -730,9 +730,9 @@ page or dialog leaves composition), `secretVisualTransformation(visible)`, and
 `secret_show` / `secret_hide`). No other file uses `PasswordVisualTransformation`.
 ## 34. Composer insets
 The non-expanded composer keeps its `28 dp` outer radius. The controls capsule and the send button are
-both `48 dp` high (`COMPOSER_CONTROL_HEIGHT`) and sit `8 dp` from the start/end and bottom edges; the
+both `44 dp` high (`COMPOSER_CONTROL_HEIGHT`) and sit `8 dp` from the start/end and bottom edges; the
 owner chose this size over concentricity with the outer corners. Inside the capsule the `32 dp`
-buttons sit `8 dp` from its ends and the `38 dp` model selector is centered, so both stay concentric
+buttons sit `6 dp` from its ends and the `38 dp` model selector is centered, so both stay concentric
 with the capsule. The input text's top and the `20 dp` expand icon sit `16 dp` from the
 top and end edges (`COMPOSER_CORNER_CONTENT_INSET`); the text starts `18 dp` from the start edge
 (`COMPOSER_TEXT_START_INSET`) and ends `20 dp` above the controls (`COMPOSER_TEXT_CONTROLS_GAP`). The

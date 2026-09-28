@@ -10,7 +10,7 @@ import java.io.File
 class ComposerConcentricInsetTest {
     @Test fun controlsKeepTheirSizeAndInset() {
         assertEquals(28.dp, CHAT_BOTTOM_BAR_OUTER_RADIUS)
-        assertEquals(48.dp, COMPOSER_CONTROL_HEIGHT)
+        assertEquals(44.dp, COMPOSER_CONTROL_HEIGHT)
         assertEquals(8.dp, COMPOSER_CONTROLS_INSET)
     }
 
@@ -31,7 +31,7 @@ class ComposerConcentricInsetTest {
         assertTrue(layout.contains("start = COMPOSER_CONTROLS_INSET - COMPOSER_HOST_SIDE_PADDING, end = COMPOSER_CONTROLS_INSET - COMPOSER_HOST_SIDE_PADDING"))
         assertTrue(source("ComposerSendButton.kt").contains("Modifier.size(COMPOSER_CONTROL_HEIGHT)"))
         assertTrue(source("ChatBottomBarComponents.kt").contains(".height(COMPOSER_CONTROL_HEIGHT)"))
-        // Capsule children: 32 dp buttons 8 dp from its ends, so 16 + 8 = 24 = capsule radius.
+        // Capsule children: 32 dp buttons 6 dp from its ends, so 16 + 6 = 22 = capsule radius.
         assertTrue(source("ChatBottomBarComponents.kt").contains(".padding(horizontal = COMPOSER_CONTROL_HEIGHT / 2 - 16.dp)"))
     }
 

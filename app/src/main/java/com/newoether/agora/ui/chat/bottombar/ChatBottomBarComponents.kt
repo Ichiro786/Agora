@@ -74,8 +74,8 @@ internal fun RowScope.ComposerControlGroup(content: @Composable RowScope.() -> U
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.weight(1f, fill = false).height(COMPOSER_CONTROL_HEIGHT)
             .background(MaterialTheme.colorScheme.surfaceColorAtElevation(10.dp), RoundedCornerShape(100))
-            // The 32 dp end buttons stay concentric with the capsule (radius 16 + 8 = 24); the Row
-            // centers the 38 dp model selector vertically (radius 19 + 5 = 24).
+            // The 32 dp end buttons stay concentric with the capsule (radius 16 + 6 = 22); the Row
+            // centers the 38 dp model selector vertically (radius 19 + 3 = 22).
             .padding(horizontal = COMPOSER_CONTROL_HEIGHT / 2 - 16.dp),
         content = content,
     )
