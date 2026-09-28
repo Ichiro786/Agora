@@ -103,4 +103,6 @@ internal data class NativeExportMessageEntity(
     val runId: String? = null,
     val runSequence: Long? = null,
     val consumedAtPass: Int? = null,
+    /** Added in backup v6; absent in older archives. */
+    val sourceJson: String? = null,
 )

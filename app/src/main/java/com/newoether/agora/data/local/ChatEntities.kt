@@ -272,6 +272,8 @@ data class MessageEntity(
     val runSequence: Long = UNASSIGNED_RUN_SEQUENCE,
     /** Non-null only for visible user input; null for model/tool/result rows. */
     val consumedAtPass: Int? = null,
+    /** [com.newoether.agora.model.MessageSource] JSON; non-null only for automatic user input. */
+    val sourceJson: String? = null,
 ) {
     companion object {
         const val UNASSIGNED_RUN_SEQUENCE = -1L

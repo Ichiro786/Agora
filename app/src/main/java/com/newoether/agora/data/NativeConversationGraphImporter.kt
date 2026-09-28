@@ -22,6 +22,7 @@ import com.newoether.agora.data.local.migration.RegenerationTreeRepairPlanner
 import com.newoether.agora.data.local.migration.V17MessageRecord
 import com.newoether.agora.data.local.migration.V17RunRecord
 import com.newoether.agora.data.local.migration.regenerationInputFingerprint
+import com.newoether.agora.model.MessageSource
 import com.newoether.agora.model.MessageStatus
 import com.newoether.agora.model.Participant
 import com.newoether.agora.model.RunEndReason
@@ -322,6 +323,7 @@ internal class NativeConversationGraphImporter(
             runId = assignment.runId,
             runSequence = assignment.runSequence,
             consumedAtPass = assignment.consumedAtPass,
+            sourceJson = MessageSource.sanitizeImported(sourceJson, parsedParticipant),
         )
     }
 
@@ -763,6 +765,8 @@ internal class NativeConversationGraphImporter(
         val runId: String? = null,
         val runSequence: Long? = null,
         val consumedAtPass: Int? = null,
+        /** Added in backup v6; absent in older archives. */
+        val sourceJson: String? = null,
     )
 
     private fun ExportRunEntity.toArchivedSnapshot() = ArchivedRunSnapshot(

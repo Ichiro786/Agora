@@ -152,6 +152,8 @@ class DataExporter(
         val runId: String,
         val runSequence: Long,
         val consumedAtPass: Int? = null,
+        /** Added in backup v6; absent in older archives. */
+        val sourceJson: String? = null,
     )
 
     data class ExportResult(
@@ -323,6 +325,7 @@ class DataExporter(
                                         runId = message.runId,
                                         runSequence = message.runSequence,
                                         consumedAtPass = message.consumedAtPass,
+                                        sourceJson = message.sourceJson,
                                     ),
                                 ),
                             )
