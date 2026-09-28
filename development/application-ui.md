@@ -728,6 +728,13 @@ the only owner: `rememberSecretVisible()` (plain `remember`, so the value is hid
 page or dialog leaves composition), `secretVisualTransformation(visible)`, and
 `SecretVisibilityToggle` (open eye while hidden, crossed eye while shown; described as
 `secret_show` / `secret_hide`). No other file uses `PasswordVisualTransformation`.
+## 34. Composer concentric inset
+The non-expanded composer keeps its `28 dp` outer radius, and every rounded child is concentric with
+it (outer radius = child radius + inset). The controls capsule and the send button are both `48 dp`
+high (`COMPOSER_CONTROL_HEIGHT`) and sit `4 dp` from the start/end and bottom edges; the `40 dp` expand
+button sits `8 dp` from the top and end edges. The constants live next to
+`CHAT_BOTTOM_BAR_OUTER_RADIUS` in `ChatBottomBar.kt`. The capsule's own children were already
+concentric with it and are unchanged. The expanded composer is not covered by this rule.
 ## 15. Verification
 
 Focused verification must cover the onboarding action's fixed 32 dp inset and 48 dp height, absence

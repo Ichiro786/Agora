@@ -48,6 +48,13 @@ import com.newoether.agora.ui.components.AgoraDropdownMenuItem
 import com.newoether.agora.ui.components.AgoraExposedDropdownMenu
 internal val CHAT_BOTTOM_BAR_OUTER_RADIUS = 28.dp
 internal val CHAT_BOTTOM_BAR_OUTER_SHAPE = RoundedCornerShape(CHAT_BOTTOM_BAR_OUTER_RADIUS)
+// Rounded children of the non-expanded bar stay concentric with it: outer radius = child radius +
+// inset. The controls capsule and the send button share one height, so both sit 4 dp from the
+// start/end and bottom edges; the 40 dp expand button sits 8 dp from the top and end edges.
+internal val COMPOSER_CONTROL_HEIGHT = 48.dp
+internal val COMPOSER_CONTROLS_INSET = CHAT_BOTTOM_BAR_OUTER_RADIUS - COMPOSER_CONTROL_HEIGHT / 2
+internal val COMPOSER_EXPAND_BUTTON_SIZE = 40.dp
+internal val COMPOSER_EXPAND_BUTTON_INSET = CHAT_BOTTOM_BAR_OUTER_RADIUS - COMPOSER_EXPAND_BUTTON_SIZE / 2
 internal fun contextUsageExceedsCompactThreshold(
     estimatedTokens: Int, tokenBudget: Int, thresholdPercent: Int,
 ): Boolean {

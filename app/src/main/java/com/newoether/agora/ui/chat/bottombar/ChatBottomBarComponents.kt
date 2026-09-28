@@ -72,7 +72,7 @@ private val COMPOSER_SEND_BUTTON_GAP = 8.dp
 internal fun RowScope.ComposerControlGroup(content: @Composable RowScope.() -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.weight(1f, fill = false).height(48.dp)
+        modifier = Modifier.weight(1f, fill = false).height(COMPOSER_CONTROL_HEIGHT)
             .background(MaterialTheme.colorScheme.surfaceColorAtElevation(10.dp), RoundedCornerShape(100))
             .padding(horizontal = 8.dp, vertical = 4.dp),
         content = content,
