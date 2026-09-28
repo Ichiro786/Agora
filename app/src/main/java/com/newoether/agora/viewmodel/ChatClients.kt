@@ -54,6 +54,14 @@ internal interface ChatClient {
     fun failTreeMutation(requestId: Long?)
 
     fun showSnackbar(message: String)
+    /** Opens [conversationId] on this client (for example the conversation its fork created). */
+    fun openConversation(conversationId: String)
+    /** Hands share text produced for this client's share request to its share surface. */
+    fun showShareText(text: String)
+    /** [conversationId], which this client shows, was deleted; move this client to New Chat. */
+    fun settleDeletedConversation(conversationId: String)
+    /** True while this client's composer is submitting into [conversationId]. */
+    fun isSubmissionFrozen(conversationId: String): Boolean
 
     // -- Runtime state notices every attached client receives.
     /** [conversationId]'s generation slot became active or idle; drives this client's loading state. */
@@ -134,7 +142,15 @@ internal class ChatClients {
 
     /** The origin client of a command, or every client showing [conversationId] when there is none. */
     fun effectTargets(conversationId: String, origin: ChatClient?): List<ChatClient> =
-        origin?.let(::listOf) ?: attached.filter { it.openConversationId == conversationId }
+        origin?.let(::listOf) ?: showing(conversationId)
+
+    /** Every attached client that has [conversationId] open. */
+    fun showing(conversationId: String): List<ChatClient> =
+        attached.filter { it.openConversationId == conversationId }
+
+    /** True while any attached client is submitting into [conversationId]. */
+    fun isSubmissionFrozen(conversationId: String): Boolean =
+        attached.any { it.isSubmissionFrozen(conversationId) }
 
     fun generationActivityChanged(conversationId: String, active: Boolean) =
         attached.forEach { it.onGenerationActivityChanged(conversationId, active) }

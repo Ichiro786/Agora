@@ -47,6 +47,18 @@ internal open class FakeChatClient(
     override fun showSnackbar(message: String) {
         snackbars += message
     }
+    val openedConversations = mutableListOf<String>()
+    override fun openConversation(conversationId: String) {
+        openedConversations += conversationId
+    }
+    val shareTexts = mutableListOf<String>()
+    override fun showShareText(text: String) {
+        shareTexts += text
+    }
+    var onSettleDeleted: (String) -> Unit = {}
+    override fun settleDeletedConversation(conversationId: String) = onSettleDeleted(conversationId)
+    var frozen = false
+    override fun isSubmissionFrozen(conversationId: String) = frozen
     val activityChanges = mutableListOf<Pair<String, Boolean>>()
     override fun onGenerationActivityChanged(conversationId: String, active: Boolean) {
         activityChanges += conversationId to active

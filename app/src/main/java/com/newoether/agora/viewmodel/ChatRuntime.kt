@@ -22,14 +22,16 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import java.io.File
 
 /**
  * Process-scoped chat runtime shared by every client of this process (the phone UI and, later,
  * the WebUI). It lives for the whole process on the app scope, so chat work it owns keeps running
  * when no Activity or ViewModel exists.
  *
- * It owns the foreground generation core, RAG indexing, and the message commands (send,
- * regenerate, edit, delete, compact, stop). Commands name their conversation and origin client
+ * It owns the foreground generation core, RAG indexing, the message commands (send,
+ * regenerate, edit, delete, compact, stop) and the conversation commands (rename, delete, fork,
+ * share). Commands name their conversation and origin client
  * explicitly. It binds the generation registry's callbacks and the Loop foreground bridge, so a
  * queued send continues and a Loop cycle is delegated without any Activity. Per-client state (open conversation, scroll, composer drafts, new-chat workspace)
  * stays with each client.
@@ -137,6 +139,30 @@ class ChatRuntime(
             failureText = { appContext.getString(R.string.failed_to_generate) },
         )
     }
+
+    internal val conversationLifecycle = ConversationLifecycleController(
+        conversations = conversations,
+        scope = scope,
+        clients = clients,
+        stopLoop = { conversationId -> loopManager.stopLoop(conversationId) },
+        tryWithConversationLock = { conversationId, block ->
+            executionCoordinator.tryWithConversationLock(conversationId) { block() }
+        },
+        removeRuntime = registry::remove,
+        stopGeneration = { conversationId, origin -> generationStop.stop(conversationId, origin) },
+        deletedElsewhereText = { appContext.getString(R.string.conversation_deleted_elsewhere) },
+    )
+
+    internal val conversationForkShare = ConversationForkShareController(
+        service = ConversationForkShareService(
+            conversations,
+            settings,
+            File(application.filesDir, "fork-attachments"),
+        ),
+        scope = scope,
+        forkFailureText = { reason -> appContext.getString(R.string.conversation_fork_failed, reason) },
+        shareFailureText = { reason -> appContext.getString(R.string.conversation_share_failed, reason) },
+    )
 
     // Loop cycles for a conversation some client shows use the regular Send path; the bridge
     // waits for that exact durable turn and returns a typed result to the automation lease owner.

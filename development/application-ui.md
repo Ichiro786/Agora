@@ -280,6 +280,8 @@ A New Chat first Send is the sole automatic-top exception. Only after the accept
 
 After durable deletion and runtime cleanup of the conversation that was selected when deletion was admitted, the canonical selection owner enters New Chat unless a newer explicit selection targets another conversation. A pending or completed newer conversation selection remains authoritative. Deleting a nonselected conversation or a deletion that fails before cleanup does not change the visible page.
 
+Deletion is issued by one client (the phone UI or, later, a WebUI session). Every other client that still shows the conversation when it is durably deleted first shows the localized notice `This conversation was deleted on another device.` through its ordinary snackbar and then enters New Chat through the same canonical selection path. The issuing client shows no such notice. Deletion is rejected while any client is submitting into that conversation.
+
 Conversation deletion from both the Drawer and Task execution history, message-subtree deletion and
 Compact deletion share the same confirmation flow. Clicking Delete
 keeps the dialog visible and replaces the Delete action text with a loading indicator throughout
