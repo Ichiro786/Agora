@@ -29,6 +29,7 @@ import com.newoether.agora.service.MaintenanceDebtWorker
 import com.newoether.agora.service.AskUserNotifier
 import com.newoether.agora.service.ShellConfirmationNotifier
 import com.newoether.agora.service.TaskWorker
+import com.newoether.agora.viewmodel.ChatRuntime
 import com.newoether.agora.viewmodel.ChatViewModel
 import com.newoether.agora.viewmodel.ChatViewModelFactory
 import com.newoether.agora.viewmodel.ConversationStateRegistry
@@ -318,6 +319,23 @@ class AppContainer(
         AutoBackupManager(appContext, settingsManager, memoryManager, skillManager)
     }
 
+    // Process-scoped chat runtime shared by every client (phone UI now, WebUI later).
+    val chatRuntime: ChatRuntime by lazy {
+        ChatRuntime(
+            application = application,
+            appContext = appContext,
+            conversations = conversationRepository,
+            settings = settingsRepository,
+            memoryManager = memoryManager,
+            skillManager = skillManager,
+            sandboxFactory = sandboxManagerFactory,
+            automationToolProvider = automationToolProvider,
+            mcpToolProvider = mcpToolProvider,
+            askUser = askUserController,
+            shellConfirmation = shellConfirmationController,
+            scope = appScope,
+        )
+    }
     // ── ViewModel Factory ─────────────────────────────────────
 
     fun chatViewModelFactory(): ChatViewModelFactory =
@@ -325,9 +343,9 @@ class AppContainer(
             application, database, chatDao, settingsManager, memoryManager, skillManager, appContext, sandboxManagerFactory,
             autoBackupManager, conversationRepository, settingsRepository, conversationSettingsTransfers,
             ::startProcessServices, localProvider, providerRegistry,
-            taskManager, loopManager, automationToolProvider, conversationExecutionCoordinator,
+            taskManager, loopManager, conversationExecutionCoordinator,
             automationExecutionGate, conversationStateRegistry, shellConfirmationController,
             askUserController,
-            mcpRegistry, mcpToolProvider, taskExecutionEngine,
+            mcpRegistry, taskExecutionEngine, chatRuntime,
         )
 }
