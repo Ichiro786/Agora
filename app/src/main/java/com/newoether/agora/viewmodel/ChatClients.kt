@@ -18,6 +18,42 @@ internal interface ChatClient {
 
     /** True when the user can currently see [conversationId] on this client. */
     fun isConversationVisible(conversationId: String): Boolean
+
+    // -- Effects. A command's effects go to the client that issued it; an automatic send
+    // -- (queue drain, Loop cycle) has no origin and raises them on every client showing it.
+
+    /** Branch-replacement animation this client plays for its own edit or regenerate. */
+    val branchTransitions: BranchReplacementTransitionCoordinator
+
+    /** Suspends until this client shows [messageId] in [conversationId] or no longer shows it. */
+    suspend fun awaitProjectedPath(conversationId: String, messageId: String)
+
+    fun requestScrollToBottomAfter(conversationId: String, messageId: String, attachedOnly: Boolean)
+
+    /** One accepted send (direct or queued) for haptic feedback. */
+    fun onSendAccepted(conversationId: String, messageId: String)
+
+    /** Moves this client's New Chat workspace state onto the conversation its send created. */
+    suspend fun applyCommittedNewConversationState(conversationId: String)
+
+    /**
+     * Opens the conversation a New Chat send created, only while that exact New Chat entry
+     * ([entryId]) is still shown. Returns whether it was opened.
+     */
+    suspend fun publishAcceptedNewConversation(
+        conversationId: String,
+        modelId: String,
+        entryId: Long,
+    ): Boolean
+
+    /** Covers a destructive tree mutation until the client settles the resulting path. */
+    suspend fun beginTreeMutation(conversationId: String, scrollToTarget: Boolean): Long?
+
+    fun settleTreeMutation(requestId: Long?, targetMessageId: String?)
+
+    fun failTreeMutation(requestId: Long?)
+
+    fun showSnackbar(message: String)
 }
 
 /** Room projection fences opened on each client render store for one accepted input. */
@@ -91,6 +127,10 @@ internal class ChatClients {
     fun releaseRoomProjectionFences(fences: ChatClientRoomFences) {
         fences.byStore.forEach { (store, fence) -> store.releaseRoomMessageProjectionFence(fence) }
     }
+
+    /** The origin client of a command, or every client showing [conversationId] when there is none. */
+    fun effectTargets(conversationId: String, origin: ChatClient?): List<ChatClient> =
+        origin?.let(::listOf) ?: attached.filter { it.openConversationId == conversationId }
 
     private fun storesShowing(conversationId: String): List<ConversationRenderStore> =
         attached.filter { it.openConversationId == conversationId }.map { it.renderStore }

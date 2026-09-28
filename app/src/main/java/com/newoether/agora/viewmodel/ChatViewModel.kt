@@ -297,21 +297,6 @@ class ChatViewModel(
     /** Callback invoked when any send path (manual/queue/loop) accepts a message.
      *  ChatApp wires this to trigger a single haptics.confirm() for all three paths. */
     @Volatile var onSendAccepted: ((conversationId: String, messageId: String) -> Unit)? = null
-    fun triggerScrollToMessage(messageId: String? = null) {
-        scrollRequests.requestMessage(currentConversationId.value, messageId)
-    }
-
-    fun triggerScrollToAbsoluteBottomAfter(conversationId: String, messageId: String) {
-        scrollRequests.requestAbsoluteBottomAfter(conversationId, messageId)
-    }
-
-    fun triggerScrollToAttachedBottomAfter(conversationId: String, messageId: String) {
-        scrollRequests.requestAbsoluteBottomAfter(
-            conversationId = conversationId,
-            messageId = messageId,
-            attachedOnly = true,
-        )
-    }
 
     val currentActiveModel: StateFlow<String> get() = selectionController.currentActiveModel
 
@@ -365,6 +350,52 @@ class ChatViewModel(
             AppForegroundTracker.isInForeground &&
                 AppForegroundTracker.isChatPresented &&
                 currentConversationId.value == conversationId
+        override val branchTransitions: BranchReplacementTransitionCoordinator
+            get() = regenerationTransitions
+        override suspend fun awaitProjectedPath(conversationId: String, messageId: String) {
+            combine(messages, currentConversationId) { path, openConversationId ->
+                openConversationId != conversationId || path.any { it.id == messageId }
+            }.first { projectedOrClosed -> projectedOrClosed }
+        }
+        override fun requestScrollToBottomAfter(
+            conversationId: String,
+            messageId: String,
+            attachedOnly: Boolean,
+        ) = scrollRequests.requestAbsoluteBottomAfter(conversationId, messageId, attachedOnly)
+        override fun onSendAccepted(conversationId: String, messageId: String) {
+            // Feedback belongs to the conversation on screen. A send from the new-chat page
+            // qualifies because that page becomes this very conversation, but its id is only
+            // published after acceptance, so it is matched via isNewChatMode rather than by id.
+            val currentId = currentConversationId.value
+            val targetsOpenConversation = currentId == conversationId ||
+                (currentId == null && isNewChatMode.value)
+            if (targetsOpenConversation) onSendAccepted?.invoke(conversationId, messageId)
+        }
+        override suspend fun applyCommittedNewConversationState(conversationId: String) =
+            conversationWorkspaces.applyCommittedNewConversationState(conversationId)
+        override suspend fun publishAcceptedNewConversation(
+            conversationId: String,
+            modelId: String,
+            entryId: Long,
+        ): Boolean = withContext(Dispatchers.Main.immediate) {
+            selectionController.publishAcceptedConversationIfOriginStillOpen(
+                conversationId,
+                modelId,
+                entryId,
+            )
+        }.also { selected ->
+            if (selected) {
+                // The send's own bottom scroll handles the first message; skip the open scroll.
+                scrollRequests.suppressNextOpenScroll = true
+                _firstMessageCommitted.tryEmit(conversationId)
+            }
+        }
+        override suspend fun beginTreeMutation(conversationId: String, scrollToTarget: Boolean) =
+            selectionController.beginTreeMutation(conversationId, scrollToTarget)
+        override fun settleTreeMutation(requestId: Long?, targetMessageId: String?) =
+            selectionController.markTreeMutationReady(requestId, targetMessageId)
+        override fun failTreeMutation(requestId: Long?) = selectionController.failTreeMutation(requestId)
+        override fun showSnackbar(message: String) = emitSnackbar(message)
     }
     val allMessages: StateFlow<List<ChatMessage>> = conversationUi.allMessages
     val loadedMessagesConversationId: StateFlow<String?> =
@@ -512,7 +543,9 @@ class ChatViewModel(
         configuredPrompt = { settings.contextCompactPrompt.value },
         configuredRetainCount = { settings.contextCompactRetainCount.value },
         configuredPreserveSystemPrompt = { settings.contextCompactPreserveSystemPrompt.value },
-        compactManual = { request -> generationController.compactManual(request) },
+        compactManual = { request ->
+            generationController.compactManual(currentConversationId.value, request)
+        },
         failureMessage = { result -> compactFailureMessage(appContext, result) },
         onFailure = { message -> emitSnackbar(message) },
     )
@@ -577,50 +610,14 @@ class ChatViewModel(
             localProvider = localProvider,
             executionCoordinator = conversationExecutionCoordinator,
             clients = chatRuntime.clients,
-            renderStore = renderStore,
             currentConversationId = currentConversationId,
             isNewChatMode = isNewChatMode,
             newChatEntryId = newChatEntryId,
             captureNewChatWorkspace = conversationWorkspaces::captureNewChatSnapshot,
-            applyCommittedNewConversationState = conversationWorkspaces::applyCommittedNewConversationState,
             currentActiveModel = currentActiveModel,
-            messages = messages,
-            onScrollToMessage = { id -> triggerScrollToMessage(id) },
-            onScrollToAbsoluteBottomAfter = ::triggerScrollToAbsoluteBottomAfter,
-            onScrollToAttachedBottomAfter = ::triggerScrollToAttachedBottomAfter,
-            onSendAcceptedEvent = { convId, msgId ->
-                // Feedback belongs to the conversation on screen. A send from the new-chat page
-                // qualifies because that page becomes this very conversation, but its id is only
-                // published after acceptance, so it is matched via isNewChatMode rather than by id.
-                // Background automation on another conversation stays silent: from the user's point
-                // of view nothing happened on screen.
-                val currentId = currentConversationId.value
-                val targetsOpenConversation = currentId == convId ||
-                    (currentId == null && isNewChatMode.value)
-                if (targetsOpenConversation) onSendAccepted?.invoke(convId, msgId)
-            },
             onSnackbar = { msg -> emitSnackbar(msg) },
             onSnackbarSuspend = { msg -> _snackbarMessage.emit(SnackbarEvent(msg)) },
-            onConversationCreatedBySend = { conversationId ->
-                scrollRequests.suppressNextOpenScroll = true
-                _firstMessageCommitted.tryEmit(conversationId)
-            },
-            onConversationAcceptedBySend = { conversationId, modelId, entryId ->
-                withContext(Dispatchers.Main.immediate) {
-                    selectionController.publishAcceptedConversationIfOriginStillOpen(
-                        conversationId,
-                        modelId,
-                        entryId,
-                    )
-                }
-            },
             onUserMessagePersisted = ragManager::indexMessageForRag,
-            onTreeMutationStart = { conversationId, scrollToTarget ->
-                selectionController.beginTreeMutation(conversationId, scrollToTarget)
-            },
-            onTreeMutationSettling = selectionController::markTreeMutationReady,
-            onTreeMutationFailed = selectionController::failTreeMutation,
-            regenerationTransitions = regenerationTransitions,
             pauseConversationTasks = { conversationId -> loopManager.stopLoop(conversationId) },
         )
     }
@@ -632,7 +629,7 @@ class ChatViewModel(
             captureTarget = generationController::captureForegroundSendTarget,
             prepare = generationController::prepareForegroundSend,
             send = { admission, text, attachments, onAccepted ->
-                generationController.sendMessage(admission, text, attachments, onAccepted)
+                generationController.sendMessage(admission, text, attachments, onAccepted, phoneClient)
             },
             onAcceptedClearFailed = { _, retry ->
                 emitSnackbar(
@@ -744,7 +741,13 @@ class ChatViewModel(
             onResult?.invoke(false)
             return 0
         }
-        return generationController.deleteMessage(messageId, onResult)
+        return generationController.deleteMessage(
+            origin = phoneClient,
+            conversationId = currentConversationId.value,
+            messageId = messageId,
+            snapshot = renderStore.allMessages,
+            onResult = onResult,
+        )
     }
 
     private val currentRuntimeFacade = CurrentConversationRuntimeFacade(
@@ -760,12 +763,26 @@ class ChatViewModel(
 
     fun stopGeneration() = generationStopAdapter.stopVisibleConversation()
 
-    fun regenerate(messageId: String): Boolean = generationController.regenerate(messageId)
+    fun regenerate(messageId: String): Boolean = generationController.regenerate(
+        origin = phoneClient,
+        conversationId = currentConversationId.value,
+        messageId = messageId,
+        modelId = currentActiveModel.value,
+        visiblePath = messages.value.toList(),
+    )
 
     fun switchBranch(parentId: String?, currentMessageId: String, direction: Int) =
         selectionController.switchBranch(parentId, currentMessageId, direction)
 
-    suspend fun editMessage(messageId: String, newText: String): Boolean = generationController.editMessage(messageId, newText)
+    suspend fun editMessage(messageId: String, newText: String): Boolean =
+        generationController.editMessage(
+            origin = phoneClient,
+            conversationId = currentConversationId.value,
+            messageId = messageId,
+            newText = newText,
+            modelId = currentActiveModel.value,
+            visiblePath = messages.value.toList(),
+        )
 
     suspend fun fetchModelsForProvider(name: String): List<String> = providerModelSyncUi.fetchModelsForProvider(name)
 

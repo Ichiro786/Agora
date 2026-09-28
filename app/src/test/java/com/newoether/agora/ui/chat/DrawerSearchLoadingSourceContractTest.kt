@@ -111,7 +111,8 @@ class DrawerSearchLoadingSourceContractTest {
         assertTrue(normalizedViewModel.contains("val firstMessageCommitted = _firstMessageCommitted.asSharedFlow()"))
         assertTrue(
             normalizedViewModel.contains(
-                "onConversationCreatedBySend = { conversationId ->\n" +
+                "            if (selected) {\n" +
+                    "                // The send's own bottom scroll handles the first message; skip the open scroll.\n" +
                     "                scrollRequests.suppressNextOpenScroll = true\n" +
                     "                _firstMessageCommitted.tryEmit(conversationId)",
             ),

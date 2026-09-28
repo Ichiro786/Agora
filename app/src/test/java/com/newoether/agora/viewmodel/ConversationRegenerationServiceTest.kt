@@ -224,7 +224,6 @@ class ConversationRegenerationServiceTest {
             conversations = conversations,
             requestBuilder = requestBuilder,
             executionCoordinator = ConversationExecutionCoordinator(),
-            transitions = transitions,
             terminalSettlement = terminalSettlement,
             boundRunGenerationLauncher = boundLauncher,
             guidanceDrain = guidanceDrain,
@@ -249,6 +248,7 @@ class ConversationRegenerationServiceTest {
             messageId = "target-model",
             modelId = "provider:model",
             visiblePath = listOf(SOURCE_USER, TARGET_MODEL),
+            origin = FakeChatClient(open = "conversation", branchTransitions = transitions),
         )
     }
 
