@@ -14,13 +14,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.newoether.agora.R
@@ -33,6 +28,9 @@ internal const val ASK_USER_DIM_ALPHA = 0.6f
 /** Questions sit one size below the 15 sp user body so they read apart from the answers. */
 internal val ASK_USER_QUESTION_FONT_SIZE = 13.sp
 
+/** Line height inside a wrapped question; only the question's own lines use it. */
+internal val ASK_USER_QUESTION_LINE_HEIGHT = 19.sp
+
 /**
  * The readable text of an ask_user bubble as the user sees it: question, answer, blank line
  * between groups, and the localized [unansweredLabel] for skipped questions. Copy and Select Text
@@ -40,22 +38,6 @@ internal val ASK_USER_QUESTION_FONT_SIZE = 13.sp
  */
 internal fun askUserDisplayText(source: MessageSource, unansweredLabel: String): String =
     source.askUser.joinToString("\n\n") { item -> item.question + "\n" + (item.answer ?: unansweredLabel) }
-
-/** Same text as [askUserDisplayText], with questions and skipped answers dimmed. */
-internal fun askUserDisplayAnnotated(
-    source: MessageSource,
-    unansweredLabel: String,
-    textColor: Color,
-): AnnotatedString = buildAnnotatedString {
-    val dim = SpanStyle(color = textColor.copy(alpha = textColor.alpha * ASK_USER_DIM_ALPHA))
-    val question = dim.copy(fontSize = ASK_USER_QUESTION_FONT_SIZE)
-    source.askUser.forEachIndexed { index, item ->
-        if (index > 0) append("\n\n")
-        withStyle(question) { append(item.question) }
-        append("\n")
-        if (item.answer == null) withStyle(dim) { append(unansweredLabel) } else append(item.answer)
-    }
-}
 
 /** A user message whose visible text is replaced by its localized ask_user form, if it has one. */
 internal fun ChatMessage.withAskUserDisplayText(unansweredLabel: String): ChatMessage {

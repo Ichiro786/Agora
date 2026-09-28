@@ -748,7 +748,12 @@ icon and the source name in `labelSmall`, both `onSurfaceVariant` (Task: Schedul
 `message_source_ask_user`). The label names the source only. An ask_user bubble lists each question
 (dimmed to `ASK_USER_DIM_ALPHA` and one size smaller, `13 sp` against the `15 sp` body,
 `ASK_USER_QUESTION_FONT_SIZE`) with its answer on the next line, groups separated by a blank line; a
-skipped question shows the dimmed `message_source_unanswered`. Copy and Select Text use exactly the
+skipped question shows the dimmed `message_source_unanswered`. Only a wrapped question's own lines
+are tighter (`19 sp`, `ASK_USER_QUESTION_LINE_HEIGHT`); `AskUserAnswerBlocks` lays questions and
+answers out as separate blocks and pads back the space above each question and below its last line,
+measured from the font, so the question-to-answer gap, the blank line between groups and the bubble
+edges stay what a single `15 sp` / `24.2 sp` text gives. Search highlights map onto each block by its
+offset in the stored text; the localized unanswered label is never highlighted. Copy and Select Text use exactly the
 displayed text. Typed messages, blocking answers, Compact summaries and messages from before this
 feature have no label. Editing and resending a labeled message produces an ordinary unlabeled message.
 `ui/chat/message/MessageSourcePresentation.kt` owns the label and the ask_user text.

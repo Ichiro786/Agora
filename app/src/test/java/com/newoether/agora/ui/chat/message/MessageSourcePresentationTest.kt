@@ -1,10 +1,10 @@
 package com.newoether.agora.ui.chat.message
 
-import androidx.compose.ui.graphics.Color
 import com.newoether.agora.model.ChatMessage
 import com.newoether.agora.model.MessageSource
 import com.newoether.agora.model.Participant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
 
@@ -13,30 +13,33 @@ class MessageSourcePresentationTest {
         listOf(
             MessageSource.AskUserItem("Which port?", "8080"),
             MessageSource.AskUserItem("Restart now?", null),
+            MessageSource.AskUserItem("Note", "line one\nline two"),
         ),
     )
 
     @Test
     fun `ask_user display text uses the localized unanswered label`() {
         assertEquals(
-            "Which port?\n8080\n\nRestart now?\n未回答",
+            "Which port?\n8080\n\nRestart now?\n未回答\n\nNote\nline one\nline two",
             askUserDisplayText(source, "未回答"),
         )
     }
 
     @Test
-    fun `styled text has the same characters and dims questions and skipped answers`() {
-        val text = askUserDisplayText(source, "未回答")
-        val styled = askUserDisplayAnnotated(source, "未回答", Color.White)
-        assertEquals(text, styled.text)
-        val dimmed = styled.spanStyles.map { styled.text.substring(it.start, it.end) }
-        assertEquals(listOf("Which port?", "Restart now?", "未回答"), dimmed)
-        styled.spanStyles.forEach { assertEquals(ASK_USER_DIM_ALPHA, it.item.color.alpha, 0.01f) }
-        // Questions are one size smaller; the skipped-answer label keeps the body size.
-        assertEquals(
-            listOf(ASK_USER_QUESTION_FONT_SIZE, ASK_USER_QUESTION_FONT_SIZE, androidx.compose.ui.unit.TextUnit.Unspecified),
-            styled.spanStyles.map { it.item.fontSize },
-        )
+    fun `blocks map onto the stored text so search slices line up`() {
+        val stored = source.askUserReadableText()
+        val groups = askUserBlocks(source, "未回答")
+
+        assertEquals(3, groups.size)
+        groups.flatten().filter { it.storedStart != null }.forEach { block ->
+            val start = checkNotNull(block.storedStart)
+            assertEquals(block.text, stored.substring(start, start + block.text.length))
+        }
+        val (question, skipped) = groups[1]
+        assertEquals(true, question.isQuestion)
+        assertEquals("未回答", skipped.text)
+        // The localized label has no stored counterpart and is never highlighted.
+        assertNull(skipped.storedStart)
     }
 
     @Test

@@ -96,10 +96,7 @@ internal fun SearchHighlightedPlainText(
     color: Color,
     spec: SearchHighlightSpec?,
     modifier: Modifier = Modifier,
-    /** Optional styling for [text]; its plain text must equal [text]. */
-    styledText: AnnotatedString? = null,
 ) {
-    val baseText = styledText?.takeIf { it.text == text } ?: AnnotatedString(text)
     val highlightColor = SearchHighlightBackground
     val activeHighlightColor = ActiveSearchHighlightBackground
     val ranges = remember(text, spec?.query) {
@@ -110,14 +107,14 @@ internal fun SearchHighlightedPlainText(
             .takeIf { it >= 0 }
     }
     val highlighted = remember(
-        baseText,
+        text,
         spec?.query,
         activeOccurrence,
         highlightColor,
         activeHighlightColor,
     ) {
         highlightedSearchText(
-            text = baseText,
+            text = AnnotatedString(text),
             query = spec?.query.orEmpty(),
             activeOccurrence = activeOccurrence,
             highlightColor = highlightColor,
