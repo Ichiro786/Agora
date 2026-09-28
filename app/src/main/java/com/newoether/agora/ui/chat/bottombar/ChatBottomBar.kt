@@ -50,12 +50,15 @@ internal val CHAT_BOTTOM_BAR_OUTER_RADIUS = 28.dp
 internal val CHAT_BOTTOM_BAR_OUTER_SHAPE = RoundedCornerShape(CHAT_BOTTOM_BAR_OUTER_RADIUS)
 // Non-expanded bar geometry, measured from the bar's outer edge.
 // The controls capsule and the send button share one height and stay concentric with the outer
-// corners (outer radius = child radius + inset), so both sit 6 dp from the start/end and bottom edges.
-internal val COMPOSER_CONTROL_HEIGHT = 44.dp
+// corners (outer radius = child radius + inset), so both sit 8 dp from the start/end and bottom edges.
+internal val COMPOSER_CONTROL_HEIGHT = 40.dp
 internal val COMPOSER_CONTROLS_INSET = CHAT_BOTTOM_BAR_OUTER_RADIUS - COMPOSER_CONTROL_HEIGHT / 2
-// The input text and the expand icon sit 14 dp from the top and start/end edges. The expand
+// The input text's top and the expand icon sit 16 dp from the top and end edges. The expand
 // button's circle is a fade to transparent, so only its 20 dp icon is placed, not the circle.
-internal val COMPOSER_CORNER_CONTENT_INSET = 14.dp
+internal val COMPOSER_CORNER_CONTENT_INSET = 16.dp
+// The input text starts 18 dp from the start edge and ends 20 dp above the controls.
+internal val COMPOSER_TEXT_START_INSET = 18.dp
+internal val COMPOSER_TEXT_CONTROLS_GAP = 20.dp
 internal val COMPOSER_EXPAND_BUTTON_SIZE = 40.dp
 internal val COMPOSER_EXPAND_ICON_SIZE = 20.dp
 // The host padding the status rows, attachment previews and expanded collapse button share.

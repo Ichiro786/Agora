@@ -109,10 +109,10 @@ internal fun ChatComposerLayout(
                 },
                 lineLimits = TextFieldLineLimits.MultiLine(1, if (isExpanded) Int.MAX_VALUE else 6),
                 contentPadding = PaddingValues(
-                    start = COMPOSER_CORNER_CONTENT_INSET - COMPOSER_HOST_SIDE_PADDING,
+                    start = COMPOSER_TEXT_START_INSET - COMPOSER_HOST_SIDE_PADDING,
                     top = COMPOSER_CORNER_CONTENT_INSET - COMPOSER_HOST_TOP_PADDING,
                     end = 16.dp,
-                    bottom = COMPOSER_CORNER_CONTENT_INSET - CONTROLS_ROW_TOP_PADDING,
+                    bottom = COMPOSER_TEXT_CONTROLS_GAP - CONTROLS_ROW_TOP_PADDING,
                 ),
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,
@@ -157,6 +157,6 @@ internal fun ChatComposerLayout(
 // The expand button's edge offset that puts its centered icon at the corner content inset.
 private val EXPAND_BUTTON_EDGE_INSET = COMPOSER_CORNER_CONTENT_INSET - (COMPOSER_EXPAND_BUTTON_SIZE - COMPOSER_EXPAND_ICON_SIZE) / 2
 
-// The text sits the corner content inset above the controls row: bottom padding + this gap.
+// The text ends COMPOSER_TEXT_CONTROLS_GAP above the controls: its bottom padding + this gap.
 private val CONTROLS_ROW_TOP_PADDING = 6.dp
 private val TEXT_FIELD_MIN_HEIGHT = 1.dp

@@ -730,13 +730,13 @@ page or dialog leaves composition), `secretVisualTransformation(visible)`, and
 `secret_show` / `secret_hide`). No other file uses `PasswordVisualTransformation`.
 ## 34. Composer concentric inset
 The non-expanded composer keeps its `28 dp` outer radius, and every rounded child is concentric with
-it (outer radius = child radius + inset). The controls capsule and the send button are both `44 dp`
-high (`COMPOSER_CONTROL_HEIGHT`) and sit `6 dp` from the start/end and bottom edges. Inside the
-capsule the `32 dp` buttons sit `6 dp` from its ends and the `38 dp` model selector is centered, so
-both stay concentric with it. The input text and the `20 dp` expand icon sit `14 dp` from the top and
-start/end edges (`COMPOSER_CORNER_CONTENT_INSET`), and the same `14 dp` separates the text from the
-controls row; the TextField's Material `56 dp` minimum height is replaced so a single line leaves no
-empty band. The expand button's circle is a fade to transparent, so only its icon is placed. The host padding shared by status rows, attachment previews and the
+it (outer radius = child radius + inset). The controls capsule and the send button are both `40 dp`
+high (`COMPOSER_CONTROL_HEIGHT`) and sit `8 dp` from the start/end and bottom edges. Inside the
+capsule the `32 dp` buttons sit `4 dp` from its ends and the `38 dp` model selector is centered, so
+both stay concentric with it. The input text's top and the `20 dp` expand icon sit `16 dp` from the
+top and end edges (`COMPOSER_CORNER_CONTENT_INSET`); the text starts `18 dp` from the start edge
+(`COMPOSER_TEXT_START_INSET`) and ends `20 dp` above the controls (`COMPOSER_TEXT_CONTROLS_GAP`). The
+TextField's Material `56 dp` minimum height is replaced so a single line leaves no empty band. The expand button's circle is a fade to transparent, so only its icon is placed. The host padding shared by status rows, attachment previews and the
 expanded collapse button is unchanged (`4 dp` sides, `8 dp` top). The constants live next to
 `CHAT_BOTTOM_BAR_OUTER_RADIUS` in `ChatBottomBar.kt`. The expanded composer is not covered by this rule.
 ## 15. Verification

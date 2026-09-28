@@ -6,23 +6,25 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** Non-expanded composer geometry: concentric controls and a 14 dp corner inset for text and icon. */
+/** Non-expanded composer geometry: concentric controls and fixed insets for the text and expand icon. */
 class ComposerConcentricInsetTest {
     @Test fun controlsAreConcentricWithTheOuterCorners() {
         assertEquals(28.dp, CHAT_BOTTOM_BAR_OUTER_RADIUS)
-        assertEquals(44.dp, COMPOSER_CONTROL_HEIGHT)
-        assertEquals(6.dp, COMPOSER_CONTROLS_INSET)
+        assertEquals(40.dp, COMPOSER_CONTROL_HEIGHT)
+        assertEquals(8.dp, COMPOSER_CONTROLS_INSET)
         assertEquals(CHAT_BOTTOM_BAR_OUTER_RADIUS, COMPOSER_CONTROL_HEIGHT / 2 + COMPOSER_CONTROLS_INSET)
     }
 
     @Test fun textAndExpandIconSitAtTheCornerInset() {
-        assertEquals(14.dp, COMPOSER_CORNER_CONTENT_INSET)
+        assertEquals(16.dp, COMPOSER_CORNER_CONTENT_INSET)
+        assertEquals(18.dp, COMPOSER_TEXT_START_INSET)
+        assertEquals(20.dp, COMPOSER_TEXT_CONTROLS_GAP)
         val layout = source("ChatComposerLayout.kt")
         assertTrue(layout.contains("padding(start = COMPOSER_HOST_SIDE_PADDING, end = COMPOSER_HOST_SIDE_PADDING, top = COMPOSER_HOST_TOP_PADDING, bottom = COMPOSER_CONTROLS_INSET)"))
-        assertTrue(layout.contains("start = COMPOSER_CORNER_CONTENT_INSET - COMPOSER_HOST_SIDE_PADDING,"))
+        assertTrue(layout.contains("start = COMPOSER_TEXT_START_INSET - COMPOSER_HOST_SIDE_PADDING,"))
         assertTrue(layout.contains("top = COMPOSER_CORNER_CONTENT_INSET - COMPOSER_HOST_TOP_PADDING,"))
-        // The same inset separates the text from the controls, with no Material 56 dp minimum below it.
-        assertTrue(layout.contains("bottom = COMPOSER_CORNER_CONTENT_INSET - CONTROLS_ROW_TOP_PADDING,"))
+        // The text ends the controls gap above the controls, with no Material 56 dp minimum below it.
+        assertTrue(layout.contains("bottom = COMPOSER_TEXT_CONTROLS_GAP - CONTROLS_ROW_TOP_PADDING,"))
         assertTrue(layout.contains("padding(top = CONTROLS_ROW_TOP_PADDING, start ="))
         assertTrue(layout.contains(".heightIn(min = TEXT_FIELD_MIN_HEIGHT)"))
         assertTrue(layout.contains("Modifier.offset(x = COMPOSER_HOST_SIDE_PADDING - EXPAND_BUTTON_EDGE_INSET, y = EXPAND_BUTTON_EDGE_INSET - COMPOSER_HOST_TOP_PADDING).size(COMPOSER_EXPAND_BUTTON_SIZE)"))
@@ -30,7 +32,7 @@ class ComposerConcentricInsetTest {
         assertTrue(layout.contains("start = COMPOSER_CONTROLS_INSET - COMPOSER_HOST_SIDE_PADDING, end = COMPOSER_CONTROLS_INSET - COMPOSER_HOST_SIDE_PADDING"))
         assertTrue(source("ComposerSendButton.kt").contains("Modifier.size(COMPOSER_CONTROL_HEIGHT)"))
         assertTrue(source("ChatBottomBarComponents.kt").contains(".height(COMPOSER_CONTROL_HEIGHT)"))
-        // Capsule children: 32 dp buttons 6 dp from its ends, so 16 + 6 = 22 = capsule radius.
+        // Capsule children: 32 dp buttons 4 dp from its ends, so 16 + 4 = 20 = capsule radius.
         assertTrue(source("ChatBottomBarComponents.kt").contains(".padding(horizontal = COMPOSER_CONTROL_HEIGHT / 2 - 16.dp)"))
     }
 
