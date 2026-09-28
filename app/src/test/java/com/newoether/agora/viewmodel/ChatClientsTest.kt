@@ -100,4 +100,19 @@ class ChatClientsTest {
         SendAcceptanceNotifier(clients).publish(SendAcceptance.Queued("m1", "a"), origin = null)
         assertEquals(listOf("a:m1"), accepted)
     }
+    @Test
+    fun `activity reaches every attached client and a terminal commit only clients showing it`() {
+        val clients = ChatClients()
+        val showing = FakeChatClient(open = "a")
+        val elsewhere = FakeChatClient(open = "b")
+        clients.attach(showing)
+        clients.attach(elsewhere)
+        clients.generationActivityChanged("a", active = true)
+        clients.generationActivityChanged("a", active = false)
+        assertEquals(listOf("a" to true, "a" to false), showing.activityChanges)
+        assertEquals(listOf("a" to true, "a" to false), elsewhere.activityChanges)
+        clients.commitTerminalStreamingMessage("a", message("m1"))
+        assertEquals(listOf("m1"), showing.renderStore.allMessages.map { it.id })
+        assertTrue(elsewhere.renderStore.allMessages.isEmpty())
+    }
 }

@@ -36,6 +36,20 @@ class ChatRuntimeOwnershipSourceContractTest {
         assertTrue(viewModel.contains("merge(_snackbarMessage, chatRuntime.snackbarEvents)"))
     }
 
+    @Test
+    fun `registry callbacks, queue drain and the Loop bridge are bound by the runtime`() {
+        val runtime = sourceFile("app/src/main/java/com/newoether/agora/viewmodel/ChatRuntime.kt")
+        val viewModel = sourceFile("app/src/main/java/com/newoether/agora/viewmodel/ChatViewModel.kt")
+        assertTrue(runtime.contains("registry.attachUiCallbacks(this)"))
+        assertTrue(runtime.contains("messageGeneration.drainQueuedAfterGeneration(settledState)"))
+        assertTrue(runtime.contains("ForegroundAutomationBridgeController("))
+        assertTrue(runtime.contains("foregroundAutomationBridge.start()"))
+        // The phone UI no longer owns them, so closing it cannot stop queue drain or Loop delegation.
+        assertFalse(viewModel.contains("attachUiCallbacks"))
+        assertFalse(viewModel.contains("detachUiCallbacks"))
+        assertFalse(viewModel.contains("ForegroundAutomationBridgeController("))
+    }
+
     private fun sourceFile(relativePath: String): String {
         var directory = File(requireNotNull(System.getProperty("user.dir"))).absoluteFile
         repeat(8) {

@@ -338,6 +338,7 @@ class AppContainer(
             localProvider = localProvider,
             executionCoordinator = conversationExecutionCoordinator,
             loopManager = loopManager,
+            taskExecutionEngine = taskExecutionEngine,
             scope = appScope,
         )
     }
@@ -351,6 +352,6 @@ class AppContainer(
             taskManager, loopManager, conversationExecutionCoordinator,
             automationExecutionGate, conversationStateRegistry, shellConfirmationController,
             askUserController,
-            mcpRegistry, taskExecutionEngine, chatRuntime,
+            mcpRegistry, chatRuntime,
         )
 }

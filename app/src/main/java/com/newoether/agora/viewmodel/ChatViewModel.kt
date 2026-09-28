@@ -64,7 +64,6 @@ class ChatViewModel(
     internal val shellConfirmation: ShellConfirmationController,
     internal val askUser: AskUserController,
     private val mcpRegistry: com.newoether.agora.mcp.McpRegistry,
-    private val taskExecutionEngine: com.newoether.agora.automation.TaskExecutionEngine,
     // Process-scoped chat runtime shared by every client (see [ChatRuntime]).
     private val chatRuntime: ChatRuntime,
 ) : AndroidViewModel(application) {
@@ -261,11 +260,9 @@ class ChatViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        // The engine and the registry are process-scoped while this ViewModel is not, so every
-        // reference either of them holds must be released here or the whole graph leaks.
-        foregroundAutomationBridge.close()
+        // The runtime is process-scoped while this ViewModel is not; detaching the phone client
+        // releases every reference the runtime holds to this ViewModel graph.
         chatRuntime.clients.detach(phoneClient)
-        generationRegistry.detachUiCallbacks(generationCallbackOwner)
         dataControl.destroy()
     }
 
@@ -394,6 +391,8 @@ class ChatViewModel(
             selectionController.markTreeMutationReady(requestId, targetMessageId)
         override fun failTreeMutation(requestId: Long?) = selectionController.failTreeMutation(requestId)
         override fun showSnackbar(message: String) = emitSnackbar(message)
+        override fun onGenerationActivityChanged(conversationId: String, active: Boolean) =
+            if (active) conversationUi.markActive(conversationId) else conversationUi.markIdle(conversationId)
     }
     val allMessages: StateFlow<List<ChatMessage>> = conversationUi.allMessages
     val loadedMessagesConversationId: StateFlow<String?> =
@@ -458,39 +457,6 @@ class ChatViewModel(
         conversationUi.generatingInConversationId
     val generationSnapshot: StateFlow<ConversationGenerationSnapshot> =
         conversationUi.generationSnapshot
-
-    /** Per-conversation generation state registry. Each conversation owns an independent
-     *  ConversationGenerationState; the global loading/render mirrors
-     *  below are now a MIRROR of whichever conversation is currently open (see init collectors). */
-    private val generationCallbackOwner = Any()
-    private val foregroundAutomationBridge by lazy {
-        ForegroundAutomationBridgeController(
-            currentConversationId = currentConversationId,
-            send = generationController::sendMessageFromAutomationAwaitingCompletion,
-            loadMessage = convRepo::getMessage,
-            attach = taskExecutionEngine::attachForegroundSendBridge,
-            detach = taskExecutionEngine::detachForegroundSendBridge,
-        )
-    }
-    private val generationCallbacksAttached = Unit.also {
-        generationRegistry.attachUiCallbacks(generationCallbackOwner) { state ->
-            state.onActive = { conversationId ->
-                // Publish synchronously with the slot claim so Stop and edit closure are immediate.
-                conversationUi.markActive(conversationId)
-            }
-            state.onIdle = { conversationId ->
-                conversationUi.markIdle(conversationId)
-            }
-            state.onStreamCommit = { conversationId, message ->
-                conversationUi.commitTerminalStreamingMessage(conversationId, message)
-            }
-            state.onQueueDrainRequested = { settledState ->
-                settledState.scope.launch {
-                    generationController.drainQueuedAfterGeneration(settledState)
-                }
-            }
-        }
-    }
 
     /** Every conversation currently mutating its message tree through foreground generation or
      * headless Task/Loop execution. Drawer rows use this per-id set instead of the open
@@ -620,10 +586,6 @@ class ChatViewModel(
         startInitJobs()
         unreadGenerationAcknowledger.start()
         conversationUi.start()
-
-        // Loop cycles for the open conversation use the regular Send path; the bridge waits for
-        // that exact durable turn and returns a typed result to the automation lease owner.
-        foregroundAutomationBridge.start()
     }
 
     fun getCurrentVersion(): String {

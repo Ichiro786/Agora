@@ -47,4 +47,8 @@ internal open class FakeChatClient(
     override fun showSnackbar(message: String) {
         snackbars += message
     }
+    val activityChanges = mutableListOf<Pair<String, Boolean>>()
+    override fun onGenerationActivityChanged(conversationId: String, active: Boolean) {
+        activityChanges += conversationId to active
+    }
 }

@@ -6,6 +6,7 @@ import com.newoether.agora.R
 import com.newoether.agora.api.local.LocalProvider
 import com.newoether.agora.automation.ConversationExecutionCoordinator
 import com.newoether.agora.automation.LoopManager
+import com.newoether.agora.automation.TaskExecutionEngine
 import com.newoether.agora.data.MemoryManager
 import com.newoether.agora.data.SkillManager
 import com.newoether.agora.data.repository.ConversationRepository
@@ -20,6 +21,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 
 /**
  * Process-scoped chat runtime shared by every client of this process (the phone UI and, later,
@@ -28,7 +30,8 @@ import kotlinx.coroutines.flow.asSharedFlow
  *
  * It owns the foreground generation core, RAG indexing, and the message commands (send,
  * regenerate, edit, delete, compact, stop). Commands name their conversation and origin client
- * explicitly. Per-client state (open conversation, scroll, composer drafts, new-chat workspace)
+ * explicitly. It binds the generation registry's callbacks and the Loop foreground bridge, so a
+ * queued send continues and a Loop cycle is delegated without any Activity. Per-client state (open conversation, scroll, composer drafts, new-chat workspace)
  * stays with each client.
  */
 class ChatRuntime(
@@ -48,6 +51,7 @@ class ChatRuntime(
     localProvider: LocalProvider,
     executionCoordinator: ConversationExecutionCoordinator,
     loopManager: LoopManager,
+    taskExecutionEngine: TaskExecutionEngine,
     scope: CoroutineScope,
 ) {
     // replay=0: events raised while no client is collecting are dropped rather than replayed
@@ -132,5 +136,42 @@ class ChatRuntime(
             finalizer = GenerationFinalizer(conversations, ragManager::indexMessageForRag),
             failureText = { appContext.getString(R.string.failed_to_generate) },
         )
+    }
+
+    // Loop cycles for a conversation some client shows use the regular Send path; the bridge
+    // waits for that exact durable turn and returns a typed result to the automation lease owner.
+    private val foregroundAutomationBridge = ForegroundAutomationBridgeController(
+        isConversationOpen = clients::isConversationOpen,
+        send = { conversationId, userText, modelId, requestKind ->
+            messageGeneration.sendMessageFromAutomationAwaitingCompletion(
+                conversationId,
+                userText,
+                modelId,
+                requestKind,
+            )
+        },
+        loadMessage = conversations::getMessage,
+        attach = taskExecutionEngine::attachForegroundSendBridge,
+        detach = taskExecutionEngine::detachForegroundSendBridge,
+    )
+
+    init {
+        // The runtime is the registry's single, process-lifetime callback owner.
+        registry.attachUiCallbacks(this) { state ->
+            state.onActive = { conversationId ->
+                // Published synchronously with the slot claim so Stop and edit closure are immediate.
+                clients.generationActivityChanged(conversationId, active = true)
+            }
+            state.onIdle = { conversationId ->
+                clients.generationActivityChanged(conversationId, active = false)
+            }
+            state.onStreamCommit = clients::commitTerminalStreamingMessage
+            state.onQueueDrainRequested = { settledState ->
+                settledState.scope.launch {
+                    messageGeneration.drainQueuedAfterGeneration(settledState)
+                }
+            }
+        }
+        foregroundAutomationBridge.start()
     }
 }
