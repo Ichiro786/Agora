@@ -110,7 +110,7 @@ internal fun ChatComposerLayout(
                 lineLimits = TextFieldLineLimits.MultiLine(1, if (isExpanded) Int.MAX_VALUE else 6),
                 contentPadding = PaddingValues(
                     start = COMPOSER_TEXT_START_INSET - COMPOSER_HOST_SIDE_PADDING,
-                    top = COMPOSER_CORNER_CONTENT_INSET - COMPOSER_HOST_TOP_PADDING,
+                    top = COMPOSER_TEXT_TOP_INSET - COMPOSER_HOST_TOP_PADDING,
                     end = 16.dp,
                     bottom = COMPOSER_TEXT_CONTROLS_GAP - CONTROLS_ROW_TOP_PADDING,
                 ),

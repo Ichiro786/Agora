@@ -17,11 +17,12 @@ class ComposerConcentricInsetTest {
     @Test fun textAndExpandIconSitAtTheCornerInset() {
         assertEquals(16.dp, COMPOSER_CORNER_CONTENT_INSET)
         assertEquals(18.dp, COMPOSER_TEXT_START_INSET)
-        assertEquals(20.dp, COMPOSER_TEXT_CONTROLS_GAP)
+        assertEquals(14.dp, COMPOSER_TEXT_TOP_INSET)
+        assertEquals(22.dp, COMPOSER_TEXT_CONTROLS_GAP)
         val layout = source("ChatComposerLayout.kt")
         assertTrue(layout.contains("padding(start = COMPOSER_HOST_SIDE_PADDING, end = COMPOSER_HOST_SIDE_PADDING, top = COMPOSER_HOST_TOP_PADDING, bottom = COMPOSER_CONTROLS_INSET)"))
         assertTrue(layout.contains("start = COMPOSER_TEXT_START_INSET - COMPOSER_HOST_SIDE_PADDING,"))
-        assertTrue(layout.contains("top = COMPOSER_CORNER_CONTENT_INSET - COMPOSER_HOST_TOP_PADDING,"))
+        assertTrue(layout.contains("top = COMPOSER_TEXT_TOP_INSET - COMPOSER_HOST_TOP_PADDING,"))
         // The text ends the controls gap above the controls, with no Material 56 dp minimum below it.
         assertTrue(layout.contains("bottom = COMPOSER_TEXT_CONTROLS_GAP - CONTROLS_ROW_TOP_PADDING,"))
         assertTrue(layout.contains("padding(top = CONTROLS_ROW_TOP_PADDING, start ="))
