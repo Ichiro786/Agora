@@ -18,7 +18,11 @@ formula wider than 80% of its paragraph width, decided at display time from that
 renders as one single-line selectable Text holding one inline placeholder, so a covering selection
 highlights the whole formula. Every formula's alternate text is its exact original source slice,
 delimiters included, carried in its `latex://` link, so selection copies the original text and never
-a URL. Formula bitmaps render at `20 sp` and are padded with transparent rows so the TeX math axis
+a URL. Copied text must equal the original message text. Because a placeholder cannot lay out
+alternate text with line breaks, a source's `\n` and `\r` are stored in the alternate text as
+U+E000 and U+E001; the chat selection host's clipboard (`FormulaSourceClipboard`) restores them on
+copy, and the source parser restores them before resolving the formula. System text actions other
+than copy (for example Translate or Speak) receive the stored marks. Formula bitmaps render at `20 sp` and are padded with transparent rows so the TeX math axis
 sits on the bitmap's vertical center, which `TextCenter` placeholder alignment puts on the text
 center. Other inline LaTeX and ordinary Markdown images retain their existing layout; once a paragraph
 splits for a wide formula, its other images use their block presentation and search positions are

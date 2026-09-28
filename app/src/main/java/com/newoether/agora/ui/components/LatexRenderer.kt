@@ -508,7 +508,7 @@ internal fun latexSourceForLink(link: String): String? = decodeLatexLink(link)?.
  * holds exactly one formula, so parsing it gives the same request its URL encodes.
  */
 internal fun latexImageRequest(linkOrSource: String): LatexImageRequest? =
-    decodeLatexLink(linkOrSource) ?: latexRequestForSource(linkOrSource)
+    decodeLatexLink(linkOrSource) ?: latexRequestForSource(restoreFormulaLineBreaks(linkOrSource))
 
 private fun latexRequestForSource(source: String): LatexImageRequest? {
     val spans = parseLatexSpans(source, parseInlineDollarMath = true)
