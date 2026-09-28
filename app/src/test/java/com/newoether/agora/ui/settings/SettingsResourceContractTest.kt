@@ -31,7 +31,7 @@ class SettingsResourceContractTest {
         assertTrue(controls.contains("Icons.Default.Check"))
         assertTrue(controls.contains("MaterialTheme.colorScheme.surfaceContainer"))
         assertTrue(controls.contains("tonalElevation = 16.dp"))
-        assertTrue(controls.contains("RoundedCornerShape(12.dp)"))
+        assertTrue(controls.contains("AgoraDropdownMenu("))
         assertFalse(controls.contains("R.string.save"))
         val resources = locateResourceDirectory()
         val defaults = readStringValues(File(resources, "values"))
