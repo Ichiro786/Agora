@@ -685,7 +685,7 @@ The composer controls capsule may grow from the bar's inner start edge up to the
 fixed `8 dp` gap, in ordinary and externally owned conversations alike. Every control in it has a
 fixed width except the model selector label, which is the only flexible child; there is no fixed
 label cap. User message bubbles (`UserBubbleShape`) give the top-start, top-end, and bottom-start
-corners one shared radius, `min(27 dp, half the bubble's smaller side)`, and keep a `5 dp` bottom-end
+corners one shared radius, `min(27 dp, half the bubble's smaller side)`, and keep a `6 dp` bottom-end
 tail (never larger than that radius). The three large corners always match, including short or
 narrow bubbles; `RoundedCornerShape` is not used because it shrinks each side's corner pair on its
 own. The radius does not grow with bubble height. A bubble is at least `54 dp` wide (its single-line height), so a
