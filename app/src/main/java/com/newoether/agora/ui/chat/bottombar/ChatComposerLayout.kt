@@ -21,6 +21,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -88,6 +89,9 @@ internal fun ChatComposerLayout(
                 state = textFieldState,
                 scrollState = scrollState,
                 modifier = Modifier
+                    // Any non-zero minimum replaces Material's 56 dp TextField minimum, which
+                    // otherwise adds empty space under a single line; the content sets the height.
+                    .heightIn(min = TEXT_FIELD_MIN_HEIGHT)
                     .fillMaxWidth()
                     .then(if (isExpanded) Modifier.fillMaxHeight() else Modifier)
                     .then(inputModifier)
@@ -108,7 +112,7 @@ internal fun ChatComposerLayout(
                     start = COMPOSER_CORNER_CONTENT_INSET - COMPOSER_HOST_SIDE_PADDING,
                     top = COMPOSER_CORNER_CONTENT_INSET - COMPOSER_HOST_TOP_PADDING,
                     end = 16.dp,
-                    bottom = 16.dp,
+                    bottom = COMPOSER_CORNER_CONTENT_INSET - CONTROLS_ROW_TOP_PADDING,
                 ),
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,
@@ -133,7 +137,7 @@ internal fun ChatComposerLayout(
         }
         }
 
-        Row(modifier = Modifier.fillMaxWidth().padding(top = 6.dp, start = COMPOSER_CONTROLS_INSET - COMPOSER_HOST_SIDE_PADDING, end = COMPOSER_CONTROLS_INSET - COMPOSER_HOST_SIDE_PADDING), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(modifier = Modifier.fillMaxWidth().padding(top = CONTROLS_ROW_TOP_PADDING, start = COMPOSER_CONTROLS_INSET - COMPOSER_HOST_SIDE_PADDING, end = COMPOSER_CONTROLS_INSET - COMPOSER_HOST_SIDE_PADDING), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             controls()
         }
         }
@@ -152,3 +156,7 @@ internal fun ChatComposerLayout(
 
 // The expand button's edge offset that puts its centered icon at the corner content inset.
 private val EXPAND_BUTTON_EDGE_INSET = COMPOSER_CORNER_CONTENT_INSET - (COMPOSER_EXPAND_BUTTON_SIZE - COMPOSER_EXPAND_ICON_SIZE) / 2
+
+// The text sits the corner content inset above the controls row: bottom padding + this gap.
+private val CONTROLS_ROW_TOP_PADDING = 6.dp
+private val TEXT_FIELD_MIN_HEIGHT = 1.dp

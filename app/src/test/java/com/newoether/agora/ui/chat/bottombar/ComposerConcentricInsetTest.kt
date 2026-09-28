@@ -21,6 +21,10 @@ class ComposerConcentricInsetTest {
         assertTrue(layout.contains("padding(start = COMPOSER_HOST_SIDE_PADDING, end = COMPOSER_HOST_SIDE_PADDING, top = COMPOSER_HOST_TOP_PADDING, bottom = COMPOSER_CONTROLS_INSET)"))
         assertTrue(layout.contains("start = COMPOSER_CORNER_CONTENT_INSET - COMPOSER_HOST_SIDE_PADDING,"))
         assertTrue(layout.contains("top = COMPOSER_CORNER_CONTENT_INSET - COMPOSER_HOST_TOP_PADDING,"))
+        // The same inset separates the text from the controls, with no Material 56 dp minimum below it.
+        assertTrue(layout.contains("bottom = COMPOSER_CORNER_CONTENT_INSET - CONTROLS_ROW_TOP_PADDING,"))
+        assertTrue(layout.contains("padding(top = CONTROLS_ROW_TOP_PADDING, start ="))
+        assertTrue(layout.contains(".heightIn(min = TEXT_FIELD_MIN_HEIGHT)"))
         assertTrue(layout.contains("Modifier.offset(x = COMPOSER_HOST_SIDE_PADDING - EXPAND_BUTTON_EDGE_INSET, y = EXPAND_BUTTON_EDGE_INSET - COMPOSER_HOST_TOP_PADDING).size(COMPOSER_EXPAND_BUTTON_SIZE)"))
         assertTrue(layout.contains("EXPAND_BUTTON_EDGE_INSET = COMPOSER_CORNER_CONTENT_INSET - (COMPOSER_EXPAND_BUTTON_SIZE - COMPOSER_EXPAND_ICON_SIZE) / 2"))
         assertTrue(layout.contains("start = COMPOSER_CONTROLS_INSET - COMPOSER_HOST_SIDE_PADDING, end = COMPOSER_CONTROLS_INSET - COMPOSER_HOST_SIDE_PADDING"))

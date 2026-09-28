@@ -734,8 +734,9 @@ it (outer radius = child radius + inset). The controls capsule and the send butt
 high (`COMPOSER_CONTROL_HEIGHT`) and sit `6 dp` from the start/end and bottom edges. Inside the
 capsule the `32 dp` buttons sit `6 dp` from its ends and the `38 dp` model selector is centered, so
 both stay concentric with it. The input text and the `20 dp` expand icon sit `14 dp` from the top and
-start/end edges (`COMPOSER_CORNER_CONTENT_INSET`); the expand button's circle is a fade to transparent,
-so only its icon is placed. The host padding shared by status rows, attachment previews and the
+start/end edges (`COMPOSER_CORNER_CONTENT_INSET`), and the same `14 dp` separates the text from the
+controls row; the TextField's Material `56 dp` minimum height is replaced so a single line leaves no
+empty band. The expand button's circle is a fade to transparent, so only its icon is placed. The host padding shared by status rows, attachment previews and the
 expanded collapse button is unchanged (`4 dp` sides, `8 dp` top). The constants live next to
 `CHAT_BOTTOM_BAR_OUTER_RADIUS` in `ChatBottomBar.kt`. The expanded composer is not covered by this rule.
 ## 15. Verification
