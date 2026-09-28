@@ -92,7 +92,7 @@ internal class ChatClients {
         streamingMessage: ChatMessage?,
         fences: ChatClientRoomFences? = null,
     ) {
-        val stores = storesShowing(conversationId)
+        val stores = renderStoresShowing(conversationId)
         stores.forEach { store ->
             store.commitGraph(
                 committedMessages = committedMessages,
@@ -112,14 +112,14 @@ internal class ChatClients {
         allMessages: List<ChatMessage>,
         selectedChildren: Map<String?, String>,
     ) {
-        storesShowing(conversationId).forEach { store ->
+        renderStoresShowing(conversationId).forEach { store ->
             store.replaceGraph(allMessages = allMessages, selectedChildren = selectedChildren)
         }
     }
 
     /** Opens a fence on every client showing [conversationId]; null when no client shows it. */
     fun beginRoomProjectionFences(conversationId: String): ChatClientRoomFences? =
-        storesShowing(conversationId)
+        renderStoresShowing(conversationId)
             .associateWith { it.beginRoomMessageProjectionFence() }
             .takeIf { it.isNotEmpty() }
             ?.let(::ChatClientRoomFences)
@@ -132,6 +132,7 @@ internal class ChatClients {
     fun effectTargets(conversationId: String, origin: ChatClient?): List<ChatClient> =
         origin?.let(::listOf) ?: attached.filter { it.openConversationId == conversationId }
 
-    private fun storesShowing(conversationId: String): List<ConversationRenderStore> =
+    /** Render stores of every client that has [conversationId] open. */
+    fun renderStoresShowing(conversationId: String): List<ConversationRenderStore> =
         attached.filter { it.openConversationId == conversationId }.map { it.renderStore }
 }

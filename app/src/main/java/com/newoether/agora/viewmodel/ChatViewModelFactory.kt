@@ -8,7 +8,6 @@ import com.newoether.agora.data.AutoBackupManager
 import com.newoether.agora.data.MemoryManager
 import com.newoether.agora.data.SkillManager
 import com.newoether.agora.data.SettingsManager
-import com.newoether.agora.api.local.LocalProvider
 import com.newoether.agora.automation.TaskExecutionEngine
 import com.newoether.agora.automation.TaskManager
 import com.newoether.agora.automation.LoopManager
@@ -36,7 +35,6 @@ class ChatViewModelFactory(
     private val settingsRepository: SettingsRepository,
     private val conversationSettingsTransfers: ConversationSettingsTransferCoordinator,
     private val startProcessServices: () -> Unit,
-    private val localProvider: LocalProvider,
     private val providerRegistry: ProviderRegistry,
     private val taskManager: TaskManager,
     private val loopManager: LoopManager,
@@ -55,7 +53,7 @@ class ChatViewModelFactory(
             return ChatViewModel(
                 application, database, chatDao, settingsManager, memoryManager, skillManager, context, sandboxFactory,
                 autoBackupManager, conversationRepository, settingsRepository,
-                conversationSettingsTransfers, startProcessServices, localProvider, providerRegistry,
+                conversationSettingsTransfers, startProcessServices, providerRegistry,
                 taskManager, loopManager, conversationExecutionCoordinator,
                 automationExecutionGate, conversationStateRegistry, shellConfirmationController,
                 askUserController,

@@ -2,6 +2,7 @@ package com.newoether.agora.viewmodel
 
 import com.newoether.agora.api.util.tokens.FixedContextComposition
 import com.newoether.agora.data.local.MessageEntity
+import com.newoether.agora.data.ConversationSettings
 import com.newoether.agora.data.repository.ConversationRepository
 import com.newoether.agora.model.MessageSegment
 import com.newoether.agora.model.MessageStatus
@@ -39,6 +40,7 @@ class ConversationContextProjectorTest {
                 "context-preview-conversation",
                 "provider:model",
                 "prompt-selected-for-new-chat",
+                NEW_CHAT_SETTINGS,
             )
         } returns snapshot
         every { generationManager.fixedContextTokenCost(snapshot.config, snapshot.context) } returns 221
@@ -50,6 +52,7 @@ class ConversationContextProjectorTest {
             generationManager = { generationManager },
             generationErrorFormatter = { it },
             newChatSystemPromptId = { "prompt-selected-for-new-chat" },
+            newChatConversationSettings = { NEW_CHAT_SETTINGS },
         )
 
         val projection = projector.project(null, null, "provider:model", 4_096)
@@ -61,6 +64,7 @@ class ConversationContextProjectorTest {
                 "context-preview-conversation",
                 "provider:model",
                 "prompt-selected-for-new-chat",
+                NEW_CHAT_SETTINGS,
             )
         }
         coVerify(exactly = 0) { conversations.restoreBranchSelections(any()) }
@@ -570,4 +574,8 @@ class ConversationContextProjectorTest {
         runId = "run",
         runSequence = sequence,
     )
+
+    private companion object {
+        val NEW_CHAT_SETTINGS = ConversationSettings(temperature = 0.25f)
+    }
 }

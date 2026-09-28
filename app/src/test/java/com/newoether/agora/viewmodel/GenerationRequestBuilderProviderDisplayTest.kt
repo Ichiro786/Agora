@@ -49,7 +49,7 @@ class GenerationRequestBuilderProviderDisplayTest {
             "conversation", "conversation", "run", false, null, fixture.modelId,
         )
         val pending = async {
-            fixture.builder.prepareForegroundSend(target, ConversationComposerSnapshot(), fixture.appContext)
+            fixture.builder.prepareForegroundSend(target, ConversationComposerSnapshot(), fixture.appContext, fixture.snackbars::add)
         }
         runCurrent()
         assertFalse(pending.isCompleted)
@@ -81,7 +81,7 @@ class GenerationRequestBuilderProviderDisplayTest {
         )
         val pending = async {
             fixture.builder.prepareForegroundSend(
-                target, ConversationComposerSnapshot(text = "frozen draft"), fixture.appContext,
+                target, ConversationComposerSnapshot(text = "frozen draft"), fixture.appContext, fixture.snackbars::add,
             )
         }
         runCurrent()
@@ -108,7 +108,7 @@ class GenerationRequestBuilderProviderDisplayTest {
             "conversation", "conversation", "run", false, null, fixture.modelId,
         )
         val pending = async {
-            fixture.builder.prepareForegroundSend(target, ConversationComposerSnapshot(), fixture.appContext)
+            fixture.builder.prepareForegroundSend(target, ConversationComposerSnapshot(), fixture.appContext, fixture.snackbars::add)
         }
         runCurrent()
         assertFalse(pending.isCompleted)
@@ -126,7 +126,7 @@ class GenerationRequestBuilderProviderDisplayTest {
         val validationContext = mockk<Context>()
         every { validationContext.getString(R.string.no_model_selected) } returns "Select a model"
         val target = ForegroundSendTarget("conversation", "conversation", "run", false, null, "")
-        assertNull(fixture.builder.prepareForegroundSend(target, ConversationComposerSnapshot(), validationContext))
+        assertNull(fixture.builder.prepareForegroundSend(target, ConversationComposerSnapshot(), validationContext, fixture.snackbars::add))
         assertEquals(listOf("Select a model"), fixture.snackbars)
         coVerify(exactly = 0) { fixture.providerRegistry.awaitInitialSync() }
     }
@@ -242,8 +242,6 @@ class GenerationRequestBuilderProviderDisplayTest {
             providerRegistry = mockk<ProviderRegistry>(),
             ragManager = mockk<RagManager>(),
             appContext = mockk<Context>(),
-            pendingConversationSettings = MutableStateFlow<ConversationSettings?>(null),
-            onSnackbar = {},
         )
 
         val effective = builder.buildEffectiveConversationSettings("conversation")
@@ -252,6 +250,11 @@ class GenerationRequestBuilderProviderDisplayTest {
         assertEquals(false, effective.shellEnabled)
         assertEquals(false, effective.openAiWebSearchEnabled)
         assertEquals(false, effective.lowContextModeEnabled)
+        // A conversation without saved settings uses the app defaults, never a client's New Chat page.
+        val unsaved = builder.buildEffectiveConversationSettings("unsaved-conversation")
+        assertEquals(true, unsaved.webSearchEnabled)
+        assertEquals(true, unsaved.shellEnabled)
+        assertEquals(true, unsaved.lowContextModeEnabled)
     }
 
     @Test
@@ -398,11 +401,9 @@ class GenerationRequestBuilderProviderDisplayTest {
             providerRegistry = providerRegistry,
             ragManager = mockk<RagManager>(),
             appContext = mockk<Context>(),
-            pendingConversationSettings = MutableStateFlow<ConversationSettings?>(null),
-            onSnackbar = {},
         )
 
-        val result = async { builder.awaitProviderKey(modelId) }
+        val result = async { builder.awaitProviderKey(modelId) {} }
         runCurrent()
 
         assertEquals(listOf("await"), events)
@@ -446,11 +447,9 @@ class GenerationRequestBuilderProviderDisplayTest {
             providerRegistry = providerRegistry,
             ragManager = mockk<RagManager>(),
             appContext = appContext,
-            pendingConversationSettings = MutableStateFlow<ConversationSettings?>(null),
-            onSnackbar = snackbars::add,
         )
 
-        assertNull(builder.resolveProviderKey(modelId))
+        assertNull(builder.resolveProviderKey(modelId, snackbars::add))
         assertEquals(1, snackbars.size)
         assertTrue(snackbars.single().contains(providerAlias))
         assertFalse(snackbars.single().contains(providerId))
@@ -603,8 +602,6 @@ private class RequestBuilderFixture(
             providerRegistry = providerRegistry,
             ragManager = ragManager,
             appContext = appContext,
-            pendingConversationSettings = MutableStateFlow(null),
-            onSnackbar = snackbars::add,
         )
     }
 }

@@ -333,6 +333,11 @@ class AppContainer(
             mcpToolProvider = mcpToolProvider,
             askUser = askUserController,
             shellConfirmation = shellConfirmationController,
+            registry = conversationStateRegistry,
+            providerRegistry = providerRegistry,
+            localProvider = localProvider,
+            executionCoordinator = conversationExecutionCoordinator,
+            loopManager = loopManager,
             scope = appScope,
         )
     }
@@ -342,7 +347,7 @@ class AppContainer(
         ChatViewModelFactory(
             application, database, chatDao, settingsManager, memoryManager, skillManager, appContext, sandboxManagerFactory,
             autoBackupManager, conversationRepository, settingsRepository, conversationSettingsTransfers,
-            ::startProcessServices, localProvider, providerRegistry,
+            ::startProcessServices, providerRegistry,
             taskManager, loopManager, conversationExecutionCoordinator,
             automationExecutionGate, conversationStateRegistry, shellConfirmationController,
             askUserController,

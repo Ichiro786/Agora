@@ -29,7 +29,6 @@ import com.newoether.agora.util.Constants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -71,16 +70,12 @@ class GenerationRequestBuilder(
     private val providerRegistry: ProviderRegistry,
     private val ragManager: RagManager,
     private val appContext: Context,
-    // This remains a StateFlow because buildEffectiveConversationSettings reads its current value.
-    private val pendingConversationSettings: StateFlow<ConversationSettings?>,
-    // resolveProviderKey uses this callback to emit snackbar messages.
-    private val onSnackbar: (String) -> Unit,
 ) {
     data class ProviderKey(val providerName: String, val apiKey: String)
 
     /** Resolves the active provider+key for [modelId] and verifies configuration.
-     *  Emits a snackbar and returns null when the provider is not configured. */
-    internal fun resolveProviderKey(modelId: String): ProviderKey? {
+     *  Reports the problem through [report] and returns null when the provider is not configured. */
+    internal fun resolveProviderKey(modelId: String, report: (String) -> Unit): ProviderKey? {
         val providerName = providerRegistry.providerForModel(modelId)
         val activeKey = settings.resolveActiveKey(providerName) ?: ""
         if (!providerRegistry.isConfigured(providerName, activeKey)) {
@@ -88,7 +83,7 @@ class GenerationRequestBuilder(
                 providerName,
                 settings.customProviders.value,
             )
-            onSnackbar(
+            report(
                 appContext.getString(
                     R.string.no_api_key_for_provider,
                     displayProviderName,
@@ -103,6 +98,7 @@ class GenerationRequestBuilder(
         target: ForegroundSendTarget,
         composer: ConversationComposerSnapshot,
         validationContext: Context,
+        report: (String) -> Unit,
     ): ForegroundSendAdmission? {
         val startedNs = System.nanoTime()
         fun markStage(name: String) {
@@ -116,17 +112,17 @@ class GenerationRequestBuilder(
         markStage("await-settings")
         settings.awaitInitialLoad()
         if (target.modelId.isBlank()) {
-            onSnackbar(validationContext.getString(R.string.no_model_selected))
+            report(validationContext.getString(R.string.no_model_selected))
             return null
         }
         markStage("await-provider")
-        val selectedProvider = awaitProviderKey(target.modelId) ?: return null
+        val selectedProvider = awaitProviderKey(target.modelId, report) ?: return null
         markStage("validate-provider")
         if (selectedProvider.providerName == Constants.PROVIDER_LOCAL) {
             val localModelId = target.modelId.substringAfter("${Constants.PROVIDER_LOCAL}:")
             val localConfig = settings.localChatModels.value.find { it.modelId == localModelId }
             if (localConfig == null || !java.io.File(localConfig.localFilePath).exists()) {
-                onSnackbar(validationContext.getString(R.string.local_model_not_found))
+                report(validationContext.getString(R.string.local_model_not_found))
                 return null
             }
         }
@@ -178,9 +174,9 @@ class GenerationRequestBuilder(
         )
     }
 
-    internal suspend fun awaitProviderKey(modelId: String): ProviderKey? {
+    internal suspend fun awaitProviderKey(modelId: String, report: (String) -> Unit): ProviderKey? {
         providerRegistry.awaitInitialSync()
-        return resolveProviderKey(modelId)
+        return resolveProviderKey(modelId, report)
     }
 
     private fun resolveTranscriptionProviderName(model: String?): String =
@@ -223,7 +219,6 @@ class GenerationRequestBuilder(
 
     fun buildEffectiveConversationSettings(conversationId: String): ConversationSettings {
         val overrides = settings.conversationSettings.value[conversationId]
-            ?: pendingConversationSettings.value  // new chat: may not be saved to map yet
             ?: ConversationSettings()
         return resolveEffectiveConversationSettings(overrides)
     }
@@ -421,10 +416,14 @@ class GenerationRequestBuilder(
         conversationId: String,
         modelId: String,
         systemPromptIdOverride: String? = null,
+        // New Chat preview: the settings of the client's New Chat page, which has no saved entry.
+        conversationSettingsOverride: ConversationSettings? = null,
     ): GenerationContextProjectionSnapshot {
         val selectedModelId = providerRegistry.canonicalModelId(modelId)
         val providerName = providerRegistry.providerForModel(selectedModelId)
-        val effectiveSettings = buildEffectiveConversationSettings(conversationId)
+        val effectiveSettings = conversationSettingsOverride
+            ?.let(::resolveEffectiveConversationSettings)
+            ?: buildEffectiveConversationSettings(conversationId)
         val (baseConfig, context) = buildGenerationPair(
             providerName = providerName,
             modelId = selectedModelId,

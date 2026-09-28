@@ -46,7 +46,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
@@ -350,8 +349,6 @@ class TaskExecutionEngine(
                 providerRegistry = providerRegistry,
                 ragManager = ragManager,
                 appContext = appContext,
-                pendingConversationSettings = MutableStateFlow(null),
-                onSnackbar = {},
             )
             val captured = builder.captureAdmissionSnapshot(
                 conversationId = conversationId,

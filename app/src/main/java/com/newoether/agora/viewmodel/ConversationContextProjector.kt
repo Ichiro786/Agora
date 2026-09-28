@@ -5,6 +5,7 @@ import com.newoether.agora.api.util.contextWindowRetainedMessageIds
 import com.newoether.agora.api.util.contextWindowUsage
 import com.newoether.agora.api.util.tokens.ContextCostModel
 import com.newoether.agora.api.util.tokens.ContextCostModels
+import com.newoether.agora.data.ConversationSettings
 import com.newoether.agora.data.repository.ConversationRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,7 @@ internal class ConversationContextProjector(
     private val generationManager: () -> GenerationManager,
     private val generationErrorFormatter: (String) -> String,
     private val newChatSystemPromptId: () -> String? = { null },
+    private val newChatConversationSettings: () -> ConversationSettings? = { null },
     private val contextLoader: DurableSelectedContextLoader =
         DurableSelectedContextLoader(conversations, generationErrorFormatter),
 ) {
@@ -73,6 +75,11 @@ internal class ConversationContextProjector(
                         modelId = modelId,
                         systemPromptIdOverride = if (conversationId == null) {
                             newChatSystemPromptId()
+                        } else {
+                            null
+                        },
+                        conversationSettingsOverride = if (conversationId == null) {
+                            newChatConversationSettings()
                         } else {
                             null
                         },

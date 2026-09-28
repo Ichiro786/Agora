@@ -547,15 +547,15 @@ internal class ApprovedFeatureSourceContractTest : UiSourceContractFixture() {
             admission.indexOf("providerRegistry.awaitInitialSync()") in
                 0 until admission.indexOf("providerRegistry.canonicalModelId(modelId)"),
         )
-        assertTrue(builder.contains("internal suspend fun awaitProviderKey(modelId: String)"))
-        assertTrue(builder.contains("providerRegistry.awaitInitialSync()\n        return resolveProviderKey(modelId)"))
+        assertTrue(builder.contains("internal suspend fun awaitProviderKey(modelId: String, report: (String) -> Unit)"))
+        assertTrue(builder.contains("providerRegistry.awaitInitialSync()\n        return resolveProviderKey(modelId, report)"))
         assertEquals(2, Regex("requestBuilder\\.awaitProviderKey\\(").findAll(generation).count())
         val foregroundAdmission = builder
             .substringAfter("internal suspend fun prepareForegroundSend(")
             .substringBefore("internal suspend fun awaitProviderKey(")
-        assertTrue(generation.contains("requestBuilder.prepareForegroundSend(target, composer, application)"))
+        assertTrue(generation.contains("requestBuilder.prepareForegroundSend(target, composer, application, origin::showSnackbar)"))
         assertTrue(
-            foregroundAdmission.indexOf("awaitProviderKey(target.modelId)") in
+            foregroundAdmission.indexOf("awaitProviderKey(target.modelId, report)") in
                 0 until foregroundAdmission.indexOf("captureAdmissionSnapshot("),
         )
         assertFalse(foregroundAdmission.contains("resolveProviderKey("))
@@ -660,12 +660,16 @@ internal class ApprovedFeatureSourceContractTest : UiSourceContractFixture() {
             .substringAfter("internal fun captureForegroundSendTarget(")
             .substringBefore("internal suspend fun prepareForegroundSend(")
         assertTrue(foregroundTargetCapture.contains("val wasNewChat ="))
-        assertTrue(foregroundTargetCapture.contains("modelId = currentActiveModel.value"))
+        assertTrue(foregroundTargetCapture.contains("modelId = modelId"))
+        assertTrue(
+            source(root, "com/newoether/agora/viewmodel/ChatViewModel.kt")
+                .contains("modelId = currentActiveModel.value"),
+        )
 
         val foregroundDelegation = generation
             .substringAfter("internal suspend fun prepareForegroundSend(")
             .substringBefore("internal suspend fun sendMessage(")
-        assertTrue(foregroundDelegation.contains("requestBuilder.prepareForegroundSend(target, composer, application)"))
+        assertTrue(foregroundDelegation.contains("requestBuilder.prepareForegroundSend(target, composer, application, origin::showSnackbar)"))
         val foregroundAdmission = source(root, "com/newoether/agora/viewmodel/GenerationRequestBuilder.kt")
             .substringAfter("internal suspend fun prepareForegroundSend(")
             .substringBefore("internal suspend fun awaitProviderKey(")
