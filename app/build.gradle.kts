@@ -197,6 +197,8 @@ dependencies {
     // WebUI server (stage 2): embedded HTTP with the pure-Kotlin CIO engine.
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
+    // Builds the WebUI's self-signed TLS certificate.
+    implementation(libs.bouncycastle.pkix)
     testImplementation(libs.ktor.server.test.host)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
