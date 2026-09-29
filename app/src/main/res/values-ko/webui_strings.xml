@@ -7,7 +7,7 @@
     <string name="webui_status_starting">시작하는 중…</string>
     <string name="webui_status_running">포트 %1$d에서 실행 중</string>
     <string name="webui_status_failed">시작할 수 없음: %1$s</string>
-    <string name="webui_password_required">비밀번호가 필요합니다. 탭하여 설정하면 켜집니다.</string>
+    <string name="webui_password_required">WebUI를 켜려면 아래에서 비밀번호를 설정하세요.</string>
     <string name="webui_port">포트</string>
     <string name="webui_port_desc">1024~65535. 변경하면 서버가 다시 시작됩니다.</string>
     <string name="webui_password_set">비밀번호 설정</string>

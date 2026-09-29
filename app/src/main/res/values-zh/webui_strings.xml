@@ -7,7 +7,7 @@
     <string name="webui_status_starting">正在启动…</string>
     <string name="webui_status_running">正在端口 %1$d 上运行</string>
     <string name="webui_status_failed">无法启动：%1$s</string>
-    <string name="webui_password_required">需要先设置密码。点按即可设置并开启。</string>
+    <string name="webui_password_required">请先在下方设置密码，再开启 WebUI。</string>
     <string name="webui_port">端口</string>
     <string name="webui_port_desc">1024 到 65535。修改后服务会重启。</string>
     <string name="webui_password_set">设置密码</string>

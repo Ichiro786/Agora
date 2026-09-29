@@ -762,10 +762,10 @@ feature have no label. Editing and resending a labeled message produces an ordin
 `ui/chat/message/MessageSourcePresentation.kt` owns the label and the ask_user text.
 ## 36. WebUI settings
 Settings > Network has a WebUI page (`ui/settings/SettingsWebUiPage.kt`). In order it holds the
-Set/Change Password action, the enable switch, the port (default `8686`, accepted range
+enable switch, the Set/Change Password action below it, the port (default `8686`, accepted range
 `1024`-`65535`), the access addresses, and a warning that the connection is plain HTTP. The switch is
-always tappable. Without a password its supporting text says one is needed, and turning it on opens
-the password dialog; saving there turns the WebUI on, cancelling leaves it off. With a password the
+never grayed out. Without a password its supporting text says one is needed, and tapping it leaves it
+off and shows the same message in a snackbar (`webui_password_required`). With a password the
 supporting text shows the live status (Off, Starting, Running on a port, or the start error); it
 reaches Running as soon as the server listens. The access group lists addresses only while the server
 runs and otherwise says they appear then. A password has at least `8` characters; its field uses the

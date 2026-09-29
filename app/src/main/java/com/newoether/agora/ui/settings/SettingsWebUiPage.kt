@@ -41,6 +41,7 @@ import com.newoether.agora.R
 import com.newoether.agora.ui.components.SecretVisibilityToggle
 import com.newoether.agora.ui.components.rememberSecretVisible
 import com.newoether.agora.ui.components.secretVisualTransformation
+import com.newoether.agora.viewmodel.ChatViewModel
 import com.newoether.agora.webui.WebUiController
 import com.newoether.agora.webui.WebUiSettingsStore
 import com.newoether.agora.webui.WebUiStatus
@@ -49,7 +50,7 @@ import kotlinx.coroutines.launch
 
 /** Settings > WebUI: turn the browser remote control on, pick its port, set its password. */
 @Composable
-fun SettingsWebUiPage(onBack: () -> Unit) {
+fun SettingsWebUiPage(viewModel: ChatViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
     val webUi = remember { (context.applicationContext as AgoraApplication).requireContainer().webUi }
     val enabled by webUi.enabled.collectAsState(initial = false)
@@ -58,7 +59,7 @@ fun SettingsWebUiPage(onBack: () -> Unit) {
     val status by webUi.status.collectAsState()
     val scope = rememberCoroutineScope()
     var passwordDialog by remember { mutableStateOf(false) }
-    var enableAfterPassword by remember { mutableStateOf(false) }
+    val passwordRequired = stringResource(R.string.webui_password_required)
 
     CollapsingSettingsScaffold(title = stringResource(R.string.settings_webui), onBack = onBack) {
         SettingsGroupColumn {
@@ -66,36 +67,10 @@ fun SettingsWebUiPage(onBack: () -> Unit) {
                 title = stringResource(R.string.settings_webui),
                 items = listOf(
                     {
-                        SettingsItem(
-                            headlineContent = {
-                                Text(
-                                    stringResource(
-                                        if (hasPassword) R.string.webui_password_change else R.string.webui_password_set,
-                                    ),
-                                )
-                            },
-                            supportingContent = {
-                                Text(
-                                    stringResource(
-                                        if (hasPassword) R.string.webui_password_desc_set else R.string.webui_password_desc_unset,
-                                    ),
-                                )
-                            },
-                            leadingContent = {
-                                Icon(Icons.Default.Key, null, tint = MaterialTheme.colorScheme.primary)
-                            },
-                            modifier = Modifier.clickable {
-                                enableAfterPassword = false
-                                passwordDialog = true
-                            },
-                        )
-                    },
-                    {
-                        // Without a password, turning it on asks for one first, then turns on.
+                        // Never disabled: without a password, a tap explains what is missing.
                         val toggle = {
                             if (!enabled && !hasPassword) {
-                                enableAfterPassword = true
-                                passwordDialog = true
+                                viewModel.emitSnackbar(passwordRequired)
                             } else {
                                 scope.launch { webUi.setEnabled(!enabled) }
                             }
@@ -122,6 +97,28 @@ fun SettingsWebUiPage(onBack: () -> Unit) {
                                 )
                             },
                             modifier = Modifier.clickable { toggle() },
+                        )
+                    },
+                    {
+                        SettingsItem(
+                            headlineContent = {
+                                Text(
+                                    stringResource(
+                                        if (hasPassword) R.string.webui_password_change else R.string.webui_password_set,
+                                    ),
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    stringResource(
+                                        if (hasPassword) R.string.webui_password_desc_set else R.string.webui_password_desc_unset,
+                                    ),
+                                )
+                            },
+                            leadingContent = {
+                                Icon(Icons.Default.Key, null, tint = MaterialTheme.colorScheme.primary)
+                            },
+                            modifier = Modifier.clickable { passwordDialog = true },
                         )
                     },
                     { WebUiPortField(port = port, onPortChange = { scope.launch { webUi.setPort(it) } }) },
@@ -172,10 +169,7 @@ fun SettingsWebUiPage(onBack: () -> Unit) {
             webUi = webUi,
             isChange = hasPassword,
             onDismiss = { passwordDialog = false },
-            onSaved = {
-                if (enableAfterPassword) scope.launch { webUi.setEnabled(true) }
-                enableAfterPassword = false
-            },
+
         )
     }
 }
@@ -228,7 +222,6 @@ private fun WebUiPasswordDialog(
     webUi: WebUiController,
     isChange: Boolean,
     onDismiss: () -> Unit,
-    onSaved: () -> Unit,
 ) {
     var password by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
@@ -297,7 +290,6 @@ private fun WebUiPasswordDialog(
                         } finally {
                             saving = false
                         }
-                        onSaved()
                         onDismiss()
                     }
                 },

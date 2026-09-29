@@ -7,7 +7,7 @@
     <string name="webui_status_starting">正在啟動…</string>
     <string name="webui_status_running">正在連接埠 %1$d 上執行</string>
     <string name="webui_status_failed">無法啟動：%1$s</string>
-    <string name="webui_password_required">需要先設定密碼。輕觸即可設定並開啟。</string>
+    <string name="webui_password_required">請先在下方設定密碼，再開啟 WebUI。</string>
     <string name="webui_port">連接埠</string>
     <string name="webui_port_desc">1024 到 65535。修改後服務會重新啟動。</string>
     <string name="webui_password_set">設定密碼</string>
