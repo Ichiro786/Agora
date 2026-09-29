@@ -9,6 +9,7 @@ import io.ktor.http.content.TextContent
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.createApplicationPlugin
+import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.install
 import io.ktor.server.request.contentType
 import io.ktor.server.request.receiveText
@@ -18,7 +19,24 @@ import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.server.websocket.DefaultWebSocketServerSession
+import io.ktor.server.websocket.WebSockets
+import io.ktor.server.websocket.pingPeriod
+import io.ktor.server.websocket.timeout
+import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.Frame
+import io.ktor.websocket.close
+import io.ktor.websocket.readText
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.produceIn
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -35,6 +53,8 @@ internal class WebUiServer(
     private val auth: WebUiAuth,
     /** Reads a packaged frontend file by its path under the asset root, or null if absent. */
     private val readAsset: (String) -> ByteArray?,
+    /** Serves one signed-in `/api/sync` connection: incoming text frames and a text sender. */
+    private val syncSession: suspend (ReceiveChannel<String>, suspend (String) -> Unit) -> Unit,
     /** CSS variables for the app's current theme; empty keeps the defaults in `style.css`. */
     private val themeCss: () -> String = { "" },
     /** The app font file served at [WebUiTheme.FONT_PATH], or null when the system font is used. */
@@ -45,7 +65,24 @@ internal class WebUiServer(
 ) {
     fun install(application: Application) = with(application) {
         install(SecurityHeaders)
+        install(WebSockets) {
+            pingPeriod = SYNC_PING_PERIOD
+            timeout = SYNC_TIMEOUT
+            maxFrameSize = MAX_SYNC_FRAME_BYTES
+        }
+        // Checked before the upgrade: a refused browser gets a plain 403, never a socket.
+        val syncGate = createRouteScopedPlugin("WebUiSyncGate") {
+            onCall { call ->
+                if (!call.isSameOrigin() || !auth.isValidSession(call.request.cookies[SESSION_COOKIE])) {
+                    call.respond(HttpStatusCode.Forbidden)
+                }
+            }
+        }
         routing {
+            route("/api/sync") {
+                install(syncGate)
+                webSocket { serveSync() }
+            }
             get("/") { call.respondAsset(INDEX) }
             get("/assets/{path...}") {
                 val path = call.parameters.getAll("path").orEmpty().joinToString("/")
@@ -75,6 +112,24 @@ internal class WebUiServer(
                 val signedIn = auth.isValidSession(call.request.cookies[SESSION_COOKIE])
                 call.respondJson(HttpStatusCode.OK, SessionResponse(signedIn))
             }
+        }
+    }
+
+    /** Runs the sync session and closes the socket as soon as its login session ends. */
+    private suspend fun DefaultWebSocketServerSession.serveSync() {
+        val token = call.request.cookies[SESSION_COOKIE] ?: return
+        val texts = incoming.consumeAsFlow()
+            .filterIsInstance<Frame.Text>()
+            .map { it.readText() }
+            .produceIn(this)
+        val signOut = launch {
+            auth.awaitSessionEnd(token)
+            close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "signed_out"))
+        }
+        try {
+            syncSession(texts) { text -> outgoing.send(Frame.Text(text)) }
+        } finally {
+            signOut.cancel()
         }
     }
 
@@ -186,6 +241,10 @@ internal class WebUiServer(
         const val SESSION_COOKIE = "agora_session"
         const val INDEX = "index.html"
         private const val MAX_LOGIN_BODY_BYTES = 4_096L
+        /** Browser commands are small; this bounds what one incoming frame may allocate. */
+        private const val MAX_SYNC_FRAME_BYTES = 64L * 1024L
+        private val SYNC_PING_PERIOD = 20.seconds
+        private val SYNC_TIMEOUT = 45.seconds
         private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
         private val SAFE_ASSET_PATH = Regex("[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*(/[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*)*")
 

@@ -12,6 +12,7 @@ import java.net.Inet4Address
 import java.net.NetworkInterface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,6 +74,8 @@ internal class WebUiController(
     private val store: WebUiSettingsStore,
     scope: CoroutineScope,
     private val certificates: WebUiCertificateStore,
+    /** Serves one `/api/sync` connection; [WebUiSync.serve] in production. */
+    syncSession: suspend (ReceiveChannel<String>, suspend (String) -> Unit) -> Unit,
     private val hasher: WebUiPasswordHasher = WebUiPasswordHasher(),
 ) {
     @Volatile private var passwordHash: String? = null
@@ -84,6 +87,7 @@ internal class WebUiController(
     private val routes = WebUiServer(
         auth = auth,
         readAsset = ::readAsset,
+        syncSession = syncSession,
         themeCss = { theme?.toCss().orEmpty() },
         readAppFont = ::readAppFont,
         secureCookies = { call -> call.request.local.localPort == tlsBackendPort },

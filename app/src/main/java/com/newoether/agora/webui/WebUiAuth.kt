@@ -2,6 +2,9 @@ package com.newoether.agora.webui
 
 import java.security.SecureRandom
 import java.util.Base64
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 
 /** Outcome of one WebUI login attempt. */
 internal sealed interface WebUiLoginResult {
@@ -35,7 +38,8 @@ internal class WebUiAuth(
     private val lock = Any()
     private var failures = 0
     private var lockedUntil = 0L
-    private val sessions = mutableSetOf<String>()
+    /** Live session tokens; a flow so an open sync connection can end with its session. */
+    private val sessions = MutableStateFlow<Set<String>>(emptySet())
 
     fun login(password: String): WebUiLoginResult {
         val now = clock()
@@ -51,7 +55,7 @@ internal class WebUiAuth(
             if (matches) {
                 failures = 0
                 val token = newToken()
-                sessions += token
+                sessions.update { it + token }
                 return WebUiLoginResult.Success(token)
             }
             failures += 1
@@ -64,16 +68,20 @@ internal class WebUiAuth(
         }
     }
 
-    fun isValidSession(token: String?): Boolean =
-        token != null && synchronized(lock) { token in sessions }
+    fun isValidSession(token: String?): Boolean = token != null && token in sessions.value
 
     fun logout(token: String?) {
         if (token == null) return
-        synchronized(lock) { sessions -= token }
+        sessions.update { it - token }
     }
 
     fun revokeAllSessions() {
-        synchronized(lock) { sessions.clear() }
+        sessions.value = emptySet()
+    }
+
+    /** Returns once [token] is no longer a valid session (logout, revocation or never valid). */
+    suspend fun awaitSessionEnd(token: String) {
+        sessions.first { token !in it }
     }
 
     private fun newToken(): String {
