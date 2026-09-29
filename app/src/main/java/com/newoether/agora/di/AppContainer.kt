@@ -38,6 +38,7 @@ import com.newoether.agora.viewmodel.ShellConfirmationController
 import com.newoether.agora.data.dataStore
 import com.newoether.agora.webui.WebUiController
 import com.newoether.agora.webui.WebUiSettingsStore
+import com.newoether.agora.util.appLanguageResources
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -372,7 +373,21 @@ class AppContainer(
                 appContext = appContext,
             ),
             customProviders = settingsRepository.customProviders,
-            parseInlineDollarMath = settingsRepository.parseInlineDollarMath,
+            display = kotlinx.coroutines.flow.combine(
+                settingsRepository.appLanguage,
+                settingsRepository.toolCallDisplayMode,
+                settingsRepository.thinkingSegmentDisplayMode,
+                settingsRepository.autoExpandActiveGroup,
+                settingsRepository.parseInlineDollarMath,
+            ) { language, toolMode, thinkingMode, autoExpand, inlineMath ->
+                com.newoether.agora.webui.WebDisplayContext(
+                    resources = appContext.appLanguageResources(language),
+                    toolCallDisplayMode = toolMode,
+                    thinkingSegmentDisplayMode = thinkingMode,
+                    autoExpandActiveGroup = autoExpand,
+                    parseInlineDollarMath = inlineMath,
+                )
+            },
         )
     }
     // ── ViewModel Factory ─────────────────────────────────────

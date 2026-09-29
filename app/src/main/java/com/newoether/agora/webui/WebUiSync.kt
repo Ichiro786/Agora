@@ -58,7 +58,7 @@ internal class WebUiSync(
     private val executionCoordinator: ConversationExecutionCoordinator,
     private val hydration: ConversationMessagePayloadHydration,
     private val customProviders: StateFlow<List<CustomProviderConfig>>,
-    private val parseInlineDollarMath: StateFlow<Boolean>,
+    private val display: Flow<WebDisplayContext>,
     private val projectionDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     /**
@@ -76,6 +76,9 @@ internal class WebUiSync(
                 registry.activeConversationIds,
             ) { items, active -> items to active }
                 .shareIn(this, SharingStarted.Eagerly, replay = 1)
+            val displayContext = display.distinctUntilChanged()
+                .shareIn(this, SharingStarted.Eagerly, replay = 1)
+            launch { displayContext.collect { outbound.send(it.toEvent()) } }
             launch {
                 list.map { (items, active) ->
                     WebSyncEvent.Conversations(
@@ -97,7 +100,7 @@ internal class WebUiSync(
                         watched.value = emptySet()
                         open = command.conversationId?.let { id ->
                             launch {
-                                openConversation(id, list.map { it.first }, watched, outbound)
+                                openConversation(id, list.map { it.first }, watched, displayContext, outbound)
                             }
                         }
                     }
@@ -111,6 +114,7 @@ internal class WebUiSync(
         id: String,
         list: Flow<List<ChatConversation>>,
         watched: StateFlow<Set<String>>,
+        display: Flow<WebDisplayContext>,
         outbound: SendChannel<WebSyncEvent>,
     ) {
         // The web can only open what its list showed; a row that is gone was deleted.
@@ -120,7 +124,7 @@ internal class WebUiSync(
         }
         // A failure in any collector ends this conversation only, never the connection.
         try {
-            coroutineScope { observeConversation(id, list, watched, outbound) }
+            coroutineScope { observeConversation(id, list, watched, display, outbound) }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -133,6 +137,7 @@ internal class WebUiSync(
         id: String,
         list: Flow<List<ChatConversation>>,
         watched: StateFlow<Set<String>>,
+        display: Flow<WebDisplayContext>,
         outbound: SendChannel<WebSyncEvent>,
     ) {
         executionCoordinator.tryWithConversationLock(id) {
@@ -172,10 +177,13 @@ internal class WebUiSync(
             state.generationSnapshot
                 .map { it.streamingMessage }
                 .distinctUntilChanged()
-                .mapLatest { message -> message?.let { project(it) } }
+                .combine(display) { message, context -> message to context }
+                .mapLatest { (message, context) ->
+                    message?.let { project(it, isStreaming = true, context) }
+                }
                 .collect { outbound.send(WebSyncEvent.Streaming(id, it)) }
         }
-        launch { servePayloads(id, watched, pathIds, outbound) }
+        launch { servePayloads(id, watched, pathIds, display, outbound) }
     }
 
     /** One payload subscription per watched row; only rows on the current path are served. */
@@ -183,6 +191,7 @@ internal class WebUiSync(
         conversationId: String,
         watched: StateFlow<Set<String>>,
         pathIds: StateFlow<Set<String>>,
+        display: Flow<WebDisplayContext>,
         outbound: SendChannel<WebSyncEvent>,
     ) = coroutineScope {
         val jobs = mutableMapOf<String, Job>()
@@ -194,9 +203,15 @@ internal class WebUiSync(
                     jobs[messageId] = launch {
                         hydration.observeMessage(messageId) { it.forDisplay(customProviders.value) }
                             .distinctUntilChanged()
-                            .collect { message ->
+                            .combine(display) { message, context -> message to context }
+                            .collect { (message, context) ->
                                 if (message != null) {
-                                    outbound.send(WebSyncEvent.Payload(conversationId, project(message)))
+                                    outbound.send(
+                                        WebSyncEvent.Payload(
+                                            conversationId,
+                                            project(message, isStreaming = false, context),
+                                        ),
+                                    )
                                 }
                             }
                     }
@@ -204,10 +219,14 @@ internal class WebUiSync(
             }
     }
 
-    private suspend fun project(message: ChatMessage): WebMessage =
-        withContext(projectionDispatcher) {
-            message.forDisplay(customProviders.value).toWeb(parseInlineDollarMath.value)
-        }
+    private suspend fun project(
+        message: ChatMessage,
+        isStreaming: Boolean,
+        display: WebDisplayContext,
+    ): WebMessage = withContext(projectionDispatcher) {
+        val shown = message.forDisplay(customProviders.value)
+        shown.toWeb(display.parseInlineDollarMath, webPresentation(shown, isStreaming, display))
+    }
 
     companion object {
         private const val TAG = "WebUiSync"
@@ -273,7 +292,7 @@ private fun ChatMessage.toWebPathEntry() = WebPathEntry(
     status = status.name,
 )
 
-private fun ChatMessage.toWeb(inlineDollarMath: Boolean) = WebMessage(
+private fun ChatMessage.toWeb(inlineDollarMath: Boolean, presentation: WebPresentation?) = WebMessage(
     id = id,
     parentId = parentId,
     participant = participant.name,
@@ -285,6 +304,7 @@ private fun ChatMessage.toWeb(inlineDollarMath: Boolean) = WebMessage(
     thoughtTitle = thoughtTitle,
     thoughtTimeMs = thoughtTimeMs,
     segments = segments.orEmpty().map { it.toWeb(inlineDollarMath) },
+    presentation = presentation,
 )
 
 private fun MessageSegment.toWeb(inlineDollarMath: Boolean) = WebSegment(
@@ -328,6 +348,15 @@ internal sealed interface WebSyncEvent {
     @Serializable @SerialName("deleted")
     data class Deleted(val conversationId: String) : WebSyncEvent
 
+    /** The phone's display settings and live-timer strings; sent first and on each change. */
+    @Serializable @SerialName("display")
+    data class Display(
+        val toolCallDisplayMode: String,
+        val thinkingSegmentDisplayMode: String,
+        val autoExpandActiveGroup: Boolean,
+        val liveThinking: WebLiveTimerStrings,
+    ) : WebSyncEvent
+
     @Serializable @SerialName("load_failed")
     data class LoadFailed(val conversationId: String) : WebSyncEvent
 }
@@ -361,6 +390,8 @@ internal data class WebMessage(
     val thoughtTitle: String?,
     val thoughtTimeMs: Long?,
     val segments: List<WebSegment>,
+    /** How the app lays out a model message; null for user messages. */
+    val presentation: WebPresentation?,
 )
 
 @Serializable

@@ -7,6 +7,8 @@ import com.newoether.agora.model.ChatConversation
 import com.newoether.agora.model.ChatMessage
 import com.newoether.agora.model.MessageStatus
 import com.newoether.agora.model.Participant
+import com.newoether.agora.model.ThinkingSegmentDisplayModes
+import com.newoether.agora.model.ToolCallDisplayModes
 import com.newoether.agora.viewmodel.ConversationGenerationSnapshot
 import com.newoether.agora.viewmodel.ConversationGenerationState
 import com.newoether.agora.viewmodel.ConversationMessagePayloadHydration
@@ -170,7 +172,15 @@ class WebUiSyncTest {
             executionCoordinator = ConversationExecutionCoordinator(),
             hydration = hydration,
             customProviders = MutableStateFlow(emptyList()),
-            parseInlineDollarMath = MutableStateFlow(false),
+            display = flowOf(
+                WebDisplayContext(
+                    resources = mockk(relaxed = true),
+                    toolCallDisplayMode = ToolCallDisplayModes.DEFAULT,
+                    thinkingSegmentDisplayMode = ThinkingSegmentDisplayModes.DEFAULT,
+                    autoExpandActiveGroup = true,
+                    parseInlineDollarMath = false,
+                ),
+            ),
             projectionDispatcher = dispatcher,
         )
         val incoming = Channel<String>(Channel.UNLIMITED)

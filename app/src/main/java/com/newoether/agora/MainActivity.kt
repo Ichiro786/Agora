@@ -52,6 +52,7 @@ import com.newoether.agora.ui.tasks.TaskEditorSessionViewModel
 import com.newoether.agora.ui.tasks.TaskHistoryPreviewPhase
 import com.newoether.agora.ui.theme.AgoraTheme
 import com.newoether.agora.util.snackbarTimeoutMillis
+import com.newoether.agora.util.withAppLocale
 import com.newoether.agora.viewmodel.ChatViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
@@ -71,29 +72,8 @@ class MainActivity : ComponentActivity() {
         val langCode = kotlinx.coroutines.runBlocking {
             SettingsManager(newBase).appLanguage.first()
         }
-        val locale = when (langCode) {
-            "zh" -> java.util.Locale("zh", "CN")
-            "en" -> java.util.Locale("en")
-            "es" -> java.util.Locale("es")
-            "fr" -> java.util.Locale("fr")
-            "de" -> java.util.Locale("de")
-            "ru" -> java.util.Locale("ru")
-            "pt-BR" -> java.util.Locale("pt", "BR")
-            "ja" -> java.util.Locale("ja")
-            "ko" -> java.util.Locale("ko")
-            "ar" -> java.util.Locale("ar")
-            "vi" -> java.util.Locale("vi")
-            "zh-Hant" -> java.util.Locale.forLanguageTag("zh-Hant")
-            else -> null
-        }
-        if (locale != null) {
-            java.util.Locale.setDefault(locale)
-            val config = android.content.res.Configuration(newBase.resources.configuration)
-            config.setLocale(locale)
-            super.attachBaseContext(newBase.createConfigurationContext(config))
-        } else {
-            super.attachBaseContext(newBase)
-        }
+        com.newoether.agora.util.appLocaleFor(langCode)?.let { java.util.Locale.setDefault(it) }
+        super.attachBaseContext(newBase.withAppLocale(langCode))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

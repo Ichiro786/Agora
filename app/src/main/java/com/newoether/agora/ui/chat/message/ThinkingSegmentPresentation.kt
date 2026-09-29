@@ -158,6 +158,32 @@ internal fun Resources.usesDefaultThinkingTitle(message: ChatMessage): Boolean =
     message.thoughtTitle.isNullOrBlank() ||
         message.thoughtTitle == getString(R.string.thinking_ellipsis)
 
+/**
+ * A collapsed group title. When [liveBaseMs] is set the title is a running timer: it counts up
+ * from [liveBaseMs] and is rendered with [thinkingDurationBreakdownTitle] (live = true).
+ */
+internal data class CompactSegmentTitleState(val title: String, val liveBaseMs: Long?)
+
+internal fun Resources.compactSegmentTitleState(
+    segs: List<MessageSegment>,
+    message: ChatMessage,
+    useLiveStatus: Boolean,
+): CompactSegmentTitleState {
+    val thoughtMs = thoughtDurationMs(segs, fallbackMs = message.thoughtTimeMs)
+    // Unknown native duration is not zero and does not authorize a local elapsed-time claim.
+    val liveBaseMs = thoughtMs?.takeIf {
+        isLiveThinkingGroup(segs, message, useLiveStatus) && usesDefaultThinkingTitle(message)
+    }
+    return if (liveBaseMs != null) {
+        CompactSegmentTitleState(
+            title = thinkingDurationBreakdownTitle((liveBaseMs / 1_000L).toInt(), live = true),
+            liveBaseMs = liveBaseMs,
+        )
+    } else {
+        CompactSegmentTitleState(compactSegmentTitle(segs, message, useLiveStatus), null)
+    }
+}
+
 @Composable
 internal fun compactSegmentDisplayTitle(
     segs: List<MessageSegment>,
@@ -165,18 +191,11 @@ internal fun compactSegmentDisplayTitle(
     useLiveStatus: Boolean,
 ): String {
     val resources = currentResources()
-    val isThinking = isLiveThinkingGroup(segs, message, useLiveStatus)
-    val thoughtMs = thoughtDurationMs(segs, fallbackMs = message.thoughtTimeMs)
-    // Unknown native duration is not zero and does not authorize a local elapsed-time claim.
-    if (thoughtMs == null) return resources.compactSegmentTitle(segs, message, useLiveStatus)
-    val liveThoughtMs by produceState(
-        initialValue = thoughtMs,
-        isThinking,
-        thoughtMs,
-    ) {
-        val baselineMs = thoughtMs
-        value = baselineMs
-        if (isThinking) {
+    val state = resources.compactSegmentTitleState(segs, message, useLiveStatus)
+    val baselineMs = state.liveBaseMs
+    val liveThoughtMs by produceState(initialValue = baselineMs ?: 0L, baselineMs) {
+        value = baselineMs ?: 0L
+        if (baselineMs != null) {
             val baselineRealtimeMs = SystemClock.elapsedRealtime()
             while (isActive) {
                 value = baselineMs + (SystemClock.elapsedRealtime() - baselineRealtimeMs)
@@ -184,12 +203,12 @@ internal fun compactSegmentDisplayTitle(
             }
         }
     }
-    return if (isThinking && resources.usesDefaultThinkingTitle(message)) {
+    return if (baselineMs != null) {
         resources.thinkingDurationBreakdownTitle(
             seconds = (liveThoughtMs / 1_000L).toInt(),
             live = true,
         )
     } else {
-        resources.compactSegmentTitle(segs, message, useLiveStatus)
+        state.title
     }
 }
