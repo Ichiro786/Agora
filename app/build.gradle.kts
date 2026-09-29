@@ -119,6 +119,10 @@ android {
         jniLibs {
             useLegacyPackaging = true
         }
+        resources {
+            // bcprov, bcutil and bcpkix each ship the same BouncyCastle (MIT) license text.
+            pickFirsts += "META-INF/LICENSE.md"
+        }
     }
 
     externalNativeBuild {
