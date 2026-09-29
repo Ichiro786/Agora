@@ -48,9 +48,6 @@ html, body { height: 100%; }
 
 body {
   margin: 0;
-  display: grid;
-  place-items: center;
-  padding: 16px;
   background: var(--md-background);
   color: var(--md-on-background);
   font-family: var(--app-font);
@@ -58,6 +55,13 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+#app { min-height: 100%; }
+.sign-in-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
 /* Dialog-like surface, as the app's AlertDialog: surfaceContainer, 28 dp corners, 24 dp inset. */
 .card {
   width: min(400px, 100%);
@@ -247,6 +251,11 @@ p {
 :focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
 .field input:focus-visible { outline: none; }
 
+.icon-button:disabled {
+  cursor: default;
+  background: transparent;
+  color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
+}
 /* Error banner, as an errorContainer card. */
 .banner {
   margin: 0 0 16px;
@@ -256,4 +265,155 @@ p {
   color: var(--md-on-error-container);
   font-size: 13px;
   line-height: 19px;
+}
+/*
+ * Chat layout. Wide screens (Material 3 expanded, 840 px and up) keep the conversation list as a
+ * standing sidebar; narrower screens turn it into a modal drawer behind the top bar's menu button.
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.shell {
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+}
+/* Sidebar on surfaceContainerLow, as the app's drawer sheet. */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  background: var(--md-surface-container-low, var(--md-surface-container));
+  color: var(--md-on-surface);
+}
+.sidebar-header { padding: 8px 12px 16px; }
+.sidebar-header .brand { margin: 0; }
+/* labelLarge 13/18 medium section label. */
+.sidebar-label {
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--md-on-surface-variant);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+.sidebar-list { flex: 1; min-height: 0; overflow-y: auto; }
+.sidebar-empty { margin: 4px 12px; }
+.sidebar-footer {
+  padding-top: 8px;
+  border-top: 1px solid var(--md-outline-variant);
+}
+/* Text button with an 18 dp leading icon. */
+.button.with-icon { gap: 8px; padding: 0 16px 0 12px; }
+.button.with-icon svg { width: 18px; height: 18px; fill: currentColor; flex: none; }
+.chat {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100dvh;
+}
+/* 64 dp top bar; the title uses brandTitle 20/26 bold, as the app's chat title. */
+.top-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 64px;
+  padding: 0 16px;
+}
+.top-bar .icon-button { margin: 0 0 0 -12px; }
+.top-title {
+  margin: 0;
+  overflow: hidden;
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.messages { flex: 1; min-height: 0; overflow-y: auto; display: flex; }
+.chat-empty {
+  margin: auto;
+  max-width: 360px;
+  padding: 24px;
+  text-align: center;
+}
+.chat-empty svg { width: 40px; height: 40px; fill: var(--md-on-surface-variant); }
+/* titleMedium-sized bold heading, bodyMedium hint. */
+.chat-empty h2 { margin: 12px 0 4px; font-size: 18px; line-height: 24px; font-weight: 700; }
+.chat-empty p { margin: 0; }
+/* Composer capsule: 56 dp minimum, 28 dp corners on surfaceContainerHigh, at most 800 px wide. */
+.composer {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  width: min(800px, calc(100% - 32px));
+  min-height: 56px;
+  margin: 0 auto calc(16px + env(safe-area-inset-bottom));
+  padding: 4px 4px 4px 20px;
+  border-radius: 28px;
+  background: var(--md-surface-container-high);
+}
+.composer textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 200px;
+  align-self: center;
+  padding: 12px 0;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  color: var(--md-on-surface);
+  font: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0.5px;
+  caret-color: var(--md-primary);
+}
+.composer textarea::placeholder { color: var(--md-on-surface-variant); opacity: 1; }
+.composer textarea:disabled { cursor: default; }
+.composer .icon-button { margin: 0; }
+.scrim { display: none; }
+@media (max-width: 839.98px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  /* Modal drawer: 16 dp end corners, hidden (and out of the tab order) while closed. */
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 2;
+    width: min(320px, calc(100vw - 56px));
+    border-radius: 0 16px 16px 0;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 250ms cubic-bezier(0.2, 0, 0, 1), visibility 0s linear 250ms;
+  }
+  .drawer-open .sidebar {
+    transform: none;
+    visibility: visible;
+    transition: transform 250ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: rgb(0 0 0 / 0.32);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 250ms;
+  }
+  .drawer-open .scrim { opacity: 1; pointer-events: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar, .drawer-open .sidebar, .scrim { transition: none; }
 }

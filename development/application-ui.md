@@ -796,6 +796,18 @@ the controller; `GET /theme.css` serves them as `--md-<role>` variables and `--a
 web styles use the app's type scale and Material 3 metrics: a `28 dp` dialog-like card on
 `surfaceContainer`, `16 dp` outlined fields with a floating label and an eye toggle, `40 dp` capsule
 buttons. A theme change reaches a browser on its next page load.
+After sign-in the browser shows the chat layout frame (`assets/webui/app.js`, `style.css`). From
+`840 px` wide (Material 3 expanded) a `300 px` conversation sidebar on `surfaceContainerLow` stands
+left of the chat; below that width the sidebar is a modal drawer (`min(320 px, 100vw - 56 px)`,
+`16 dp` end corners, `32%` black scrim, `250 ms` slide, none under Reduced Motion) opened from a
+menu button in the `64 dp` top bar. The open drawer is `role="dialog"` with `aria-modal`, the chat
+behind it is inert, Escape or the scrim closes it, and focus returns to the menu button; the closed
+drawer is hidden and inert. The sidebar holds the brand, a Conversations label, the list area and a
+Sign Out text button at the bottom. The top bar title is New Chat (brandTitle `20/26` bold). The chat
+area shows a centered empty state, and the composer is a `56 dp` capsule with `28 dp` corners on
+`surfaceContainerHigh`, at most `800 px` wide, with its field and Send button disabled. Until the
+WebSocket sync stage the list and chat only show text saying that conversations and messages arrive
+in a later update.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.
