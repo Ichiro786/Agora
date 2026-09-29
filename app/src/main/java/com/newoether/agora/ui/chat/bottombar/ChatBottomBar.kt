@@ -42,6 +42,11 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.newoether.agora.data.CustomProviderConfig
+import com.newoether.agora.data.thinkingCapabilityForSelectedModel
+import com.newoether.agora.model.ModelId
+import com.newoether.agora.model.OpenAiServiceTiers
+import com.newoether.agora.model.ThinkingResolution
+import com.newoether.agora.util.Constants
 import com.newoether.agora.data.providerDisplayName
 import com.newoether.agora.data.modelDisplayName
 import com.newoether.agora.ui.components.AgoraDropdownMenuItem
@@ -160,6 +165,31 @@ internal fun ChatBottomBar(
     val scrollState = rememberScrollState()
     BackHandler(enabled = isExpanded) { onCollapse() }
     val isModelValid = selectedModel.isNotBlank() && enabledModels.contains(selectedModel)
+    val modelId = ModelId.parse(selectedModel)
+    val thinkingCapability = remember(selectedModel, customProviders) {
+        thinkingCapabilityForSelectedModel(selectedModel, customProviders)
+    }
+    val displayedThinking = ThinkingResolution.resolve(
+        thinkingCapability,
+        thinkingEnabled,
+        thinkingLevel,
+        thinkingBudgetEnabled,
+        thinkingBudgetTokens,
+    )
+    val displayedThinkingLevel = displayedThinking.effort
+        ?: thinkingCapability.nearestEffort(thinkingLevel) ?: thinkingLevel
+    val displayedThinkingEnabled = displayedThinking.enabled
+    val displayedThinkingBudgetEnabled = displayedThinking.budgetTokens != null
+    val displayedThinkingBudgetTokens = displayedThinking.budgetTokens ?: thinkingBudgetTokens
+    val availableServiceTiers = OpenAiServiceTiers.availableTiers(
+        modelId.modelName,
+        officialProvider = modelId.providerName == Constants.PROVIDER_OPENAI,
+    )
+    val displayedServiceTier = OpenAiServiceTiers.mappedTier(
+        openAiServiceTier,
+        modelId.modelName,
+        officialProvider = modelId.providerName == Constants.PROVIDER_OPENAI,
+    )
     val submissionState = remember(submissionController, composerOwnerId) {
         submissionController.observeState(composerOwnerId)
     }
@@ -560,11 +590,12 @@ internal fun ChatBottomBar(
                             showLowContextMode = showLowContextMode,
                             lowContextModeEnabled = lowContextModeEnabled,
                             onLowContextModeToggle = onLowContextModeToggle,
-                            thinkingEnabled = thinkingEnabled,
-                            thinkingLevel = thinkingLevel,
-                            thinkingBudgetEnabled = thinkingBudgetEnabled,
-                            thinkingBudgetTokens = thinkingBudgetTokens,
+                            thinkingEnabled = displayedThinkingEnabled,
+                            thinkingLevel = displayedThinkingLevel,
+                            thinkingBudgetEnabled = displayedThinkingBudgetEnabled,
+                            thinkingBudgetTokens = displayedThinkingBudgetTokens,
                             onThinkingToggle = onThinkingToggle,
+                            thinkingCanDisable = thinkingCapability.canDisableThinking,
                             selectedProvider = selectedProvider,
                             isModelValid = isModelValid,
                             codeExecutionEnabled = codeExecutionEnabled,
@@ -574,7 +605,7 @@ internal fun ChatBottomBar(
                             capabilityControlsEnabled = capabilityControlsEnabled,
                             openAiServiceTierAvailable = openAiServiceTierAvailable,
                             openAiServiceTierEnabled = openAiServiceTierEnabled,
-                            openAiServiceTier = openAiServiceTier,
+                            openAiServiceTier = displayedServiceTier,
                             onOpenAiServiceTierToggle = onOpenAiServiceTierToggle,
                             openAiWebSearchAvailable = openAiWebSearchAvailable,
                             openAiWebSearchEnabled = openAiWebSearchEnabled,
@@ -613,21 +644,21 @@ internal fun ChatBottomBar(
     ChatBottomBarOverlayHost(
         showThinkingSheet = showThinkingSheet,
         onDismissThinkingSheet = { showThinkingSheet = false },
-        thinkingEnabled = thinkingEnabled,
-        thinkingLevel = thinkingLevel,
-        thinkingBudgetEnabled = thinkingBudgetEnabled,
-        thinkingBudgetTokens = thinkingBudgetTokens,
+        thinkingEnabled = displayedThinkingEnabled,
+        thinkingLevel = displayedThinkingLevel,
+        thinkingCapability = thinkingCapability,
+        thinkingBudgetEnabled = displayedThinkingBudgetEnabled,
+        thinkingBudgetTokens = displayedThinkingBudgetTokens,
         onThinkingToggle = onThinkingToggle,
         onThinkingLevelChange = onThinkingLevelChange,
         onThinkingBudgetEnabledChange = onThinkingBudgetEnabledChange,
         onThinkingBudgetTokensChange = onThinkingBudgetTokensChange,
-        selectedModel = selectedModel,
-        customProviders = customProviders,
         showOpenAiServiceTierSheet = showOpenAiServiceTierSheet,
         openAiServiceTierAvailable = openAiServiceTierAvailable,
         onDismissOpenAiServiceTierSheet = { showOpenAiServiceTierSheet = false },
         openAiServiceTierEnabled = openAiServiceTierEnabled,
-        openAiServiceTier = openAiServiceTier,
+        openAiServiceTier = displayedServiceTier,
+        availableServiceTiers = availableServiceTiers,
         onOpenAiServiceTierToggle = onOpenAiServiceTierToggle,
         onOpenAiServiceTierChange = onOpenAiServiceTierChange,
         internalCameraPath = internalCameraPath,

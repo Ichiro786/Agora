@@ -33,6 +33,25 @@ class ChatBottomBarControlOrderTest {
     }
 
     @Test
+    fun `local model mapping displays resolved options without saving unchanged slider selections`() {
+        val bar = mainSource("com/newoether/agora/ui/chat/bottombar/ChatBottomBar.kt")
+        val overlay = mainSource("com/newoether/agora/ui/chat/bottombar/ChatBottomBarOverlayHost.kt")
+        val thinking = mainSource("com/newoether/agora/ui/common/ThinkingControlPanel.kt")
+        val tier = mainSource("com/newoether/agora/ui/common/OpenAiServiceTierControlPanel.kt")
+
+        assertTrue(bar.contains("thinkingCapabilityForSelectedModel(selectedModel, customProviders)"))
+        assertTrue(bar.contains("val displayedThinking = ThinkingResolution.resolve("))
+        assertTrue(bar.contains("thinkingBudgetEnabled = displayedThinkingBudgetEnabled"))
+        assertTrue(bar.contains("thinkingBudgetTokens = displayedThinkingBudgetTokens"))
+        assertTrue(bar.contains("openAiServiceTier = displayedServiceTier"))
+        assertTrue(overlay.contains("availableEfforts = thinkingCapability.supportedEfforts"))
+        assertTrue(overlay.contains("availableTiers = availableServiceTiers"))
+        assertTrue(overlay.contains("OpenAiServiceTiers.ULTRAFAST in availableServiceTiers"))
+        assertTrue(thinking.contains("if (effort != normalizedEffort) onLevelChange(effort)"))
+        assertTrue(tier.contains("if (selectedTier != normalizedTier) onTierChange(selectedTier)"))
+    }
+
+    @Test
     fun `OpenAI Search appears directly below Service Tier`() {
         val source = File(
             locateMainSourceRoot(),

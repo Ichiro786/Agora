@@ -504,11 +504,12 @@ class GenerationRequestBuilder(
             builtInOpenAiEnabled = settings.openAiResponsesApiEnabled.value,
             customProviders = settings.customProviders.value,
         )
+        val apiModelId = ModelId.parse(providerRegistry.canonicalModelId(modelId)).modelName
         val config = GenerationConfig(
             anthropicCacheEnabled = isAnthropicCacheEnabledForProvider(providerName, cacheEnabled, cacheProviders),
             anthropicCacheTtl = anthropicCacheTtlForProvider(providerName, cacheTtl, cacheProviders),
             providerName = providerName,
-            modelId = ModelId.parse(providerRegistry.canonicalModelId(modelId)).modelName,
+            modelId = apiModelId,
             apiKey = activeKey,
             effectiveSystemPrompt = resolvedSystemPrompt,
             maxContextWindow = ContextBudget.normalize(
@@ -526,6 +527,8 @@ class GenerationRequestBuilder(
                 enabled = effectiveSettings.openAiServiceTierEnabled == true,
                 value = effectiveSettings.openAiServiceTier,
                 responsesApiEnabled = responsesApiEnabled,
+                modelId = apiModelId,
+                officialProvider = providerName == Constants.PROVIDER_OPENAI,
             ),
             responsesApiEnabled = responsesApiEnabled,
             openAiWebSearchEnabled =

@@ -39,6 +39,7 @@ internal fun ComposerToolsMenuContent(
     thinkingBudgetEnabled: Boolean,
     thinkingBudgetTokens: Int,
     onThinkingToggle: (Boolean) -> Unit,
+    thinkingCanDisable: Boolean,
     selectedProvider: String,
     isModelValid: Boolean,
     codeExecutionEnabled: Boolean,
@@ -114,6 +115,7 @@ internal fun ComposerToolsMenuContent(
             Switch(
                 checked = thinkingEnabled,
                 onCheckedChange = { onThinkingToggle(it) },
+                enabled = thinkingCanDisable || !thinkingEnabled,
                 modifier = Modifier.scale(0.7f)
             )
         },

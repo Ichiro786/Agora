@@ -5,16 +5,15 @@ import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.newoether.agora.R
-import com.newoether.agora.data.CustomProviderConfig
-import com.newoether.agora.data.thinkingCapabilityForSelectedModel
 import com.newoether.agora.model.AttachmentStorage
+import com.newoether.agora.model.ModelThinkingCapability
+import com.newoether.agora.model.OpenAiServiceTiers
 import com.newoether.agora.model.SelectedAttachment
 import com.newoether.agora.ui.chat.PdfPageSelectDialog
 import com.newoether.agora.ui.chat.VideoSliceDialog
@@ -39,19 +38,19 @@ internal fun ChatBottomBarOverlayHost(
     onDismissThinkingSheet: () -> Unit,
     thinkingEnabled: Boolean,
     thinkingLevel: String,
+    thinkingCapability: ModelThinkingCapability,
     thinkingBudgetEnabled: Boolean,
     thinkingBudgetTokens: Int,
     onThinkingToggle: (Boolean) -> Unit,
     onThinkingLevelChange: (String) -> Unit,
     onThinkingBudgetEnabledChange: (Boolean) -> Unit,
     onThinkingBudgetTokensChange: (Int) -> Unit,
-    selectedModel: String,
-    customProviders: List<CustomProviderConfig>,
     showOpenAiServiceTierSheet: Boolean,
     openAiServiceTierAvailable: Boolean,
     onDismissOpenAiServiceTierSheet: () -> Unit,
     openAiServiceTierEnabled: Boolean,
     openAiServiceTier: String,
+    availableServiceTiers: List<String>,
     onOpenAiServiceTierToggle: (Boolean) -> Unit,
     onOpenAiServiceTierChange: (String) -> Unit,
     internalCameraPath: String?,
@@ -112,9 +111,6 @@ internal fun ChatBottomBarOverlayHost(
         }
     }
 
-    val thinkingCapability = remember(selectedModel, customProviders) {
-        thinkingCapabilityForSelectedModel(selectedModel, customProviders)
-    }
     if (showThinkingSheet) {
         ModalBottomSheet(
             onDismissRequest = onDismissThinkingSheet,
@@ -165,7 +161,23 @@ internal fun ChatBottomBarOverlayHost(
                     tier = openAiServiceTier,
                     onEnabledChange = onOpenAiServiceTierToggle,
                     onTierChange = onOpenAiServiceTierChange,
+                    availableTiers = availableServiceTiers,
+                    tierLabels = mapOf(
+                        OpenAiServiceTiers.AUTO to stringResource(R.string.openai_service_tier_auto),
+                        OpenAiServiceTiers.DEFAULT to stringResource(R.string.openai_service_tier_default),
+                        OpenAiServiceTiers.FLEX to stringResource(R.string.openai_service_tier_flex),
+                        OpenAiServiceTiers.FAST to stringResource(R.string.openai_service_tier_fast),
+                        OpenAiServiceTiers.ULTRAFAST to stringResource(R.string.openai_service_tier_ultrafast),
+                    ),
                 )
+                if (OpenAiServiceTiers.ULTRAFAST in availableServiceTiers) {
+                    Text(
+                        text = stringResource(R.string.openai_service_tier_ultrafast_access_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }

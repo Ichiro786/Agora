@@ -175,7 +175,7 @@ fun ThinkingControlPanel(
                                 effortGate.expectPersisted(effort, idx.toFloat())
                             }
                             if (availableEfforts == null) onEnabledChange(true)
-                            onLevelChange(effort)
+                            if (effort != normalizedEffort) onLevelChange(effort)
                         }
                     },
                     valueRange = 0f..maxIndex.coerceAtLeast(1).toFloat(),

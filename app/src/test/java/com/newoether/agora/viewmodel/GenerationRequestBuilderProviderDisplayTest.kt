@@ -132,6 +132,34 @@ class GenerationRequestBuilderProviderDisplayTest {
     }
 
     @Test
+    fun serviceTierSnapshotUsesEachActualModelAndKeepsSavedSelection() = runTest {
+        val fixture = RequestBuilderFixture(Constants.PROVIDER_OPENAI, false)
+        val saved = MutableStateFlow("ultrafast")
+        every { fixture.settings.openAiServiceTierEnabled } returns MutableStateFlow(true)
+        every { fixture.settings.openAiServiceTier } returns saved
+        every { fixture.settings.openAiResponsesApiEnabled } returns MutableStateFlow(true)
+        every { fixture.settings.contextCompactModel } returns
+            MutableStateFlow("${Constants.PROVIDER_OPENAI}:gpt-5.6-sol")
+
+        val snapshot = fixture.builder.captureAdmissionSnapshot(
+            "conversation", "run", "${Constants.PROVIDER_OPENAI}:gpt-4o",
+        )
+        assertEquals("gpt-4o", snapshot.config.modelId)
+        assertEquals("gpt-5.6-sol", snapshot.automaticCompact.generationConfig.modelId)
+        assertEquals("ultrafast", saved.value)
+        saved.value = "default"
+        assertEquals("fast", snapshot.config.openAiServiceTier)
+        assertEquals("ultrafast", snapshot.automaticCompact.generationConfig.openAiServiceTier)
+        assertEquals("default", saved.value)
+
+        val disabled = fixture.builder.captureContextProjectionSnapshot(
+            "conversation", "${Constants.PROVIDER_OPENAI}:gpt-4o",
+            conversationSettingsOverride = ConversationSettings(openAiServiceTierEnabled = false),
+        )
+        assertNull(disabled.config.openAiServiceTier)
+    }
+
+    @Test
     fun selectedCompactAndTranscriptionProvidersHaveIndependentFrozenCacheFields() = runTest {
         val fixture = RequestBuilderFixture(Constants.PROVIDER_OPENAI, false)
         val custom = CustomProviderConfig(

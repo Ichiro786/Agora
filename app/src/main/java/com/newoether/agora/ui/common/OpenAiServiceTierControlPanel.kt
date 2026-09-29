@@ -147,7 +147,7 @@ fun OpenAiServiceTierControlPanel(
                                 tierGate.expectPersisted(selectedTier, index.toFloat())
                             }
                             if (availableTiers == null) onEnabledChange(true)
-                            onTierChange(selectedTier)
+                            if (selectedTier != normalizedTier) onTierChange(selectedTier)
                         }
                     },
                     valueRange = 0f..tiers.lastIndex.coerceAtLeast(1).toFloat(),
