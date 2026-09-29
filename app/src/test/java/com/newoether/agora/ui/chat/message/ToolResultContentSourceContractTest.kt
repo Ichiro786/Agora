@@ -205,7 +205,7 @@ class ToolResultContentSourceContractTest {
     fun `Completed wait for job keeps its own action summary`() {
         val source = source(locateMainSourceRoot(), "MessageItemToolLabels.kt")
         val completedSummary = source
-            .substringAfter("private fun completedSummary(")
+            .substringAfter("private fun Resources.completedSummary(")
 
         assertTrue(completedSummary.contains("ToolKind.SHELL_JOB_WAIT -> optionalSubjectSummary("))
         assertTrue(completedSummary.contains("R.string.tool_waited_shell_job,"))
@@ -217,8 +217,8 @@ class ToolResultContentSourceContractTest {
     fun `Background summary does not expose the job id`() {
         val source = source(locateMainSourceRoot(), "MessageItemToolLabels.kt")
         val shellSummary = source
-            .substringAfter("internal fun shellToolSummary(")
-            .substringBefore("private fun shellFailureSummary")
+            .substringAfter("internal fun Resources.shellToolSummary(")
+            .substringBefore("private fun Resources.shellFailureSummary")
         assertTrue(shellSummary.contains("R.string.tool_background_job_running_default"))
         assertFalse(shellSummary.contains("status.jobId"))
         assertFalse(shellSummary.contains("tool_background_job_running,"))
@@ -258,8 +258,8 @@ class ToolResultContentSourceContractTest {
     @Test
     fun `Completed summaries never fabricate unknown counts`() {
         val source = source(locateMainSourceRoot(), "MessageItemToolLabels.kt")
-            .substringAfter("private fun completedSummary(")
-            .substringBefore("private fun failedSummary(")
+            .substringAfter("private fun Resources.completedSummary(")
+            .substringBefore("private fun Resources.failedSummary(")
         assertFalse(source.contains("?: 0"))
         listOf(
             "tool_listed_memories_default",
