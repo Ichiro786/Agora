@@ -796,18 +796,27 @@ the controller; `GET /theme.css` serves them as `--md-<role>` variables and `--a
 web styles use the app's type scale and Material 3 metrics: a `28 dp` dialog-like card on
 `surfaceContainer`, `16 dp` outlined fields with a floating label and an eye toggle, `40 dp` capsule
 buttons. A theme change reaches a browser on its next page load.
-After sign-in the browser shows the chat layout frame (`assets/webui/app.js`, `style.css`). From
-`840 px` wide (Material 3 expanded) a `300 px` conversation sidebar on `surfaceContainerLow` stands
-left of the chat; below that width the sidebar is a modal drawer (`min(320 px, 100vw - 56 px)`,
-`16 dp` end corners, `32%` black scrim, `250 ms` slide, none under Reduced Motion) opened from a
-menu button in the `64 dp` top bar. The open drawer is `role="dialog"` with `aria-modal`, the chat
-behind it is inert, Escape or the scrim closes it, and focus returns to the menu button; the closed
-drawer is hidden and inert. The sidebar holds the brand, a Conversations label, the list area and a
-Sign Out text button at the bottom. The top bar title is New Chat (brandTitle `20/26` bold). The chat
-area shows a centered empty state, and the composer is a `56 dp` capsule with `28 dp` corners on
-`surfaceContainerHigh`, at most `800 px` wide, with its field and Send button disabled. Until the
-WebSocket sync stage the list and chat only show text saying that conversations and messages arrive
-in a later update.
+After sign-in the browser mirrors the app's chat screen (`assets/webui/app.js`, `style.css`) and
+invents no layout of its own; controls the browser cannot use yet are shown as in the app but
+disabled. Tonal surfaces use Compose's `surfaceColorAtElevation` mix (primary over surface at
+`(4.5 ln(e + 1) + 2) %`). The top bar is the `ChatTopBar` new-chat state: a `52 dp` row inset
+`12 dp` at the sides and `8 dp` above and below over the fading background, a title capsule
+(`4 dp` tonal, `4 dp` shadow, at most `260 dp`) with the `44 dp` Menu button (`26 dp` icon) and the
+brandTitle wordmark, and a `98 dp` actions capsule with New Chat (`30 dp` icon) and More (`26 dp`).
+More opens an `AgoraDropdownMenu`-shaped menu (Search and System Prompt disabled, plus a web-only
+Sign Out). The drawer is `ChatDrawerContent`: `min(width, 360 dp)`, `1 dp` tonal, `24 dp` end
+corners, `16 x 20 dp` padding, the Conversations title (`25/32` bold), the `44 dp` search capsule,
+the Tasks / Remote tonal group (`46 dp`, `5 dp` inner corners), the `42 dp` New Chat and Settings
+buttons, and the list between them. As in `ChatDrawerHost`, the drawer overlays the chat with a
+`32%` scrim up to `960 dp` wide (`DRAWER_MAX_WIDTH + CHAT_APP_WIDTH_THRESHOLD`) and sits beside the
+narrowed chat above that; it starts closed and opens from the Menu button. The open modal drawer is
+`role="dialog"` with `aria-modal`, the chat behind it is inert, Escape or the scrim closes it, and
+focus returns to the Menu button. The composer is the `ChatBottomBar` card: at most `840 dp`, `2 dp`
+tonal, `8 dp` shadow, `28 dp` corners, the Ask Agora field (input `16/23`, 6 lines), the `40 dp`
+expand button, and the controls row with the `48 dp` control group (attachment, model selector,
+tools) and the `48 dp` send button. English and Chinese labels are the app's own strings. The
+sign-in page centers its card with flex and caps it at `400 px`: a grid's auto track sized to the
+card's max-content and pushed it past a narrow screen once the app font loaded.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.
