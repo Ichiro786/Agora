@@ -760,6 +760,19 @@ offset in the stored text; the localized unanswered label is never highlighted. 
 displayed text. Typed messages, blocking answers, Compact summaries and messages from before this
 feature have no label. Editing and resending a labeled message produces an ordinary unlabeled message.
 `ui/chat/message/MessageSourcePresentation.kt` owns the label and the ask_user text.
+## 36. WebUI settings
+Settings > Network has a WebUI page (`ui/settings/SettingsWebUiPage.kt`). It holds an enable switch,
+the port (default `8686`, accepted range `1024`-`65535`), a Set/Change Password action, the access
+addresses while the server runs, and a warning that the connection is plain HTTP. The switch stays
+disabled until a password is set. A password has at least `8` characters; its field uses the section
+33 secret-field owner. Changing the password signs out every browser. A port edit is saved only after
+typing pauses for `800 ms` (`PORT_COMMIT_DELAY_MILLIS`); an out-of-range value is not saved.
+While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
+notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
+app starts it again from `MainActivity.onResume`; it is never started from the background.
+`webui/WebUiController.kt` owns server state; the page only reads it and calls the controller.
+The `webui_*` keys, including the password hash, are device-local and never enter the portable
+settings archive.
 ## 15. Verification
 
 Focused verification must cover the onboarding action's fixed 32 dp inset and 48 dp height, absence

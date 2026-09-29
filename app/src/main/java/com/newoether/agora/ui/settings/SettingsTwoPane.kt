@@ -369,6 +369,7 @@ internal fun SettingsDestination(
         "mcp" -> SettingsMcpPage(viewModel, onBack)
         "automation" -> SettingsAutomationPage(viewModel, onBack)
         "proxy" -> SettingsProxyPage(viewModel, onBack)
+        "webui" -> SettingsWebUiPage(onBack)
         "language" -> SettingsLanguagePage(viewModel, onBack)
         "titlegen" -> SettingsTitleGenPage(viewModel, onBack)
         "transcription" -> SettingsTranscriptionPage(viewModel, onBack)

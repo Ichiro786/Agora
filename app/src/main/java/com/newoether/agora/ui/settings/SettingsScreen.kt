@@ -273,6 +273,7 @@ internal val baseSettingsGroups = listOf(
     )),
     SettingsGroupData(titleRes = R.string.settings_group_network, items = listOf(
         SettingsCategory("proxy", R.string.settings_proxy, R.string.settings_proxy_desc, Icons.Default.Lan),
+        SettingsCategory("webui", R.string.settings_webui, R.string.settings_webui_desc, Icons.Default.Web),
     )),
     SettingsGroupData(titleRes = R.string.settings_group_memory_data, items = listOf(
         SettingsCategory("memory", R.string.settings_memory, R.string.settings_memory_desc, Icons.Default.Description),
