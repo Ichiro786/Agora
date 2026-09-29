@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "./vendor/preact-hooks.mjs";
 import { html } from "./html.js";
 import { t } from "./i18n.js";
 import {
-  icon, ICON_ADD, ICON_ARROW_UPWARD, ICON_CALL_SPLIT, ICON_DEVICES, ICON_EXPAND_ALL, ICON_LOGOUT,
-  ICON_MENU, ICON_MORE_VERT, ICON_PSYCHOLOGY, ICON_REPEAT, ICON_SEARCH, ICON_SETTINGS, ICON_SHARE,
+  icon, ICON_ADD, ICON_ARROW_UPWARD, ICON_CALL_SPLIT, ICON_EXPAND_ALL, ICON_LOGOUT,
+  ICON_MENU, ICON_MORE_VERT, ICON_PSYCHOLOGY, ICON_REPEAT, ICON_SEARCH, ICON_SHARE,
 } from "./icons.js";
 import { postJson } from "./api.js";
 import { sync, useSync } from "./sync.js";
@@ -53,7 +53,7 @@ function ConversationRow({ conversation, selected, onSelect }) {
     </button>`;
 }
 
-/** ChatDrawerContent: title, search, Tasks / Remote, New Chat, the list, Settings. */
+/** ChatDrawerContent: title, search, Tasks, New Chat, then the conversation list. */
 function DrawerContent({ conversations, openId, onSelect }) {
   return html`
     <h2 class="drawer-title">${t.conversations}</h2>
@@ -61,15 +61,13 @@ function DrawerContent({ conversations, openId, onSelect }) {
       ${icon(ICON_SEARCH)}
       <input type="search" placeholder=${t.searchHint} aria-label=${t.searchHint} disabled />
     </div>
-    <${DrawerButton} className="tonal group-top" iconPath=${ICON_REPEAT} label=${t.tasks} />
-    <${DrawerButton} className="tonal group-bottom" iconPath=${ICON_DEVICES} label=${t.remote} />
+    <${DrawerButton} className="tonal tasks" iconPath=${ICON_REPEAT} label=${t.tasks} />
     <${DrawerButton} className="filled new-chat" iconPath=${ICON_ADD} label=${t.newChat} />
     <div class="drawer-list" role="list" aria-label=${t.conversations}>
       ${conversations.map((conversation) => html`
         <${ConversationRow} key=${conversation.id} conversation=${conversation}
           selected=${conversation.id === openId} onSelect=${onSelect} />`)}
-    </div>
-    <${DrawerButton} className="tonal settings" iconPath=${ICON_SETTINGS} label=${t.settings} />`;
+    </div>`;
 }
 
 /** AgoraDropdownMenu: 24 dp corners, 48 dp items with an inset capsule highlight. */

@@ -426,10 +426,9 @@ p {
   cursor: pointer;
 }
 .drawer-button svg { width: 20px; height: 20px; fill: currentColor; }
-/* FilledTonalButton; Tasks and Remote form one group with 5 dp inner corners. */
+/* Standalone disabled Tasks button; no paired Remote destination in the WebUI. */
 .drawer-button.tonal { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
-.drawer-button.group-top { height: 46px; margin-bottom: 2px; border-radius: 24px 24px 5px 5px; }
-.drawer-button.group-bottom { height: 46px; margin-bottom: 10px; border-radius: 5px 5px 24px 24px; }
+.drawer-button.tasks { height: 46px; margin-bottom: 10px; border-radius: 23px; }
 .drawer-button.new-chat {
   height: 42px;
   margin-bottom: 16px;
@@ -437,7 +436,6 @@ p {
   background: var(--md-primary);
   color: var(--md-on-primary);
 }
-.drawer-button.settings { height: 42px; margin-top: 12px; border-radius: 21px; }
 .drawer-button:disabled,
 .drawer-button.tonal:disabled {
   cursor: default;

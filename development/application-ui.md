@@ -796,9 +796,10 @@ the controller; `GET /theme.css` serves them as `--md-<role>` variables and `--a
 web styles use the app's type scale and Material 3 metrics: a `28 dp` dialog-like card on
 `surfaceContainer`, `16 dp` outlined fields with a floating label and an eye toggle, `40 dp` capsule
 buttons. A theme change reaches a browser on its next page load.
-After sign-in the browser mirrors the app's chat screen (`assets/webui/app.js`, `style.css`) and
-invents no layout of its own; controls the browser cannot use yet are shown as in the app but
-disabled. Tonal surfaces use Compose's `surfaceColorAtElevation` mix (primary over surface at
+After sign-in the browser mirrors the app's chat screen (`assets/webui/shell.js`, `style.css`) and
+invents no layout of its own; Settings and Remote pages and drawer entries are absent. Tasks remains
+visible but disabled until its browser behavior is approved; other controls the browser cannot use
+yet are shown as in the app but disabled. Tonal surfaces use Compose's `surfaceColorAtElevation` mix (primary over surface at
 `(4.5 ln(e + 1) + 2) %`). The top bar is the `ChatTopBar` new-chat state: a `52 dp` row inset
 `12 dp` at the sides and `8 dp` above and below over the fading background, a title capsule
 (`4 dp` tonal, `4 dp` shadow, at most `260 dp`) with the `44 dp` Menu button (`26 dp` icon) and the
@@ -806,8 +807,8 @@ brandTitle wordmark, and a `98 dp` actions capsule with New Chat (`30 dp` icon) 
 More opens an `AgoraDropdownMenu`-shaped menu (Search and System Prompt disabled, plus a web-only
 Sign Out). The drawer is `ChatDrawerContent`: `min(width, 360 dp)`, `1 dp` tonal, `24 dp` end
 corners, `16 x 20 dp` padding, the Conversations title (`25/32` bold), the `44 dp` search capsule,
-the Tasks / Remote tonal group (`46 dp`, `5 dp` inner corners), the `42 dp` New Chat and Settings
-buttons, and the list between them. As in `ChatDrawerHost`, the drawer overlays the chat with a
+the Tasks standalone disabled tonal button (`46 dp`, fully rounded), the `42 dp` New Chat button,
+and the list below. As in `ChatDrawerHost`, the drawer overlays the chat with a
 `32%` scrim up to `960 dp` wide (`DRAWER_MAX_WIDTH + CHAT_APP_WIDTH_THRESHOLD`) and sits beside the
 narrowed chat above that; it starts closed and opens from the Menu button. The open modal drawer is
 `role="dialog"` with `aria-modal`, the chat behind it is inert, Escape or the scrim closes it, and
