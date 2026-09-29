@@ -424,7 +424,7 @@ fun renderLatexToBitmap(
         // (where fraction bars and the minus sign sit) is the bitmap's vertical center.
         val padding = if (ih > 0) mathAxisCenteringPadding(drawable, textSize, h) else AxisPadding(0, 0)
         val bmp = Bitmap.createBitmap(w, h + padding.top + padding.bottom, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bmp)
+        val canvas = FilledTextCanvas(bmp)
         canvas.translate(0f, padding.top.toFloat())
         drawable.setBounds(0, 0, w, h)
         drawable.draw(canvas)
