@@ -370,7 +370,10 @@ internal fun RemoteConversation(
                             onClick = {
                                 val now = System.currentTimeMillis()
                                 if (activeMenu == "model") activeMenu = null
-                                else if (now - lastModelDismissTime > 200) activeMenu = "model"
+                                else if (now - lastModelDismissTime > 200) {
+                                    activeMenu = "model"
+                                    vm.refreshModels()
+                                }
                             },
                             onDismissRequest = {
                                 if (activeMenu == "model") {

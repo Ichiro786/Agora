@@ -66,7 +66,7 @@ internal fun AttachmentAddMenu(
             Icon(
                 Icons.Default.Add,
                 stringResource(R.string.add_attachment),
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

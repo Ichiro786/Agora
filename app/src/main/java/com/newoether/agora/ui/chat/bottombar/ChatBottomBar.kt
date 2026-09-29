@@ -49,17 +49,17 @@ import com.newoether.agora.ui.components.AgoraExposedDropdownMenu
 internal val CHAT_BOTTOM_BAR_OUTER_RADIUS = 28.dp
 internal val CHAT_BOTTOM_BAR_OUTER_SHAPE = RoundedCornerShape(CHAT_BOTTOM_BAR_OUTER_RADIUS)
 // Non-expanded bar geometry, measured from the bar's outer edge.
-// The controls capsule and the send button share one height and sit 8 dp from the start/end and
+// The controls capsule and the send button share one height and sit 10 dp from the start/end and
 // bottom edges. They are not concentric with the outer corners: the owner chose larger controls.
-internal val COMPOSER_CONTROL_HEIGHT = 44.dp
-internal val COMPOSER_CONTROLS_INSET = 8.dp
-// The expand icon sits 16 dp from the top and end edges. The expand button's circle is a fade to
+internal val COMPOSER_CONTROL_HEIGHT = 48.dp
+internal val COMPOSER_CONTROLS_INSET = 10.dp
+// The expand icon sits 18 dp from the top and end edges. The expand button's circle is a fade to
 // transparent, so only its 20 dp icon is placed, not the circle.
-internal val COMPOSER_CORNER_CONTENT_INSET = 16.dp
-// The input text starts 18 dp from the start edge and 14 dp from the top, and ends 22 dp above the
+internal val COMPOSER_CORNER_CONTENT_INSET = 18.dp
+// The input text starts 18 dp from the start edge and 16 dp from the top, and ends 22 dp above the
 // controls.
 internal val COMPOSER_TEXT_START_INSET = 18.dp
-internal val COMPOSER_TEXT_TOP_INSET = 14.dp
+internal val COMPOSER_TEXT_TOP_INSET = 16.dp
 internal val COMPOSER_TEXT_CONTROLS_GAP = 22.dp
 internal val COMPOSER_EXPAND_BUTTON_SIZE = 40.dp
 internal val COMPOSER_EXPAND_ICON_SIZE = 20.dp
@@ -539,7 +539,7 @@ internal fun ChatBottomBar(
                         }, 
                         modifier = Modifier.size(32.dp).menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true)
                     ) {
-                        Icon(Icons.Default.MoreVert, stringResource(R.string.tools), modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.MoreVert, stringResource(R.string.tools), modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     
                     AgoraExposedDropdownMenu(

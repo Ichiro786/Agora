@@ -99,7 +99,12 @@ internal fun ChatComposerLayout(
                     .onFocusChanged { focusState ->
                         onInputFocusChanged(focusState.isFocused)
                     }
-                    .verticalScrollbar(scrollState, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                    // The thumb starts level with the expand icon's top, below the 28 dp corner.
+                    .verticalScrollbar(
+                        scrollState,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        topInset = COMPOSER_CORNER_CONTENT_INSET - COMPOSER_HOST_TOP_PADDING,
+                    ),
                 placeholder = {
                     Text(
                         stringResource(R.string.ask_agora),

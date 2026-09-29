@@ -35,9 +35,9 @@ internal class ChatOverlaySourceContractTest : UiSourceContractFixture() {
         assertTrue(components.contains("tint = LocalContentColor.current"))
         assertFalse(components.contains("tint = Color.White"))
         assertTrue(attachment.contains("Icons.Default.Add"))
-        assertTrue(attachment.contains("modifier = Modifier.size(16.dp)"))
+        assertTrue(attachment.contains("modifier = Modifier.size(18.dp)"))
         assertTrue(bottomBar.contains("Icons.Default.MoreVert"))
-        assertTrue(bottomBar.contains("modifier = Modifier.size(16.dp)"))
+        assertTrue(bottomBar.contains("modifier = Modifier.size(18.dp)"))
         assertTrue(userMessage.contains("leadingIcon = { Icon(Icons.Default.ContentCopy, null) }"))
     }
 

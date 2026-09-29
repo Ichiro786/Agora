@@ -210,6 +210,33 @@ internal class RemoteViewModel(
         mutableState.value = state.value.copy(loading = false, loadingMore = false, runtime = null, hydrationEnabled = false)
     }
 
+    /**
+     * Re-reads the device's model catalog, e.g. when the model menu opens, so a model published
+     * while the page stayed open appears without reconnecting. The current list stays shown meanwhile.
+     */
+    fun refreshModels() {
+        val id = state.value.deviceId ?: return
+        val client = clients[id] ?: return
+        if (!visible || state.value.devices.firstOrNull { it.id == id }?.status != RemoteDeviceStatus.CONNECTED) return
+        loadModels(id, client)
+    }
+    private fun loadModels(id: String, client: FiloClient) {
+        if (modelLoading?.isActive == true) return
+        val modelGeneration = ++modelEpoch
+        mutableState.value = state.value.copy(modelsLoading = true)
+        modelLoading = viewModelScope.launch {
+            try {
+                val models = client.models()
+                if (modelGeneration == modelEpoch && clients[id] === client && state.value.deviceId == id) {
+                    mutableState.value = state.value.copy(models = models)
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { trace("models_failed", error) }
+            finally {
+                if (modelGeneration == modelEpoch) mutableState.value = state.value.copy(modelsLoading = false)
+            }
+        }
+    }
     fun refresh() {
         if (!visible || state.value.restoring || state.value.addingDevice || state.value.isDraft) return
         invalidateReads()
@@ -226,22 +253,7 @@ internal class RemoteViewModel(
         }
         val generation = epoch
         val session = state.value.session
-        if (modelLoading?.isActive != true) {
-            val modelGeneration = ++modelEpoch
-            mutableState.value = state.value.copy(modelsLoading = true)
-            modelLoading = viewModelScope.launch {
-                try {
-                    val models = client.models()
-                    if (modelGeneration == modelEpoch && clients[id] === client && state.value.deviceId == id) {
-                        mutableState.value = state.value.copy(models = models)
-                    }
-                } catch (cancelled: CancellationException) { throw cancelled }
-                catch (error: Exception) { trace("models_failed", error) }
-                finally {
-                    if (modelGeneration == modelEpoch) mutableState.value = state.value.copy(modelsLoading = false)
-                }
-            }
-        }
+        loadModels(id, client)
         polling = viewModelScope.launch {
             mutableState.value = state.value.copy(loading = true)
             var consecutiveFailures = 0

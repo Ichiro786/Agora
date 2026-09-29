@@ -79,7 +79,7 @@ localized in the current Android locale; hard-coded English must not replace res
 
 The chat-bottom attachment `+` dropdown and tools `...` dropdown use explicit 24 dp leading
 icons/images in every menu row, matching the Material default size used by the user-message
-long-press dropdown. Their 16 dp trigger icons remain unchanged. Menu shape, row geometry, 12 dp
+long-press dropdown. Their trigger icons are 18 dp. Menu shape, row geometry, 12 dp
 icon-label gap, labels, badges, switches, ordering, enablement, and click behavior remain unchanged.
 
 The monochrome Google Search and OpenAI Search provider icons inherit the dropdown's current Compose
@@ -685,7 +685,7 @@ and Reduced Motion snap. Each Crossfade label keeps its own width while it fades
 longer label is cut only by the clip; a label ellipsizes only past the space left.
 ## 29. Composer controls width, user bubble, and small indicators
 The composer controls capsule may grow from the bar's inner start edge up to the send button minus a
-fixed `8 dp` gap, in ordinary and externally owned conversations alike. Every control in it has a
+fixed `14 dp` gap, in ordinary and externally owned conversations alike. Every control in it has a
 fixed width except the model selector label, which is the only flexible child; there is no fixed
 label cap. User message bubbles (`UserBubbleShape`) give the top-start, top-end, and bottom-start
 corners one shared radius, `min(27 dp, half the bubble's smaller side)`, and keep a `6 dp` bottom-end
@@ -733,16 +733,21 @@ page or dialog leaves composition), `secretVisualTransformation(visible)`, and
 `secret_show` / `secret_hide`). No other file uses `PasswordVisualTransformation`.
 ## 34. Composer insets
 The non-expanded composer keeps its `28 dp` outer radius. The controls capsule and the send button are
-both `44 dp` high (`COMPOSER_CONTROL_HEIGHT`) and sit `8 dp` from the start/end and bottom edges; the
+both `48 dp` high (`COMPOSER_CONTROL_HEIGHT`) and sit `10 dp` from the start/end and bottom edges; the
 owner chose this size over concentricity with the outer corners. Inside the capsule the `32 dp`
-buttons sit `6 dp` from its ends and the `38 dp` model selector is centered, so both stay concentric
-with the capsule. The `20 dp` expand icon sits `16 dp` from the top and end edges
+buttons sit `8 dp` from its ends and the `38 dp` model selector is centered, so both stay concentric
+with the capsule. The `20 dp` expand icon sits `18 dp` from the top and end edges
 (`COMPOSER_CORNER_CONTENT_INSET`); the input text starts `18 dp` from the start edge
-(`COMPOSER_TEXT_START_INSET`) and `14 dp` from the top (`COMPOSER_TEXT_TOP_INSET`), and ends `22 dp`
+(`COMPOSER_TEXT_START_INSET`) and `16 dp` from the top (`COMPOSER_TEXT_TOP_INSET`), and ends `22 dp`
 above the controls (`COMPOSER_TEXT_CONTROLS_GAP`). The
 TextField's Material `56 dp` minimum height is replaced so a single line leaves no empty band. The expand button's circle is a fade to transparent, so only its icon is placed. The host padding shared by status rows, attachment previews and the
 expanded collapse button is unchanged (`4 dp` sides, `8 dp` top). The constants live next to
 `CHAT_BOTTOM_BAR_OUTER_RADIUS` in `ChatBottomBar.kt`. The expanded composer is not covered by this rule.
+The input's scrollbar track starts level with the expand icon's top (`COMPOSER_CORNER_CONTENT_INSET`
+below the composer top), so the thumb is never cut by the rounded corner.
+A display formula that fits the message width does not claim horizontal drags, so a swipe over it
+still opens the drawer; only an overflowing formula scrolls. The Remote model menu re-reads the
+device's model catalog each time it opens.
 ## 35. Automatic message source
 A user bubble the app sent on the user's behalf (a Task run prompt, a Loop cycle prompt, or the
 answers to non-blocking `ask_user` questions) shows a label above the bubble, end-aligned: a `14 dp`

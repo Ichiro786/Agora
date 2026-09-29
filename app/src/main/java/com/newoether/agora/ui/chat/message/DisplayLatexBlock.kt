@@ -79,7 +79,9 @@ internal fun DisplayLatexBlock(
     )
     val scrollState = rememberScrollState()
     TrackStreamingHorizontalScroll(scrollState)
-    Row(modifier = modifier.fillMaxWidth().horizontalScroll(scrollState)) {
+    // A formula that fits has nothing to scroll; leaving the gesture unclaimed lets a horizontal
+    // swipe reach the drawer instead of being consumed here.
+    Row(modifier = modifier.fillMaxWidth().horizontalScroll(scrollState, enabled = scrollState.maxValue > 0)) {
         Text(
             text = text,
             style = style,

@@ -62,7 +62,7 @@ internal const val CHAT_DROPDOWN_MENU_ICON_SIZE_DP = 24
 
 private val MODEL_SELECTOR_HEIGHT = 38.dp
 private val MODEL_SELECTOR_PADDING = 8.dp
-private val COMPOSER_SEND_BUTTON_GAP = 8.dp
+private val COMPOSER_SEND_BUTTON_GAP = 14.dp
 
 /**
  * The same controls capsule is used by ordinary and externally owned conversations. It may grow
@@ -73,9 +73,9 @@ internal fun RowScope.ComposerControlGroup(content: @Composable RowScope.() -> U
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.weight(1f, fill = false).height(COMPOSER_CONTROL_HEIGHT)
-            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(10.dp), RoundedCornerShape(100))
-            // The 32 dp end buttons stay concentric with the capsule (radius 16 + 6 = 22); the Row
-            // centers the 38 dp model selector vertically (radius 19 + 3 = 22).
+            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp), RoundedCornerShape(100))
+            // The 32 dp end buttons stay concentric with the capsule (radius 16 + 8 = 24); the Row
+            // centers the 38 dp model selector vertically (radius 19 + 5 = 24).
             .padding(horizontal = COMPOSER_CONTROL_HEIGHT / 2 - 16.dp),
         content = content,
     )
@@ -274,14 +274,18 @@ internal fun ComposerContextIndicator(
 fun Modifier.verticalScrollbar(
     scrollState: ScrollState,
     color: Color,
-    width: androidx.compose.ui.unit.Dp = 3.dp
+    width: androidx.compose.ui.unit.Dp = 3.dp,
+    // The track starts this far below the top edge, e.g. to stay clear of a rounded container corner.
+    topInset: androidx.compose.ui.unit.Dp = 0.dp,
 ): Modifier = drawWithContent {
     drawContent()
     if (scrollState.maxValue > 0) {
         val viewPortHeight = size.height
+        val trackTop = topInset.toPx().coerceAtMost(viewPortHeight)
+        val trackHeight = viewPortHeight - trackTop
         val totalHeight = scrollState.maxValue + viewPortHeight
-        val thumbHeight = (viewPortHeight / totalHeight) * viewPortHeight
-        val thumbOffset = (scrollState.value / totalHeight.toFloat()) * viewPortHeight
+        val thumbHeight = (viewPortHeight / totalHeight) * trackHeight
+        val thumbOffset = trackTop + (scrollState.value / totalHeight.toFloat()) * trackHeight
         drawRoundRect(color = color, topLeft = Offset(size.width - width.toPx() - 4.dp.toPx(), thumbOffset), size = Size(width.toPx(), thumbHeight), cornerRadius = CornerRadius(width.toPx() / 2))
     }
 }
