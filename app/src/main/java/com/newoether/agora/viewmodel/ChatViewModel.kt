@@ -485,16 +485,13 @@ class ChatViewModel(
         selectedBranchesJson: String?,
         selectedModelId: String,
         tokenBudget: Int,
-    ) {
-        viewModelScope.launch {
-            contextProjector.project(
-                conversationId,
-                selectedBranchesJson,
-                selectedModelId,
-                tokenBudget,
-            )
-        }
-    }
+    ) = contextProjector.request(
+        viewModelScope,
+        conversationId,
+        selectedBranchesJson,
+        selectedModelId,
+        tokenBudget,
+    )
 
     private val generationController: MessageGenerationController
         get() = chatRuntime.messageGeneration
@@ -582,8 +579,8 @@ class ChatViewModel(
     internal fun restoreConversationDestination(id: String, onFailure: (() -> Unit)? = null) =
         selectionController.restoreConversationDestination(id, onFailure)
 
-    fun forkConversationFrom(messageId: String? = null) =
-        chatRuntime.conversationForkShare.fork(phoneClient, messageId)
+    fun forkConversationFrom(messageId: String? = null, onResult: (Boolean) -> Unit = {}): Boolean =
+        chatRuntime.conversationForkShare.fork(phoneClient, messageId, onResult)
 
     fun shareGeneration(assistantMessageId: String) =
         chatRuntime.conversationForkShare.shareGeneration(phoneClient, assistantMessageId)

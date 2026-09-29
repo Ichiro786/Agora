@@ -12,8 +12,12 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
@@ -551,6 +555,68 @@ class ConversationContextProjectorTest {
      * The fixed-cost breakdown only feeds the context indicator's composition bar; these tests
      * assert totals and retained messages, so a zero split keeps them focused.
      */
+    @Test
+    fun newerRequestCancelsTheOlderAndNeverOverlapsItsHistoryLoad() = runTest {
+        val conversations = mockk<ConversationRepository>()
+        val requestBuilder = mockk<GenerationRequestBuilder>()
+        val generationManager = mockk<GenerationManager>()
+        val contextLoader = mockk<DurableSelectedContextLoader>()
+        val first = entity("branch-first", null, Participant.USER, "first", 0)
+        val second = entity("branch-second", null, Participant.USER, "second", 1)
+        val firstStarted = CompletableDeferred<Unit>()
+        val releaseFirst = CompletableDeferred<Unit>()
+        val loads = AtomicInteger(0)
+        var firstReleasedWhenSecondStarted: Boolean? = null
+        coEvery { contextLoader.load(any()) } coAnswers {
+            if (loads.getAndIncrement() == 0) {
+                firstStarted.complete(Unit)
+                // Models history work that cancellation cannot interrupt midway.
+                withContext(NonCancellable) { releaseFirst.await() }
+                DurableSelectedContext(
+                    messages = projectProviderMessages(listOf(first), false),
+                    entities = listOf(first),
+                )
+            } else {
+                firstReleasedWhenSecondStarted = releaseFirst.isCompleted
+                DurableSelectedContext(
+                    messages = projectProviderMessages(listOf(second), false),
+                    entities = listOf(second),
+                )
+            }
+        }
+        val admission = testGenerationAdmissionSnapshot(conversationId = "conversation")
+        val snapshot = GenerationContextProjectionSnapshot(admission.config, admission.context)
+        coEvery {
+            requestBuilder.captureContextProjectionSnapshot("conversation", "provider:model", null)
+        } returns snapshot
+        every { generationManager.fixedContextTokenCost(snapshot.config, snapshot.context) } returns 0
+        every { generationManager.includesAssistantReasoning(any(), any()) } returns false
+        stubFixedComposition(generationManager)
+        val projector = ConversationContextProjector(
+            conversations = conversations,
+            requestBuilder = requestBuilder,
+            generationManager = { generationManager },
+            generationErrorFormatter = { it },
+            contextLoader = contextLoader,
+        )
+        val firstSelection = """{"root":"branch-first"}"""
+        val secondSelection = """{"root":"branch-second"}"""
+
+        projector.request(this, "conversation", firstSelection, "provider:model", 4_096)
+        firstStarted.await()
+        projector.request(this, "conversation", secondSelection, "provider:model", 4_096)
+        // Give an unserialized second request real time to reach its load; a correct
+        // implementation passes regardless of this wait.
+        runCurrent()
+        Thread.sleep(200)
+        releaseFirst.complete(Unit)
+        val settled = projector.projection.first { it.completed }
+
+        assertEquals(true, firstReleasedWhenSecondStarted)
+        assertEquals(2, loads.get())
+        assertEquals(secondSelection, settled.selectedBranchesJson)
+        assertEquals(setOf(second.id), settled.retainedMessageIds.orEmpty())
+    }
     private fun stubFixedComposition(generationManager: GenerationManager) {
         every { generationManager.fixedContextComposition(any(), any()) } returns
             FixedContextComposition(systemPromptTokens = 0, toolTokens = 0)
