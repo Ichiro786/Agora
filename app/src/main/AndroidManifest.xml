@@ -40,6 +40,7 @@
         android:theme="@style/Theme.Agora.Starting">
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:exported="true"
             android:theme="@style/Theme.Agora"
             android:windowSoftInputMode="adjustResize">
