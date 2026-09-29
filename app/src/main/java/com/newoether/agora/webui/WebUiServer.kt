@@ -15,6 +15,7 @@ import io.ktor.server.request.receiveText
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
@@ -34,6 +35,10 @@ internal class WebUiServer(
     private val auth: WebUiAuth,
     /** Reads a packaged frontend file by its path under the asset root, or null if absent. */
     private val readAsset: (String) -> ByteArray?,
+    /** CSS variables for the app's current theme; empty keeps the defaults in `style.css`. */
+    private val themeCss: () -> String = { "" },
+    /** The app font file served at [WebUiTheme.FONT_PATH], or null when the system font is used. */
+    private val readAppFont: () -> ByteArray? = { null },
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     fun install(application: Application) = with(application) {
@@ -43,6 +48,19 @@ internal class WebUiServer(
             get("/assets/{path...}") {
                 val path = call.parameters.getAll("path").orEmpty().joinToString("/")
                 call.respondAsset(path)
+            }
+            // Public like the other static files: the sign-in page is themed too.
+            get("/theme.css") {
+                call.response.header(HttpHeaders.CacheControl, "no-store")
+                call.respondText(themeCss(), ContentType.Text.CSS.withParameter("charset", "utf-8"))
+            }
+            get(WebUiTheme.FONT_PATH) {
+                val bytes = readAppFont()
+                if (bytes == null) {
+                    call.respond(HttpStatusCode.NotFound)
+                } else {
+                    call.respondBytes(bytes, fontTypeOf(bytes))
+                }
             }
             post("/api/login") { call.login() }
             post("/api/logout") {
@@ -170,6 +188,13 @@ internal class WebUiServer(
 
         /** Plain relative names only: no `..`, no leading slash, no encoded separators. */
         internal fun isSafeAssetPath(path: String): Boolean = SAFE_ASSET_PATH.matches(path)
+
+        private fun fontTypeOf(bytes: ByteArray): ContentType =
+            if (bytes.size >= 4 && String(bytes, 0, 4, Charsets.ISO_8859_1) == "OTTO") {
+                ContentType("font", "otf")
+            } else {
+                ContentType("font", "ttf")
+            }
 
         private fun contentTypeOf(path: String): ContentType = when (path.substringAfterLast('.')) {
             "html" -> ContentType.Text.Html.withParameter("charset", "utf-8")

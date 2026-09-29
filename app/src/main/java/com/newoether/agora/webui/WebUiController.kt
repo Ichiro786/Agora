@@ -1,10 +1,12 @@
 package com.newoether.agora.webui
 
 import android.content.Context
+import com.newoether.agora.R
 import com.newoether.agora.util.DebugLog
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
+import java.io.File
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +32,18 @@ internal sealed interface WebUiStatus {
 }
 
 /**
+ * Binds and starts the server, returning once it listens.
+ *
+ * Deliberately a plain function: inside a coroutine body, `embeddedServer` resolves to Ktor's
+ * `CoroutineScope.embeddedServer`, which makes the server a child of that coroutine, so the
+ * enclosing `withContext` would never return while the server runs.
+ */
+internal fun startWebUiEngine(port: Int, routes: WebUiServer): EmbeddedServer<*, *> =
+    embeddedServer(CIO, port = port, host = WebUiController.ANY_HOST) {
+        routes.install(this)
+    }.start(wait = false)
+
+/**
  * Process-scoped owner of the WebUI: settings, authentication and the embedded server.
  *
  * [WebUiService] keeps the process alive and calls [startServer]/[stopServer]; the Settings page
@@ -44,7 +58,13 @@ internal class WebUiController(
 ) {
     @Volatile private var passwordHash: String? = null
     private val auth = WebUiAuth(passwordHash = { passwordHash }, hasher = hasher)
-    private val routes = WebUiServer(auth = auth, readAsset = ::readAsset)
+    @Volatile private var theme: WebUiTheme? = null
+    private val routes = WebUiServer(
+        auth = auth,
+        readAsset = ::readAsset,
+        themeCss = { theme?.toCss().orEmpty() },
+        readAppFont = ::readAppFont,
+    )
     private val serverLock = Mutex()
     private var engine: EmbeddedServer<*, *>? = null
     private val _status = MutableStateFlow<WebUiStatus>(WebUiStatus.Stopped)
@@ -100,9 +120,7 @@ internal class WebUiController(
         _status.value = WebUiStatus.Starting
         _status.value = withContext(Dispatchers.IO) {
             try {
-                engine = embeddedServer(CIO, port = port, host = ANY_HOST) {
-                    routes.install(this)
-                }.start(wait = false)
+                engine = startWebUiEngine(port, routes)
                 WebUiStatus.Running(port)
             } catch (error: Exception) {
                 DebugLog.e(TAG, "WebUI server failed to start on port $port", error)
@@ -133,14 +151,28 @@ internal class WebUiController(
             .distinct()
     }.getOrDefault(emptyList())
 
+    /** Called by the Compose theme; the next page load in the browser uses it. */
+    fun publishTheme(theme: WebUiTheme) {
+        this.theme = theme
+    }
+
+    private fun readAppFont(): ByteArray? = runCatching {
+        when (val font = theme?.font) {
+            WebUiFont.AppDefault ->
+                appContext.resources.openRawResource(R.font.mioutfit_variable).use { it.readBytes() }
+            is WebUiFont.Custom -> File(font.path).takeIf { it.isFile }?.readBytes()
+            WebUiFont.System, null -> null
+        }
+    }.getOrNull()
+
     private fun readAsset(path: String): ByteArray? = runCatching {
         appContext.assets.open("$ASSET_ROOT/$path").use { it.readBytes() }
     }.getOrNull()
 
     companion object {
+        const val ANY_HOST = "0.0.0.0"
         const val MIN_PASSWORD_LENGTH = 8
         private const val TAG = "WebUi"
-        private const val ANY_HOST = "0.0.0.0"
         private const val ASSET_ROOT = "webui"
         private const val STOP_GRACE_MILLIS = 500L
         private const val STOP_TIMEOUT_MILLIS = 2_000L

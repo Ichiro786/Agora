@@ -761,12 +761,23 @@ displayed text. Typed messages, blocking answers, Compact summaries and messages
 feature have no label. Editing and resending a labeled message produces an ordinary unlabeled message.
 `ui/chat/message/MessageSourcePresentation.kt` owns the label and the ask_user text.
 ## 36. WebUI settings
-Settings > Network has a WebUI page (`ui/settings/SettingsWebUiPage.kt`). It holds an enable switch,
-the port (default `8686`, accepted range `1024`-`65535`), a Set/Change Password action, the access
-addresses while the server runs, and a warning that the connection is plain HTTP. The switch stays
-disabled until a password is set. A password has at least `8` characters; its field uses the section
-33 secret-field owner. Changing the password signs out every browser. A port edit is saved only after
-typing pauses for `800 ms` (`PORT_COMMIT_DELAY_MILLIS`); an out-of-range value is not saved.
+Settings > Network has a WebUI page (`ui/settings/SettingsWebUiPage.kt`). In order it holds the
+Set/Change Password action, the enable switch, the port (default `8686`, accepted range
+`1024`-`65535`), the access addresses, and a warning that the connection is plain HTTP. The switch is
+always tappable. Without a password its supporting text says one is needed, and turning it on opens
+the password dialog; saving there turns the WebUI on, cancelling leaves it off. With a password the
+supporting text shows the live status (Off, Starting, Running on a port, or the start error); it
+reaches Running as soon as the server listens. The access group lists addresses only while the server
+runs and otherwise says they appear then. A password has at least `8` characters; its field uses the
+section 33 secret-field owner. Changing the password signs out every browser. A port edit is saved
+only after typing pauses for `800 ms` (`PORT_COMMIT_DELAY_MILLIS`); an out-of-range value is not saved.
+The browser pages follow the app's look. Inside `AgoraTheme`, `PublishWebUiTheme` hands the resolved
+Material color scheme (preset or wallpaper colors, light or dark, AMOLED) and the Appearance font to
+the controller; `GET /theme.css` serves them as `--md-<role>` variables and `--app-font`, and
+`GET /fonts/app` serves the bundled Mi Outfit or the imported font (none for the system font). The
+web styles use the app's type scale and Material 3 metrics: a `28 dp` dialog-like card on
+`surfaceContainer`, `16 dp` outlined fields with a floating label and an eye toggle, `40 dp` capsule
+buttons. A theme change reaches a browser on its next page load.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.

@@ -58,38 +58,13 @@ fun SettingsWebUiPage(onBack: () -> Unit) {
     val status by webUi.status.collectAsState()
     val scope = rememberCoroutineScope()
     var passwordDialog by remember { mutableStateOf(false) }
+    var enableAfterPassword by remember { mutableStateOf(false) }
 
     CollapsingSettingsScaffold(title = stringResource(R.string.settings_webui), onBack = onBack) {
         SettingsGroupColumn {
             SettingsGroup(
                 title = stringResource(R.string.settings_webui),
                 items = listOf(
-                    {
-                        val toggle = { scope.launch { webUi.setEnabled(!enabled) }; Unit }
-                        SettingsItem(
-                            headlineContent = { Text(stringResource(R.string.webui_enable)) },
-                            supportingContent = {
-                                Text(
-                                    if (!hasPassword) {
-                                        stringResource(R.string.webui_password_required)
-                                    } else {
-                                        statusText(status, enabled)
-                                    },
-                                )
-                            },
-                            leadingContent = {
-                                Icon(Icons.Default.Web, null, tint = MaterialTheme.colorScheme.primary)
-                            },
-                            trailingContent = {
-                                Switch(
-                                    checked = enabled,
-                                    enabled = hasPassword || enabled,
-                                    onCheckedChange = { toggle() },
-                                )
-                            },
-                            modifier = Modifier.clickable(enabled = hasPassword || enabled) { toggle() },
-                        )
-                    },
                     {
                         SettingsItem(
                             headlineContent = {
@@ -109,7 +84,44 @@ fun SettingsWebUiPage(onBack: () -> Unit) {
                             leadingContent = {
                                 Icon(Icons.Default.Key, null, tint = MaterialTheme.colorScheme.primary)
                             },
-                            modifier = Modifier.clickable { passwordDialog = true },
+                            modifier = Modifier.clickable {
+                                enableAfterPassword = false
+                                passwordDialog = true
+                            },
+                        )
+                    },
+                    {
+                        // Without a password, turning it on asks for one first, then turns on.
+                        val toggle = {
+                            if (!enabled && !hasPassword) {
+                                enableAfterPassword = true
+                                passwordDialog = true
+                            } else {
+                                scope.launch { webUi.setEnabled(!enabled) }
+                            }
+                            Unit
+                        }
+                        SettingsItem(
+                            headlineContent = { Text(stringResource(R.string.webui_enable)) },
+                            supportingContent = {
+                                Text(
+                                    if (!hasPassword) {
+                                        stringResource(R.string.webui_password_required)
+                                    } else {
+                                        statusText(status, enabled)
+                                    },
+                                )
+                            },
+                            leadingContent = {
+                                Icon(Icons.Default.Web, null, tint = MaterialTheme.colorScheme.primary)
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = enabled,
+                                    onCheckedChange = { toggle() },
+                                )
+                            },
+                            modifier = Modifier.clickable { toggle() },
                         )
                     },
                     { WebUiPortField(port = port, onPortChange = { scope.launch { webUi.setPort(it) } }) },
@@ -124,7 +136,11 @@ fun SettingsWebUiPage(onBack: () -> Unit) {
                             val urls = running?.let { webUi.accessUrls(it.port) }.orEmpty()
                             Text(
                                 stringResource(
-                                    if (running != null && urls.isEmpty()) R.string.webui_access_none else R.string.webui_access_urls_desc,
+                                    when {
+                                        running == null -> R.string.webui_access_off
+                                        urls.isEmpty() -> R.string.webui_access_none
+                                        else -> R.string.webui_access_urls_desc
+                                    },
                                 ),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -156,6 +172,10 @@ fun SettingsWebUiPage(onBack: () -> Unit) {
             webUi = webUi,
             isChange = hasPassword,
             onDismiss = { passwordDialog = false },
+            onSaved = {
+                if (enableAfterPassword) scope.launch { webUi.setEnabled(true) }
+                enableAfterPassword = false
+            },
         )
     }
 }
@@ -204,7 +224,12 @@ private fun WebUiPortField(port: Int, onPortChange: (Int) -> Unit) {
 }
 
 @Composable
-private fun WebUiPasswordDialog(webUi: WebUiController, isChange: Boolean, onDismiss: () -> Unit) {
+private fun WebUiPasswordDialog(
+    webUi: WebUiController,
+    isChange: Boolean,
+    onDismiss: () -> Unit,
+    onSaved: () -> Unit,
+) {
     var password by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
@@ -272,6 +297,7 @@ private fun WebUiPasswordDialog(webUi: WebUiController, isChange: Boolean, onDis
                         } finally {
                             saving = false
                         }
+                        onSaved()
                         onDismiss()
                     }
                 },

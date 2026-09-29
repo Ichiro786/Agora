@@ -224,6 +224,8 @@ class MainActivity : ComponentActivity() {
                     // Create ViewModel via the process-scoped DI container (owned by AgoraApplication),
                     // so the same shared singletons back both the UI and background task execution.
                     val container = agoraApplication.requireContainer()
+                    // The WebUI mirrors the app's resolved colors and font.
+                    com.newoether.agora.webui.PublishWebUiTheme(container.webUi, fontPreference, customFontPath)
                     val factory = remember { container.chatViewModelFactory() }
                     val viewModel: ChatViewModel = viewModel(factory = factory)
 
