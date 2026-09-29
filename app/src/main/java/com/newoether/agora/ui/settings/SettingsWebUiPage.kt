@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import com.newoether.agora.ui.motion.MotionAwareCircularProgressIndicator as CircularProgressIndicator
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -266,7 +268,15 @@ private fun WebUiHttpsGroup(webUi: WebUiController, https: Boolean) {
                             }
                         }
                     },
-                ) { Text(stringResource(R.string.webui_certificate_regenerate_action)) }
+                ) {
+                    // Same pending presentation as the delete confirmations: the label becomes a
+                    // spinner until the new certificate is in place, then the dialog closes.
+                    if (regenerating) {
+                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 3.dp)
+                    } else {
+                        Text(stringResource(R.string.webui_certificate_regenerate_action))
+                    }
+                }
             },
             dismissButton = {
                 TextButton(onClick = { confirmRegenerate = false }, enabled = !regenerating) {

@@ -4,31 +4,39 @@ import com.newoether.agora.util.DebugLog
 import java.io.Closeable
 import java.io.IOException
 import java.io.InputStream
-import java.io.OutputStream
+import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.ConcurrentHashMap
 import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
-import javax.net.ssl.SSLServerSocket
-import javax.net.ssl.SSLSocket
 import kotlin.concurrent.thread
 
 /**
- * HTTPS for the WebUI. Ktor's CIO engine has no TLS, so this listens on the public port with
- * the platform TLS stack, decrypts each connection and relays its bytes to CIO, which listens
- * only on loopback. The relay is byte-for-byte, so HTTP keep-alive and WebSocket upgrades pass
- * through unchanged.
+ * HTTPS for the WebUI. Ktor's CIO engine has no TLS, so this listens on the public port,
+ * terminates TLS with the platform stack and relays each connection's bytes to CIO, which
+ * listens only on loopback. The relay is byte-for-byte, so HTTP keep-alive and WebSocket
+ * upgrades pass through unchanged.
+ *
+ * The first byte of every connection tells TLS (a handshake record, `0x16`) from plain HTTP.
+ * Plain HTTP is answered only from this device's own loopback address, relayed to
+ * [plainBackendPort]; from any other address it is dropped, so a password or cookie never
+ * crosses the network unencrypted.
  *
  * Throws from the constructor when the port cannot be bound.
  */
 internal class WebUiTlsFront(
     identity: WebUiTlsIdentity,
     publicPort: Int,
-    private val backendPort: Int,
+    private val tlsBackendPort: Int,
+    private val plainBackendPort: Int,
     bindHost: String = WebUiController.ANY_HOST,
+    /** Which client addresses may use plain HTTP; tests narrow it to exercise the drop path. */
+    private val allowsPlainFrom: (InetAddress) -> Boolean = InetAddress::isLoopbackAddress,
 ) : Closeable {
-    private val serverSocket: SSLServerSocket
+    private val serverSocket = ServerSocket()
+    private val tlsContext: SSLContext
     private val openSockets: MutableSet<Socket> = ConcurrentHashMap.newKeySet()
     @Volatile private var closed = false
 
@@ -39,47 +47,57 @@ internal class WebUiTlsFront(
         val keyManagers = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
             .apply { init(identity.keyStore, identity.password) }
             .keyManagers
-        val context = SSLContext.getInstance("TLS").apply { init(keyManagers, null, null) }
-        serverSocket = (context.serverSocketFactory.createServerSocket() as SSLServerSocket).apply {
-            reuseAddress = true
-            enabledProtocols = supportedProtocols.filter { it in ALLOWED_PROTOCOLS }.toTypedArray()
-            bind(InetSocketAddress(bindHost, publicPort), BACKLOG)
-        }
+        tlsContext = SSLContext.getInstance("TLS").apply { init(keyManagers, null, null) }
+        serverSocket.reuseAddress = true
+        serverSocket.bind(InetSocketAddress(bindHost, publicPort), BACKLOG)
         thread(name = "WebUiTlsAccept", isDaemon = true) { acceptLoop() }
     }
 
     private fun acceptLoop() {
         while (!closed) {
             val client = try {
-                serverSocket.accept() as SSLSocket
+                serverSocket.accept()
             } catch (error: IOException) {
                 if (closed || serverSocket.isClosed) return
-                DebugLog.w(TAG, "TLS accept failed", error)
+                DebugLog.w(TAG, "WebUI accept failed", error)
                 continue
             }
-            thread(name = "WebUiTlsConnection", isDaemon = true) { relay(client) }
+            thread(name = "WebUiTlsConnection", isDaemon = true) { serve(client) }
         }
     }
 
-    private fun relay(client: SSLSocket) {
+    private fun serve(client: Socket) {
         val backend = Socket()
         openSockets += client
         openSockets += backend
         try {
-            // A client that never finishes the handshake (or speaks plain HTTP) is dropped.
+            // A client that sends nothing, or never finishes the handshake, is dropped.
             client.soTimeout = HANDSHAKE_TIMEOUT_MILLIS
-            client.startHandshake()
-            client.soTimeout = 0
-            backend.connect(InetSocketAddress(LOOPBACK, backendPort), CONNECT_TIMEOUT_MILLIS)
-            // Either direction ending ends the connection: CIO closes idle keep-alive
-            // connections itself, and a closed browser tab ends the upstream side.
-            val upstream = thread(name = "WebUiTlsUpstream", isDaemon = true) {
-                pump(client.inputStream, backend.getOutputStream())
-                closeQuietly(client, backend)
+            val first = client.getInputStream().read()
+            if (first < 0) return
+            if (first == TLS_HANDSHAKE_RECORD) {
+                val tls = WebUiTlsConnection(client, tlsContext, ALLOWED_PROTOCOLS, byteArrayOf(first.toByte()))
+                tls.handshake()
+                client.soTimeout = 0
+                backend.connect(InetSocketAddress(LOOPBACK, tlsBackendPort), CONNECT_TIMEOUT_MILLIS)
+                relay(
+                    upstream = { ignoringClose { tls.readInto(backend.getOutputStream()) } },
+                    downstream = { pump(backend.getInputStream()) { data, length -> tls.write(data, length) } },
+                    client = client,
+                    backend = backend,
+                )
+            } else {
+                if (!allowsPlainFrom(client.inetAddress)) return
+                client.soTimeout = 0
+                backend.connect(InetSocketAddress(LOOPBACK, plainBackendPort), CONNECT_TIMEOUT_MILLIS)
+                backend.getOutputStream().write(first)
+                relay(
+                    upstream = { pump(client.getInputStream()) { data, length -> backend.getOutputStream().write(data, 0, length) } },
+                    downstream = { pump(backend.getInputStream()) { data, length -> client.getOutputStream().write(data, 0, length) } },
+                    client = client,
+                    backend = backend,
+                )
             }
-            pump(backend.getInputStream(), client.outputStream)
-            closeQuietly(client, backend)
-            upstream.join()
         } catch (_: IOException) {
             // Handshake failures and resets are routine for a server on an open network.
         } finally {
@@ -89,15 +107,33 @@ internal class WebUiTlsFront(
         }
     }
 
-    private fun pump(input: InputStream, output: OutputStream) {
+    /**
+     * Runs both directions until either ends: CIO closes idle keep-alive connections itself,
+     * and a closed browser tab ends the upstream side.
+     */
+    private fun relay(upstream: () -> Unit, downstream: () -> Unit, client: Socket, backend: Socket) {
+        val up = thread(name = "WebUiTlsUpstream", isDaemon = true) {
+            upstream()
+            closeQuietly(client, backend)
+        }
+        downstream()
+        closeQuietly(client, backend)
+        up.join()
+    }
+
+    /** Copies [input] to [sink] until it ends or either side closes. */
+    private fun pump(input: InputStream, sink: (ByteArray, Int) -> Unit) = ignoringClose {
         val buffer = ByteArray(BUFFER_BYTES)
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) return@ignoringClose
+            sink(buffer, read)
+        }
+    }
+
+    private inline fun ignoringClose(block: () -> Unit) {
         try {
-            while (true) {
-                val read = input.read(buffer)
-                if (read < 0) return
-                output.write(buffer, 0, read)
-                output.flush()
-            }
+            block()
         } catch (_: IOException) {
             // The other side closed.
         }
@@ -117,6 +153,7 @@ internal class WebUiTlsFront(
     companion object {
         const val LOOPBACK = "127.0.0.1"
         private const val TAG = "WebUiTls"
+        private const val TLS_HANDSHAKE_RECORD = 0x16
         private val ALLOWED_PROTOCOLS = setOf("TLSv1.2", "TLSv1.3")
         private const val BACKLOG = 50
         private const val HANDSHAKE_TIMEOUT_MILLIS = 10_000

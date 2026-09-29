@@ -5,6 +5,7 @@ import com.newoether.agora.R
 import com.newoether.agora.util.DebugLog
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
+import io.ktor.server.engine.connector
 import io.ktor.server.engine.embeddedServer
 import java.io.File
 import java.net.Inet4Address
@@ -42,8 +43,20 @@ internal fun startWebUiEngine(
     port: Int,
     routes: WebUiServer,
     host: String = WebUiController.ANY_HOST,
+    extraConnectors: Int = 0,
 ): EmbeddedServer<*, *> =
-    embeddedServer(CIO, port = port, host = host) {
+    embeddedServer(
+        CIO,
+        configure = {
+            // The first connector takes [port]; each extra one takes a free port on the same host.
+            repeat(1 + extraConnectors) { index ->
+                connector {
+                    this.host = host
+                    this.port = if (index == 0) port else 0
+                }
+            }
+        },
+    ) {
         routes.install(this)
     }.start(wait = false)
 
@@ -66,12 +79,14 @@ internal class WebUiController(
     private val auth = WebUiAuth(passwordHash = { passwordHash }, hasher = hasher)
     @Volatile private var theme: WebUiTheme? = null
     @Volatile private var servingHttps = false
+    /** CIO port that receives decrypted TLS traffic; a request on any other port is plain HTTP. */
+    @Volatile private var tlsBackendPort = NO_PORT
     private val routes = WebUiServer(
         auth = auth,
         readAsset = ::readAsset,
         themeCss = { theme?.toCss().orEmpty() },
         readAppFont = ::readAppFont,
-        secureCookies = { servingHttps },
+        secureCookies = { call -> call.request.local.localPort == tlsBackendPort },
     )
     private val serverLock = Mutex()
     private var engine: EmbeddedServer<*, *>? = null
@@ -151,7 +166,8 @@ internal class WebUiController(
         _status.value = WebUiStatus.Starting
         _status.value = withContext(Dispatchers.IO) {
             try {
-                // Set first: the session cookie of the very first login must already be Secure.
+                // startHttps records the TLS backend port before the public port opens, so the
+                // session cookie of the very first login over TLS is already Secure.
                 servingHttps = https
                 if (https) startHttps(port) else engine = startWebUiEngine(port, routes)
                 WebUiStatus.Running(port, https)
@@ -177,14 +193,18 @@ internal class WebUiController(
         }
     }
 
-    /** CIO on a free loopback port, with the TLS front on the public port relaying to it. */
+    /**
+     * CIO on two free loopback ports, with the TLS front on the public port relaying to them:
+     * decrypted TLS to the first, plain HTTP from this device's loopback address to the second.
+     */
     private suspend fun startHttps(port: Int) {
         val identity = certificates.loadOrCreate()
         _fingerprint.value = identity.fingerprintSha256
-        val backend = startWebUiEngine(port = 0, routes = routes, host = WebUiTlsFront.LOOPBACK)
+        val backend = startWebUiEngine(port = 0, routes = routes, host = WebUiTlsFront.LOOPBACK, extraConnectors = 1)
         engine = backend
-        val backendPort = backend.engine.resolvedConnectors().first().port
-        tlsFront = WebUiTlsFront(identity, publicPort = port, backendPort = backendPort)
+        val (tlsPort, plainPort) = backend.engine.resolvedConnectors().map { it.port }
+        tlsBackendPort = tlsPort
+        tlsFront = WebUiTlsFront(identity, publicPort = port, tlsBackendPort = tlsPort, plainBackendPort = plainPort)
     }
 
     /** Closes whatever is open; safe after a partial start. Call under [serverLock]. */
@@ -197,6 +217,7 @@ internal class WebUiController(
         }
         engine = null
         servingHttps = false
+        tlsBackendPort = NO_PORT
     }
 
     /** `http(s)://<address>:<port>` for every non-loopback IPv4 address that is up. */
@@ -228,6 +249,7 @@ internal class WebUiController(
         const val MIN_PASSWORD_LENGTH = 8
         private const val TAG = "WebUi"
         private const val ASSET_ROOT = "webui"
+        private const val NO_PORT = -1
         private const val STOP_GRACE_MILLIS = 500L
         private const val STOP_TIMEOUT_MILLIS = 2_000L
 
