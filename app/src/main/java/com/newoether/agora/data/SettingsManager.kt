@@ -528,10 +528,9 @@ class SettingsManager(private val context: Context) {
     ): Map<String, ConversationSettings> {
         var updated: Map<String, ConversationSettings> = emptyMap()
         context.dataStore.edit { prefs ->
-            val current = prefs[CONVERSATION_SETTINGS_JSON] ?: "{}"
-            val map = try { json.decodeFromString<MutableMap<String, ConversationSettings>>(current) } catch (e: Exception) { mutableMapOf() }
+            val map = decodeConversationSettings(prefs, json).toMutableMap()
             if (settings == null || settings.isAllNull()) map.remove(conversationId)
-            else map[conversationId] = settings
+            else map[conversationId] = settings.normalizedServiceTier()
             updated = map.toMap()
             prefs[CONVERSATION_SETTINGS_JSON] = json.encodeToString(map)
         }
@@ -539,6 +538,7 @@ class SettingsManager(private val context: Context) {
     }
     suspend fun saveConversationSettingsMap(settings: Map<String, ConversationSettings>) {
         val nonEmpty = settings.filterValues { !it.isAllNull() }
+            .mapValues { (_, value) -> value.normalizedServiceTier() }
         context.dataStore.edit { prefs ->
             if (nonEmpty.isEmpty()) {
                 prefs.remove(CONVERSATION_SETTINGS_JSON)
