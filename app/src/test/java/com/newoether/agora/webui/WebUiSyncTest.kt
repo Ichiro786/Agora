@@ -82,7 +82,9 @@ class WebUiSyncTest {
 
     @Test
     fun listThenOpenSendsTheSavedBranchAfterRecovery() = sync { send, received ->
-        val listed = received().single { it.type == "conversations" }
+        val first = received()
+        assertEquals("false", first.single { it.type == "display" }.string("autoWrapCodeBlocks"))
+        val listed = first.single { it.type == "conversations" }
         val items = listed["items"]!!.jsonArray.map { it.jsonObject }
         assertEquals(listOf("a", "b"), items.map { it.string("id") })
         assertEquals(listOf("false", "true"), items.map { it.string("generating") })
@@ -179,6 +181,7 @@ class WebUiSyncTest {
                     thinkingSegmentDisplayMode = ThinkingSegmentDisplayModes.DEFAULT,
                     autoExpandActiveGroup = true,
                     parseInlineDollarMath = false,
+                    autoWrapCodeBlocks = false,
                 ),
             ),
             projectionDispatcher = dispatcher,

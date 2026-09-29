@@ -59,6 +59,8 @@ internal class WebUiServer(
     private val themeCss: () -> String = { "" },
     /** The app font file served at [WebUiTheme.FONT_PATH], or null when the system font is used. */
     private val readAppFont: () -> ByteArray? = { null },
+    /** The app's code font file for one style name under [MONO_FONT_PATH], or null if unknown. */
+    private val readMonoFont: (String) -> ByteArray? = { null },
     /** True when this request arrived over HTTPS: its session cookie is then marked Secure. */
     private val secureCookies: (ApplicationCall) -> Boolean = { false },
     private val clock: () -> Long = System::currentTimeMillis,
@@ -99,6 +101,15 @@ internal class WebUiServer(
                     call.respond(HttpStatusCode.NotFound)
                 } else {
                     call.respondBytes(bytes, fontTypeOf(bytes))
+                }
+            }
+            // The code font behind the Markdown code styles in style.css.
+            get("$MONO_FONT_PATH/{style}") {
+                val bytes = call.parameters["style"]?.let(readMonoFont)
+                if (bytes == null) {
+                    call.respond(HttpStatusCode.NotFound)
+                } else {
+                    call.respondBytes(bytes, ContentType("font", "ttf"))
                 }
             }
             post("/api/login") { call.login() }
@@ -240,6 +251,7 @@ internal class WebUiServer(
     companion object {
         const val SESSION_COOKIE = "agora_session"
         const val INDEX = "index.html"
+        const val MONO_FONT_PATH = "/fonts/mono"
         private const val MAX_LOGIN_BODY_BYTES = 4_096L
         /** Browser commands are small; this bounds what one incoming frame may allocate. */
         private const val MAX_SYNC_FRAME_BYTES = 64L * 1024L
@@ -265,6 +277,7 @@ internal class WebUiServer(
             "svg" -> ContentType.Image.SVG
             "png" -> ContentType.Image.PNG
             "json" -> ContentType.Application.Json
+            "woff2" -> ContentType("font", "woff2")
             else -> ContentType.Application.OctetStream
         }
     }

@@ -34,6 +34,7 @@ class WebUiMessagePresentationTest {
         thinkingSegmentDisplayMode = ThinkingSegmentDisplayModes.DEFAULT,
         autoExpandActiveGroup = true,
         parseInlineDollarMath = false,
+        autoWrapCodeBlocks = true,
     )
 
     private fun model(status: MessageStatus, vararg segments: MessageSegment, text: String = "") =

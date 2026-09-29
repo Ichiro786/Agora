@@ -90,6 +90,7 @@ internal class WebUiController(
         syncSession = syncSession,
         themeCss = { theme?.toCss().orEmpty() },
         readAppFont = ::readAppFont,
+        readMonoFont = ::readMonoFont,
         secureCookies = { call -> call.request.local.localPort == tlsBackendPort },
     )
     private val serverLock = Mutex()
@@ -244,6 +245,10 @@ internal class WebUiController(
         }
     }.getOrNull()
 
+    private fun readMonoFont(style: String): ByteArray? {
+        val font = MONO_FONTS[style] ?: return null
+        return runCatching { appContext.resources.openRawResource(font).use { it.readBytes() } }.getOrNull()
+    }
     private fun readAsset(path: String): ByteArray? = runCatching {
         appContext.assets.open("$ASSET_ROOT/$path").use { it.readBytes() }
     }.getOrNull()
@@ -256,6 +261,13 @@ internal class WebUiController(
         private const val NO_PORT = -1
         private const val STOP_GRACE_MILLIS = 500L
         private const val STOP_TIMEOUT_MILLIS = 2_000L
+        /** The files of the app's MonoFamily (ui/theme/Type.kt) by the style names style.css asks for. */
+        private val MONO_FONTS = mapOf(
+            "regular" to R.font.jetbrains_mono_regular,
+            "bold" to R.font.jetbrains_mono_bold,
+            "italic" to R.font.jetbrains_mono_italic,
+            "bolditalic" to R.font.jetbrains_mono_bolditalic,
+        )
 
         /** Non-loopback IPv4 addresses of interfaces that are up (LAN, Tailscale, hotspot). */
         fun interfaceAddresses(): List<Inet4Address> = runCatching {

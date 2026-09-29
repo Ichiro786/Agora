@@ -6,3 +6,9 @@ export async function postJson(path, body) {
     credentials: "same-origin",
   });
 }
+
+export async function sessionSignedIn() {
+  const response = await fetch("/api/session", { credentials: "same-origin" });
+  const body = await response.json();
+  return body.signedIn === true;
+}

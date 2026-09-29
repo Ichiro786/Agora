@@ -27,12 +27,14 @@ internal data class WebDisplayContext(
     val thinkingSegmentDisplayMode: String,
     val autoExpandActiveGroup: Boolean,
     val parseInlineDollarMath: Boolean,
+    val autoWrapCodeBlocks: Boolean,
 ) {
     /** Settings plus the live timer templates; the browser formats the running seconds. */
     fun toEvent() = WebSyncEvent.Display(
         toolCallDisplayMode = toolCallDisplayMode,
         thinkingSegmentDisplayMode = thinkingSegmentDisplayMode,
         autoExpandActiveGroup = autoExpandActiveGroup,
+        autoWrapCodeBlocks = autoWrapCodeBlocks,
         liveThinking = WebLiveTimerStrings(
             seconds = resources.getString(R.string.thinking_for_seconds_ellipsis),
             minutes = resources.getString(R.string.thinking_for_minutes_ellipsis),

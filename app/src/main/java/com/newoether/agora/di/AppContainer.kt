@@ -378,14 +378,20 @@ class AppContainer(
                 settingsRepository.toolCallDisplayMode,
                 settingsRepository.thinkingSegmentDisplayMode,
                 settingsRepository.autoExpandActiveGroup,
-                settingsRepository.parseInlineDollarMath,
-            ) { language, toolMode, thinkingMode, autoExpand, inlineMath ->
+                // combine takes at most five typed flows, so the two Markdown switches travel as a pair.
+                kotlinx.coroutines.flow.combine(
+                    settingsRepository.parseInlineDollarMath,
+                    settingsRepository.autoWrapCodeBlocks,
+                    ::Pair,
+                ),
+            ) { language, toolMode, thinkingMode, autoExpand, (inlineMath, autoWrap) ->
                 com.newoether.agora.webui.WebDisplayContext(
                     resources = appContext.appLanguageResources(language),
                     toolCallDisplayMode = toolMode,
                     thinkingSegmentDisplayMode = thinkingMode,
                     autoExpandActiveGroup = autoExpand,
                     parseInlineDollarMath = inlineMath,
+                    autoWrapCodeBlocks = autoWrap,
                 )
             },
         )
