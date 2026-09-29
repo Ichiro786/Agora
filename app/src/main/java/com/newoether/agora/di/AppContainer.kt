@@ -35,6 +35,9 @@ import com.newoether.agora.viewmodel.ChatViewModelFactory
 import com.newoether.agora.viewmodel.ConversationStateRegistry
 import com.newoether.agora.viewmodel.ProviderRegistry
 import com.newoether.agora.viewmodel.ShellConfirmationController
+import com.newoether.agora.data.dataStore
+import com.newoether.agora.webui.WebUiController
+import com.newoether.agora.webui.WebUiSettingsStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -339,6 +342,14 @@ class AppContainer(
             executionCoordinator = conversationExecutionCoordinator,
             loopManager = loopManager,
             taskExecutionEngine = taskExecutionEngine,
+            scope = appScope,
+        )
+    }
+    // WebUI remote control: settings, authentication and the embedded server.
+    internal val webUi: WebUiController by lazy {
+        WebUiController(
+            appContext = appContext,
+            store = WebUiSettingsStore(appContext.dataStore),
             scope = appScope,
         )
     }

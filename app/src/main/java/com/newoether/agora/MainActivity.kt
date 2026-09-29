@@ -264,6 +264,10 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         AppForegroundTracker.setInForeground(true)
+        // A foreground service may only start from the foreground; restore an enabled WebUI here.
+        lifecycleScope.launch {
+            (application as AgoraApplication).awaitContainer()?.webUi?.startIfEnabled()
+        }
     }
 
     override fun onPause() {
