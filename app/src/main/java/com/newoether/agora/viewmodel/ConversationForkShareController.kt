@@ -13,16 +13,33 @@ internal class ConversationForkShareController(
     private val forkFailureText: (String) -> String,
     private val shareFailureText: (String) -> String,
 ) {
-    fun fork(origin: ChatClient, messageId: String? = null) {
-        val conversationId = origin.openConversationId ?: return
+    /**
+     * Returns false when nothing was started. Otherwise [onResult] runs exactly once, after the
+     * fork is opened (true) or its failure is reported (false), so the origin can hold its
+     * confirmation until then. [onResult] may run off the main thread.
+     */
+    fun fork(
+        origin: ChatClient,
+        messageId: String? = null,
+        onResult: (Boolean) -> Unit = {},
+    ): Boolean {
+        val conversationId = origin.openConversationId ?: return false
         scope.launch {
-            when (val result = service.fork(conversationId, messageId)) {
-                is ConversationForkShareService.ForkResult.Success ->
-                    origin.openConversation(result.conversationId)
-                is ConversationForkShareService.ForkResult.Failure ->
-                    origin.showSnackbar(forkFailureText(result.reason))
+            var forked = false
+            try {
+                when (val result = service.fork(conversationId, messageId)) {
+                    is ConversationForkShareService.ForkResult.Success -> {
+                        origin.openConversation(result.conversationId)
+                        forked = true
+                    }
+                    is ConversationForkShareService.ForkResult.Failure ->
+                        origin.showSnackbar(forkFailureText(result.reason))
+                }
+            } finally {
+                onResult(forked)
             }
         }
+        return true
     }
 
     fun shareConversation(origin: ChatClient) {

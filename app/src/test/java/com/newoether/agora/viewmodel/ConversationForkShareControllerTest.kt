@@ -6,6 +6,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -15,7 +16,7 @@ class ConversationForkShareControllerTest {
     fun missingConversationMakesEveryIntentANoOp() = runTest {
         val fixture = Fixture(currentConversationId = null, scope = this)
 
-        fixture.controller.fork(fixture.origin, "message")
+        assertFalse(fixture.controller.fork(fixture.origin, "message") { fixture.results += it })
         fixture.controller.shareConversation(fixture.origin)
         fixture.controller.shareGeneration(fixture.origin, "assistant")
         fixture.controller.shareMessages(fixture.origin, setOf("message"))
@@ -26,6 +27,7 @@ class ConversationForkShareControllerTest {
         coVerify(exactly = 0) { fixture.service.shareRun(any(), any()) }
         coVerify(exactly = 0) { fixture.service.shareMessages(any(), any()) }
         fixture.assertNoOutputs()
+        assertTrue(fixture.results.isEmpty())
     }
 
     @Test
@@ -45,10 +47,11 @@ class ConversationForkShareControllerTest {
         coEvery { fixture.service.fork("conversation", "through") } returns
             ConversationForkShareService.ForkResult.Success("fork")
 
-        fixture.controller.fork(fixture.origin, "through")
+        assertTrue(fixture.controller.fork(fixture.origin, "through") { fixture.results += it })
         runCurrent()
 
         assertEquals(listOf("fork"), fixture.forkedConversationIds)
+        assertEquals(listOf(true), fixture.results)
         assertTrue(fixture.failures.isEmpty())
     }
 
@@ -58,10 +61,11 @@ class ConversationForkShareControllerTest {
         coEvery { fixture.service.fork("conversation", null) } returns
             ConversationForkShareService.ForkResult.Failure("broken")
 
-        fixture.controller.fork(fixture.origin)
+        assertTrue(fixture.controller.fork(fixture.origin) { fixture.results += it })
         runCurrent()
 
         assertEquals(listOf("fork: broken"), fixture.failures)
+        assertEquals(listOf(false), fixture.results)
         assertTrue(fixture.forkedConversationIds.isEmpty())
     }
 
@@ -106,6 +110,7 @@ class ConversationForkShareControllerTest {
         val forkedConversationIds: List<String> get() = origin.openedConversations
         val shareTexts: List<String> get() = origin.shareTexts
         val failures: List<String> get() = origin.snackbars
+        val results = mutableListOf<Boolean>()
         val controller = ConversationForkShareController(
             service = service,
             scope = scope,
