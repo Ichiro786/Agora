@@ -10,9 +10,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Numbers
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Web
 import androidx.compose.material3.AlertDialog
@@ -41,6 +44,7 @@ import com.newoether.agora.R
 import com.newoether.agora.ui.components.SecretVisibilityToggle
 import com.newoether.agora.ui.components.rememberSecretVisible
 import com.newoether.agora.ui.components.secretVisualTransformation
+import com.newoether.agora.ui.theme.MonoFamily
 import com.newoether.agora.viewmodel.ChatViewModel
 import com.newoether.agora.webui.WebUiController
 import com.newoether.agora.webui.WebUiSettingsStore
@@ -57,6 +61,7 @@ fun SettingsWebUiPage(viewModel: ChatViewModel, onBack: () -> Unit) {
     val port by webUi.port.collectAsState(initial = WebUiSettingsStore.DEFAULT_PORT)
     val hasPassword by webUi.hasPassword.collectAsState(initial = false)
     val status by webUi.status.collectAsState()
+    val https by webUi.https.collectAsState(initial = true)
     val scope = rememberCoroutineScope()
     var passwordDialog by remember { mutableStateOf(false) }
     val passwordRequired = stringResource(R.string.webui_password_required)
@@ -126,7 +131,7 @@ fun SettingsWebUiPage(viewModel: ChatViewModel, onBack: () -> Unit) {
             )
             SettingsGroup(
                 title = stringResource(R.string.webui_access),
-                items = listOf(
+                items = listOf<@Composable () -> Unit>(
                     {
                         SettingsIconContent(icon = Icons.Default.Link) {
                             val running = status as? WebUiStatus.Running
@@ -150,7 +155,11 @@ fun SettingsWebUiPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                             }
                         }
                     },
-                    {
+                ) + if (https) {
+                    emptyList()
+                } else {
+                    // Plain HTTP only: with HTTPS the connection is encrypted.
+                    listOf<@Composable () -> Unit>({
                         SettingsIconContent(icon = Icons.Default.Warning) {
                             Text(
                                 stringResource(R.string.webui_http_warning),
@@ -158,9 +167,10 @@ fun SettingsWebUiPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                    },
-                ),
+                    })
+                },
             )
+            WebUiHttpsGroup(webUi = webUi, https = https)
         }
     }
 
@@ -169,7 +179,100 @@ fun SettingsWebUiPage(viewModel: ChatViewModel, onBack: () -> Unit) {
             webUi = webUi,
             isChange = hasPassword,
             onDismiss = { passwordDialog = false },
+        )
+    }
+}
 
+/** HTTPS switch and, while it is on, the certificate fingerprint and a regenerate action. */
+@Composable
+private fun WebUiHttpsGroup(webUi: WebUiController, https: Boolean) {
+    val scope = rememberCoroutineScope()
+    val fingerprint by webUi.certificateFingerprint.collectAsState()
+    var confirmRegenerate by remember { mutableStateOf(false) }
+    var regenerating by remember { mutableStateOf(false) }
+    LaunchedEffect(https) { if (https && fingerprint == null) webUi.loadCertificate() }
+    val toggle = { scope.launch { webUi.setHttps(!https) }; Unit }
+    SettingsGroup(
+        title = stringResource(R.string.webui_security),
+        items = listOf<@Composable () -> Unit>(
+            {
+                SettingsItem(
+                    headlineContent = { Text(stringResource(R.string.webui_https)) },
+                    supportingContent = { Text(stringResource(R.string.webui_https_desc)) },
+                    leadingContent = {
+                        Icon(Icons.Default.Lock, null, tint = MaterialTheme.colorScheme.primary)
+                    },
+                    trailingContent = { Switch(checked = https, onCheckedChange = { toggle() }) },
+                    modifier = Modifier.clickable { toggle() },
+                )
+            },
+        ) + if (!https) {
+            emptyList()
+        } else {
+            listOf<@Composable () -> Unit>(
+                {
+                    SettingsIconContent(icon = Icons.Default.Fingerprint) {
+                        Text(
+                            stringResource(R.string.webui_certificate_fingerprint),
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            stringResource(R.string.webui_certificate_fingerprint_desc),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        SelectionContainer {
+                            Text(
+                                fingerprint.orEmpty(),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFamily),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                },
+                {
+                    SettingsItem(
+                        headlineContent = { Text(stringResource(R.string.webui_certificate_regenerate)) },
+                        supportingContent = { Text(stringResource(R.string.webui_certificate_regenerate_desc)) },
+                        leadingContent = {
+                            Icon(Icons.Default.Refresh, null, tint = MaterialTheme.colorScheme.primary)
+                        },
+                        modifier = Modifier.clickable { confirmRegenerate = true },
+                    )
+                },
+            )
+        },
+    )
+    if (confirmRegenerate) {
+        AlertDialog(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            onDismissRequest = { if (!regenerating) confirmRegenerate = false },
+            title = { Text(stringResource(R.string.webui_certificate_regenerate), fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.webui_certificate_regenerate_desc)) },
+            confirmButton = {
+                TextButton(
+                    enabled = !regenerating,
+                    onClick = {
+                        regenerating = true
+                        scope.launch {
+                            try {
+                                webUi.regenerateCertificate()
+                            } finally {
+                                regenerating = false
+                                confirmRegenerate = false
+                            }
+                        }
+                    },
+                ) { Text(stringResource(R.string.webui_certificate_regenerate_action)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmRegenerate = false }, enabled = !regenerating) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
         )
     }
 }

@@ -29,4 +29,12 @@
     <string name="webui_notification_running">打开 %1$s</string>
     <string name="webui_notification_failed">已停止：%1$s</string>
     <string name="webui_notification_stop">停止</string>
+    <string name="webui_security">安全</string>
+    <string name="webui_https">HTTPS</string>
+    <string name="webui_https_desc">加密连接。证书是自签的，浏览器第一次会警告；核对指纹后再接受。</string>
+    <string name="webui_certificate_fingerprint">SHA-256 指纹</string>
+    <string name="webui_certificate_fingerprint_desc">接受证书前，请与浏览器显示的指纹核对。</string>
+    <string name="webui_certificate_regenerate">重新生成证书</string>
+    <string name="webui_certificate_regenerate_desc">生成新证书后，每个浏览器都要重新接受一次。</string>
+    <string name="webui_certificate_regenerate_action">重新生成</string>
 </resources>

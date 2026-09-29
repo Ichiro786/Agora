@@ -29,4 +29,12 @@
     <string name="webui_notification_running">%1$s 열기</string>
     <string name="webui_notification_failed">중지됨: %1$s</string>
     <string name="webui_notification_stop">중지</string>
+    <string name="webui_security">보안</string>
+    <string name="webui_https">HTTPS</string>
+    <string name="webui_https_desc">연결을 암호화합니다. 자체 서명 인증서라 브라우저가 처음에 경고합니다. 지문을 확인한 뒤 수락하세요.</string>
+    <string name="webui_certificate_fingerprint">SHA-256 지문</string>
+    <string name="webui_certificate_fingerprint_desc">인증서를 수락하기 전에 브라우저에 표시된 지문과 비교하세요.</string>
+    <string name="webui_certificate_regenerate">인증서 다시 생성</string>
+    <string name="webui_certificate_regenerate_desc">새 인증서를 만듭니다. 모든 브라우저에서 다시 수락해야 합니다.</string>
+    <string name="webui_certificate_regenerate_action">다시 생성</string>
 </resources>

@@ -29,4 +29,12 @@
     <string name="webui_notification_running">開啟 %1$s</string>
     <string name="webui_notification_failed">已停止：%1$s</string>
     <string name="webui_notification_stop">停止</string>
+    <string name="webui_security">安全性</string>
+    <string name="webui_https">HTTPS</string>
+    <string name="webui_https_desc">加密連線。憑證為自簽，瀏覽器第一次會警告；核對指紋後再接受。</string>
+    <string name="webui_certificate_fingerprint">SHA-256 指紋</string>
+    <string name="webui_certificate_fingerprint_desc">接受憑證前，請與瀏覽器顯示的指紋核對。</string>
+    <string name="webui_certificate_regenerate">重新產生憑證</string>
+    <string name="webui_certificate_regenerate_desc">產生新憑證後，每個瀏覽器都要重新接受一次。</string>
+    <string name="webui_certificate_regenerate_action">重新產生</string>
 </resources>

@@ -29,4 +29,12 @@
     <string name="webui_notification_running">Ouvrir %1$s</string>
     <string name="webui_notification_failed">Arrêtée : %1$s</string>
     <string name="webui_notification_stop">Arrêter</string>
+    <string name="webui_security">Sécurité</string>
+    <string name="webui_https">HTTPS</string>
+    <string name="webui_https_desc">Chiffre la connexion. Les navigateurs avertissent une fois car le certificat est auto-signé ; acceptez-le après avoir vérifié l’empreinte.</string>
+    <string name="webui_certificate_fingerprint">Empreinte SHA-256</string>
+    <string name="webui_certificate_fingerprint_desc">Comparez-la avec l’empreinte affichée par votre navigateur avant d’accepter le certificat.</string>
+    <string name="webui_certificate_regenerate">Régénérer le certificat</string>
+    <string name="webui_certificate_regenerate_desc">Crée un nouveau certificat. Chaque navigateur devra l’accepter à nouveau.</string>
+    <string name="webui_certificate_regenerate_action">Régénérer</string>
 </resources>

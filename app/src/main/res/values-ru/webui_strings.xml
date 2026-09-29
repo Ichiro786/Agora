@@ -29,4 +29,12 @@
     <string name="webui_notification_running">Открыть %1$s</string>
     <string name="webui_notification_failed">Остановлено: %1$s</string>
     <string name="webui_notification_stop">Остановить</string>
+    <string name="webui_security">Безопасность</string>
+    <string name="webui_https">HTTPS</string>
+    <string name="webui_https_desc">Шифрует соединение. Сертификат самоподписанный, поэтому браузер один раз предупредит; примите его после проверки отпечатка.</string>
+    <string name="webui_certificate_fingerprint">Отпечаток SHA-256</string>
+    <string name="webui_certificate_fingerprint_desc">Сравните его с отпечатком в браузере, прежде чем принять сертификат.</string>
+    <string name="webui_certificate_regenerate">Создать новый сертификат</string>
+    <string name="webui_certificate_regenerate_desc">Создаёт новый сертификат. Каждому браузеру придётся принять его заново.</string>
+    <string name="webui_certificate_regenerate_action">Создать</string>
 </resources>

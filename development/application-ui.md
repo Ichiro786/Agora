@@ -763,7 +763,16 @@ feature have no label. Editing and resending a labeled message produces an ordin
 ## 36. WebUI settings
 Settings > Network has a WebUI page (`ui/settings/SettingsWebUiPage.kt`). In order it holds the
 enable switch, the Set/Change Password action below it, the port (default `8686`, accepted range
-`1024`-`65535`), the access addresses, and a warning that the connection is plain HTTP. The switch is
+`1024`-`65535`), the access addresses, and a Security group. While HTTPS is off the access group
+also shows a warning that the connection is plain HTTP; the warning is not shown under HTTPS. The
+Security group has an HTTPS switch (on by default); while HTTPS is on it shows the certificate
+SHA-256 fingerprint in the mono font (selectable, so it can be compared with the browser's
+certificate view) and a Regenerate Certificate action. Regenerating asks for confirmation first,
+because every browser must accept the new certificate again; the action shows progress while the
+certificate is built. The access addresses and the notification use `https://` or `http://` to match the mode. Under HTTPS
+the session cookie also carries `Secure`. The self-signed certificate (EC P-256, 10 years, SANs for
+`localhost` and the current IPv4 addresses) is kept in `noBackupFilesDir/webui` with its keystore
+password sealed by `SecretCrypto`, and is reused until regenerated. The switch is
 never grayed out. Without a password its supporting text says one is needed, and tapping it leaves it
 off and shows the same message in a snackbar (`webui_password_required`). With a password the
 supporting text shows the live status (Off, Starting, Running on a port, or the start error); it

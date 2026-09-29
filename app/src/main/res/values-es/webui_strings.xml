@@ -29,4 +29,12 @@
     <string name="webui_notification_running">Abrir %1$s</string>
     <string name="webui_notification_failed">Detenido: %1$s</string>
     <string name="webui_notification_stop">Detener</string>
+    <string name="webui_security">Seguridad</string>
+    <string name="webui_https">HTTPS</string>
+    <string name="webui_https_desc">Cifra la conexión. Los navegadores avisan una vez porque el certificado es autofirmado; acéptalo tras comprobar la huella.</string>
+    <string name="webui_certificate_fingerprint">Huella SHA-256</string>
+    <string name="webui_certificate_fingerprint_desc">Compárala con la huella que muestra tu navegador antes de aceptar el certificado.</string>
+    <string name="webui_certificate_regenerate">Regenerar certificado</string>
+    <string name="webui_certificate_regenerate_desc">Crea un certificado nuevo. Cada navegador tendrá que aceptarlo otra vez.</string>
+    <string name="webui_certificate_regenerate_action">Regenerar</string>
 </resources>
