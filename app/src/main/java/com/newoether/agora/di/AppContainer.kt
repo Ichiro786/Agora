@@ -351,6 +351,13 @@ class AppContainer(
             appContext = appContext,
             store = WebUiSettingsStore(appContext.dataStore),
             scope = appScope,
+            // No-backup storage: the TLS key never leaves the device.
+            certificates = com.newoether.agora.webui.WebUiCertificateStore(
+                directory = java.io.File(appContext.noBackupFilesDir, "webui"),
+                seal = com.newoether.agora.util.SecretCrypto::encrypt,
+                unseal = com.newoether.agora.util.SecretCrypto::decrypt,
+                addresses = WebUiController::interfaceAddresses,
+            ),
         )
     }
     // ── ViewModel Factory ─────────────────────────────────────

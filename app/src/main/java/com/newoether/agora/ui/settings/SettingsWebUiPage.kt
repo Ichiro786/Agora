@@ -130,7 +130,7 @@ fun SettingsWebUiPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                     {
                         SettingsIconContent(icon = Icons.Default.Link) {
                             val running = status as? WebUiStatus.Running
-                            val urls = running?.let { webUi.accessUrls(it.port) }.orEmpty()
+                            val urls = running?.let { webUi.accessUrls(it.port, it.https) }.orEmpty()
                             Text(
                                 stringResource(
                                     when {

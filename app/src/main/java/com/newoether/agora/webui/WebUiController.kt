@@ -26,7 +26,7 @@ import kotlinx.coroutines.withContext
 internal sealed interface WebUiStatus {
     data object Stopped : WebUiStatus
     data object Starting : WebUiStatus
-    data class Running(val port: Int) : WebUiStatus
+    data class Running(val port: Int, val https: Boolean) : WebUiStatus
     /** The server could not start, typically because the port is in use. */
     data class Failed(val message: String) : WebUiStatus
 }
@@ -38,8 +38,12 @@ internal sealed interface WebUiStatus {
  * `CoroutineScope.embeddedServer`, which makes the server a child of that coroutine, so the
  * enclosing `withContext` would never return while the server runs.
  */
-internal fun startWebUiEngine(port: Int, routes: WebUiServer): EmbeddedServer<*, *> =
-    embeddedServer(CIO, port = port, host = WebUiController.ANY_HOST) {
+internal fun startWebUiEngine(
+    port: Int,
+    routes: WebUiServer,
+    host: String = WebUiController.ANY_HOST,
+): EmbeddedServer<*, *> =
+    embeddedServer(CIO, port = port, host = host) {
         routes.install(this)
     }.start(wait = false)
 
@@ -48,31 +52,41 @@ internal fun startWebUiEngine(port: Int, routes: WebUiServer): EmbeddedServer<*,
  *
  * [WebUiService] keeps the process alive and calls [startServer]/[stopServer]; the Settings page
  * calls the `set*` functions. The server listens on every interface (LAN, Tailscale), so it only
- * runs while a password is set.
+ * runs while a password is set. With HTTPS on (the default), [WebUiTlsFront] owns the public port
+ * and CIO listens only on loopback.
  */
 internal class WebUiController(
     private val appContext: Context,
     private val store: WebUiSettingsStore,
     scope: CoroutineScope,
+    private val certificates: WebUiCertificateStore,
     private val hasher: WebUiPasswordHasher = WebUiPasswordHasher(),
 ) {
     @Volatile private var passwordHash: String? = null
     private val auth = WebUiAuth(passwordHash = { passwordHash }, hasher = hasher)
     @Volatile private var theme: WebUiTheme? = null
+    @Volatile private var servingHttps = false
     private val routes = WebUiServer(
         auth = auth,
         readAsset = ::readAsset,
         themeCss = { theme?.toCss().orEmpty() },
         readAppFont = ::readAppFont,
+        secureCookies = { servingHttps },
     )
     private val serverLock = Mutex()
     private var engine: EmbeddedServer<*, *>? = null
+    private var tlsFront: WebUiTlsFront? = null
     private val _status = MutableStateFlow<WebUiStatus>(WebUiStatus.Stopped)
+    private val _fingerprint = MutableStateFlow<String?>(null)
 
     val status: StateFlow<WebUiStatus> = _status.asStateFlow()
     val enabled: Flow<Boolean> = store.enabled
     val port: Flow<Int> = store.port
     val hasPassword: Flow<Boolean> = store.passwordHash.map { it != null }
+    val https: Flow<Boolean> = store.https
+
+    /** SHA-256 fingerprint of the HTTPS certificate, once [loadCertificate] or a start ran. */
+    val certificateFingerprint: StateFlow<String?> = _fingerprint.asStateFlow()
 
     init {
         scope.launch { store.passwordHash.collect { passwordHash = it } }
@@ -98,10 +112,26 @@ internal class WebUiController(
     /** Saves the port and, if the server is running, moves it to the new port. */
     suspend fun setPort(port: Int) {
         store.savePort(port)
-        if (serverLock.withLock { engine != null }) {
-            stopServer()
-            startServer()
-        }
+        restartIfRunning()
+    }
+
+    /** Switches between HTTPS and plain HTTP, restarting a running server. */
+    suspend fun setHttps(enabled: Boolean) {
+        store.saveHttps(enabled)
+        restartIfRunning()
+    }
+
+    /** Loads (creating once) the certificate so Settings can show its fingerprint. */
+    suspend fun loadCertificate() {
+        val identity = withContext(Dispatchers.IO) { certificates.loadOrCreate() }
+        _fingerprint.value = identity.fingerprintSha256
+    }
+
+    /** Makes a new certificate; browsers must accept it again. Restarts an HTTPS server. */
+    suspend fun regenerateCertificate() {
+        val identity = withContext(Dispatchers.IO) { certificates.regenerate() }
+        _fingerprint.value = identity.fingerprintSha256
+        if (servingHttps) restartIfRunning()
     }
 
     /** Called while the app is in the foreground: restores a server the user left enabled. */
@@ -116,40 +146,64 @@ internal class WebUiController(
     suspend fun startServer() = serverLock.withLock {
         if (engine != null) return@withLock
         val port = store.port.first()
+        val https = store.https.first()
         passwordHash = store.passwordHash.first()
         _status.value = WebUiStatus.Starting
         _status.value = withContext(Dispatchers.IO) {
             try {
-                engine = startWebUiEngine(port, routes)
-                WebUiStatus.Running(port)
+                // Set first: the session cookie of the very first login must already be Secure.
+                servingHttps = https
+                if (https) startHttps(port) else engine = startWebUiEngine(port, routes)
+                WebUiStatus.Running(port, https)
             } catch (error: Exception) {
                 DebugLog.e(TAG, "WebUI server failed to start on port $port", error)
-                engine = null
+                closeServer()
                 WebUiStatus.Failed(error.localizedMessage ?: error.javaClass.simpleName)
             }
         }
     }
 
     suspend fun stopServer() = serverLock.withLock {
-        val running = engine ?: return@withLock
-        engine = null
-        withContext(Dispatchers.IO) {
-            runCatching { running.stop(STOP_GRACE_MILLIS, STOP_TIMEOUT_MILLIS) }
-                .onFailure { DebugLog.e(TAG, "WebUI server failed to stop cleanly", it) }
-        }
+        if (engine == null) return@withLock
+        withContext(Dispatchers.IO) { closeServer() }
         auth.revokeAllSessions()
         _status.value = WebUiStatus.Stopped
     }
 
-    /** `http://<address>:<port>` for every non-loopback IPv4 address that is up. */
-    fun accessUrls(port: Int): List<String> = runCatching {
-        NetworkInterface.getNetworkInterfaces().toList()
-            .filter { it.isUp && !it.isLoopback }
-            .flatMap { it.inetAddresses.toList() }
-            .filterIsInstance<Inet4Address>()
-            .map { "http://${it.hostAddress}:$port" }
-            .distinct()
-    }.getOrDefault(emptyList())
+    private suspend fun restartIfRunning() {
+        if (serverLock.withLock { engine != null }) {
+            stopServer()
+            startServer()
+        }
+    }
+
+    /** CIO on a free loopback port, with the TLS front on the public port relaying to it. */
+    private suspend fun startHttps(port: Int) {
+        val identity = certificates.loadOrCreate()
+        _fingerprint.value = identity.fingerprintSha256
+        val backend = startWebUiEngine(port = 0, routes = routes, host = WebUiTlsFront.LOOPBACK)
+        engine = backend
+        val backendPort = backend.engine.resolvedConnectors().first().port
+        tlsFront = WebUiTlsFront(identity, publicPort = port, backendPort = backendPort)
+    }
+
+    /** Closes whatever is open; safe after a partial start. Call under [serverLock]. */
+    private fun closeServer() {
+        tlsFront?.close()
+        tlsFront = null
+        engine?.let { running ->
+            runCatching { running.stop(STOP_GRACE_MILLIS, STOP_TIMEOUT_MILLIS) }
+                .onFailure { DebugLog.e(TAG, "WebUI server failed to stop cleanly", it) }
+        }
+        engine = null
+        servingHttps = false
+    }
+
+    /** `http(s)://<address>:<port>` for every non-loopback IPv4 address that is up. */
+    fun accessUrls(port: Int, https: Boolean): List<String> {
+        val scheme = if (https) "https" else "http"
+        return interfaceAddresses().map { "$scheme://${it.hostAddress}:$port" }
+    }
 
     /** Called by the Compose theme; the next page load in the browser uses it. */
     fun publishTheme(theme: WebUiTheme) {
@@ -176,5 +230,14 @@ internal class WebUiController(
         private const val ASSET_ROOT = "webui"
         private const val STOP_GRACE_MILLIS = 500L
         private const val STOP_TIMEOUT_MILLIS = 2_000L
+
+        /** Non-loopback IPv4 addresses of interfaces that are up (LAN, Tailscale, hotspot). */
+        fun interfaceAddresses(): List<Inet4Address> = runCatching {
+            NetworkInterface.getNetworkInterfaces().toList()
+                .filter { it.isUp && !it.isLoopback }
+                .flatMap { it.inetAddresses.toList() }
+                .filterIsInstance<Inet4Address>()
+                .distinct()
+        }.getOrDefault(emptyList())
     }
 }

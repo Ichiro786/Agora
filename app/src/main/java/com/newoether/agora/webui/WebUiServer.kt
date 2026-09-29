@@ -39,6 +39,8 @@ internal class WebUiServer(
     private val themeCss: () -> String = { "" },
     /** The app font file served at [WebUiTheme.FONT_PATH], or null when the system font is used. */
     private val readAppFont: () -> ByteArray? = { null },
+    /** True while served over HTTPS: the session cookie is then marked Secure. */
+    private val secureCookies: () -> Boolean = { false },
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     fun install(application: Application) = with(application) {
@@ -165,6 +167,7 @@ internal class WebUiServer(
         maxAge = maxAge,
         path = "/",
         httpOnly = true,
+        secure = secureCookies(),
         extensions = mapOf("SameSite" to "Strict"),
     )
 
