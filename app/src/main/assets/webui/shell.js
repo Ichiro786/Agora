@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "./vendor/preact-hooks.mjs";
 import { html } from "./html.js";
 import { t } from "./i18n.js";
 import {
-  icon, ICON_ADD, ICON_ARROW_UPWARD, ICON_DEVICES, ICON_EXPAND_ALL, ICON_LOGOUT,
-  ICON_MENU, ICON_MORE_VERT, ICON_PSYCHOLOGY, ICON_REPEAT, ICON_SEARCH, ICON_SETTINGS,
+  icon, ICON_ADD, ICON_ARROW_UPWARD, ICON_CALL_SPLIT, ICON_DEVICES, ICON_EXPAND_ALL, ICON_LOGOUT,
+  ICON_MENU, ICON_MORE_VERT, ICON_PSYCHOLOGY, ICON_REPEAT, ICON_SEARCH, ICON_SETTINGS, ICON_SHARE,
 } from "./icons.js";
 import { postJson } from "./api.js";
+import { sync, useSync } from "./sync.js";
+import { MessageList } from "./messages.js";
 /*
  * Chat frame, mirroring the app's chat screen (ChatTopBar, ChatDrawerContent, ChatBottomBar).
  * Controls the browser cannot use yet are shown as in the app but disabled.
@@ -32,8 +34,27 @@ function DrawerButton({ className, iconPath, label }) {
     </button>`;
 }
 
+/**
+ * A drawer row: 44 dp with 2 dp above and below, a capsule highlight on secondaryContainer when
+ * selected, the title in bodyLarge, and an 18 dp slot for the generating spinner or unread dot.
+ */
+function ConversationRow({ conversation, selected, onSelect }) {
+  // resolveDrawerConversationIndicator: generating first; unread only when not selected.
+  const indicator = conversation.generating ? "generating"
+    : conversation.unread && !selected ? "unread" : null;
+  return html`
+    <button class=${selected ? "conversation-row selected" : "conversation-row"} type="button"
+      role="listitem" aria-current=${selected ? "true" : null} onClick=${() => onSelect(conversation.id)}>
+      <span class="conversation-title">${conversation.title}</span>
+      <span class="conversation-indicator">
+        ${indicator === "generating" && html`<span class="spinner" aria-hidden="true"></span>`}
+        ${indicator === "unread" && html`<span class="unread-dot" role="img" aria-label=${t.unreadGeneration}></span>`}
+      </span>
+    </button>`;
+}
+
 /** ChatDrawerContent: title, search, Tasks / Remote, New Chat, the list, Settings. */
-function DrawerContent() {
+function DrawerContent({ conversations, openId, onSelect }) {
   return html`
     <h2 class="drawer-title">${t.conversations}</h2>
     <div class="drawer-search">
@@ -43,7 +64,11 @@ function DrawerContent() {
     <${DrawerButton} className="tonal group-top" iconPath=${ICON_REPEAT} label=${t.tasks} />
     <${DrawerButton} className="tonal group-bottom" iconPath=${ICON_DEVICES} label=${t.remote} />
     <${DrawerButton} className="filled new-chat" iconPath=${ICON_ADD} label=${t.newChat} />
-    <div class="drawer-list" role="list" aria-label=${t.conversations}></div>
+    <div class="drawer-list" role="list" aria-label=${t.conversations}>
+      ${conversations.map((conversation) => html`
+        <${ConversationRow} key=${conversation.id} conversation=${conversation}
+          selected=${conversation.id === openId} onSelect=${onSelect} />`)}
+    </div>
     <${DrawerButton} className="tonal settings" iconPath=${ICON_SETTINGS} label=${t.settings} />`;
 }
 
@@ -73,14 +98,23 @@ function MoreMenu({ onSignOut, onClose }) {
       <button class="dropdown-item" role="menuitem" type="button" disabled>
         ${icon(ICON_PSYCHOLOGY)}<span>${t.systemPrompt}</span>
       </button>
+      <button class="dropdown-item" role="menuitem" type="button" disabled>
+        ${icon(ICON_CALL_SPLIT)}<span>${t.forkConversation}</span>
+      </button>
+      <button class="dropdown-item" role="menuitem" type="button" disabled>
+        ${icon(ICON_SHARE)}<span>${t.share}</span>
+      </button>
       <button class="dropdown-item" role="menuitem" type="button" onClick=${onSignOut}>
         ${icon(ICON_LOGOUT)}<span>${t.signOut}</span>
       </button>
     </div>`;
 }
 
-/** ChatTopBar in new-chat mode: title capsule (menu + brand) and actions capsule (new chat + more). */
-function TopBar({ drawerOpen, onToggleDrawer, menuButton, onSignedOut }) {
+/**
+ * ChatTopBar: title capsule (menu + brand, or the conversation title at conversationTitleSolo)
+ * and actions capsule (new chat + more).
+ */
+function TopBar({ title, drawerOpen, onToggleDrawer, menuButton, onSignedOut }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const moreButton = useRef(null);
   async function signOut() {
@@ -99,7 +133,9 @@ function TopBar({ drawerOpen, onToggleDrawer, menuButton, onSignedOut }) {
           aria-controls="drawer" aria-expanded=${drawerOpen ? "true" : "false"} onClick=${onToggleDrawer}>
           ${icon(ICON_MENU)}
         </button>
-        <h1 class="brand-title">${t.title}</h1>
+        ${title
+          ? html`<h1 class="conversation-bar-title">${title}</h1>`
+          : html`<h1 class="brand-title">${t.title}</h1>`}
       </div>
       <div class="capsule actions-capsule">
         <button class="bar-button add" type="button" aria-label=${t.newChat} disabled>
@@ -151,12 +187,19 @@ function Composer() {
  * chat narrows, as the app's side-by-side drawer. Both start closed and open from the menu button.
  */
 export function Shell({ onSignedOut }) {
+  const state = useSync();
+  useEffect(() => {
+    sync.start(onSignedOut);
+    return () => sync.stop();
+  }, []);
   const sideBySide = useMediaQuery(SIDE_BY_SIDE_QUERY);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawer = useRef(null);
   const menuButton = useRef(null);
   const wasOpen = useRef(false);
   const modalOpen = drawerOpen && !sideBySide;
+  // ChatTopBar falls back to the brand while the title is blank.
+  const openTitle = state.conversations.find((c) => c.id === state.openId)?.title?.trim() || null;
 
   useEffect(() => {
     // The chat is inert until the closed state renders, so focus returns to the menu button here.
@@ -180,13 +223,14 @@ export function Shell({ onSignedOut }) {
       <aside id="drawer" class="drawer" ref=${drawer} aria-label=${t.conversations} tabindex="-1"
         role=${sideBySide ? null : "dialog"} aria-modal=${modalOpen ? "true" : null}
         inert=${!drawerOpen}>
-        <${DrawerContent} />
+        <${DrawerContent} conversations=${state.conversations} openId=${state.openId}
+          onSelect=${(id) => { sync.open(id); setDrawerOpen(false); }} />
       </aside>
       <div class="scrim" aria-hidden="true" onClick=${() => setDrawerOpen(false)}></div>
       <main class="chat" inert=${modalOpen}>
-        <${TopBar} drawerOpen=${drawerOpen} menuButton=${menuButton} onSignedOut=${onSignedOut}
+        <${TopBar} title=${openTitle} drawerOpen=${drawerOpen} menuButton=${menuButton} onSignedOut=${onSignedOut}
           onToggleDrawer=${() => setDrawerOpen(!drawerOpen)} />
-        <section class="messages" aria-label=${t.newChat}></section>
+        <${MessageList} state=${state} label=${openTitle || t.newChat} />
         <${Composer} />
       </main>
     </div>`;

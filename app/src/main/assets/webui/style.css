@@ -18,6 +18,8 @@
   --md-surface-variant: #dee5d8;
   --md-secondary-container: #d7e8cd;
   --md-on-secondary-container: #121f0e;
+  --md-primary-container: #bcf0b4;
+  --md-on-primary-container: #002204;
   --md-outline: #72796f;
   --md-outline-variant: #c2c9bd;
   --md-error: #ba1a1a;
@@ -40,6 +42,8 @@
     --md-surface-variant: #424940;
     --md-secondary-container: #3b4b38;
     --md-on-secondary-container: #d6e8ce;
+    --md-primary-container: #235024;
+    --md-on-primary-container: #bcf0b4;
     --md-outline: #8c9388;
     --md-outline-variant: #424940;
     --md-error: #ffb4ab;
@@ -293,6 +297,36 @@ p {
   --shadow-4: 0 1px 3px rgb(0 0 0 / 0.3), 0 4px 8px 3px rgb(0 0 0 / 0.15);
   --shadow-8: 0 2px 3px rgb(0 0 0 / 0.3), 0 6px 10px 4px rgb(0 0 0 / 0.15);
   --drawer-motion: 250ms cubic-bezier(0.2, 0, 0, 1);
+  --mono-font: "AgoraMono", ui-monospace, monospace;
+}
+/* The app's code font (MonoFamily, JetBrains Mono), served by the phone. */
+@font-face {
+  font-family: "AgoraMono";
+  src: url("/fonts/mono/regular") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "AgoraMono";
+  src: url("/fonts/mono/bold") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "AgoraMono";
+  src: url("/fonts/mono/italic") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "AgoraMono";
+  src: url("/fonts/mono/bolditalic") format("truetype");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
 }
 .shell {
   position: relative;
@@ -410,7 +444,58 @@ p {
   background: color-mix(in srgb, var(--md-on-surface) 12%, transparent);
   color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
 }
-.drawer-list { flex: 1; min-height: 0; overflow-y: auto; }
+/* A flex column, so the rows' 2 dp margins add up instead of collapsing. */
+.drawer-list { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
+/*
+ * Drawer conversation row: a 40 dp capsule in a 44 dp slot, 16 dp sides, the title in bodyLarge,
+ * then 8 dp and an 18 dp slot for the generating spinner or the unread dot. Selection fades to
+ * secondaryContainer over 250 ms.
+ */
+.conversation-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 40px;
+  margin: 2px 0;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  color: var(--md-on-surface);
+  font: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0.5px;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color 250ms, color 250ms;
+}
+.conversation-row:hover { background: color-mix(in srgb, var(--md-on-surface) 8%, transparent); }
+.conversation-row.selected {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+.conversation-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The spinner follows the row (primary, or onSecondaryContainer when selected); the dot is primary. */
+.conversation-indicator {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  color: var(--md-primary);
+  transition: color 250ms;
+}
+.conversation-row.selected .conversation-indicator { color: var(--md-on-secondary-container); }
+.unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--md-primary); }
 /* ChatTopBar: 52 dp row, 12 dp sides, 8 dp above and below, over a fading background. */
 .top-bar {
   position: absolute;
@@ -470,7 +555,8 @@ p {
   color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
 }
 /* ChatType.brandTitle 20/26 bold, at most 180 dp, 20 dp end padding. */
-.brand-title {
+.brand-title,
+.conversation-bar-title {
   margin: 0 20px 0 5px;
   min-width: 0;
   max-width: 180px;
@@ -481,6 +567,8 @@ p {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* An open conversation's title uses ChatType.conversationTitleSolo 17/22 bold. */
+.conversation-bar-title { font-size: 17px; line-height: 22px; }
 /* AgoraDropdownMenu on surfaceContainer: 24 dp corners, 48 dp items, highlight inset 8 dp. */
 .dropdown {
   position: absolute;
@@ -525,6 +613,150 @@ p {
 }
 .dropdown-item:disabled svg { fill: currentColor; }
 .messages { flex: 1; min-height: 0; overflow-y: auto; }
+/* MessageList: at most 840 dp wide, 8 dp sides, 140 dp above (under the top bar), 8 dp below. */
+.message-column { max-width: 840px; margin: 0 auto; padding: 140px 8px 8px; }
+/* MessageItem: 8 dp above and below each message. */
+.message-row { padding: 8px 0; }
+/* Layout only: an unloaded row keeps a one-line height so only rows near the screen are watched. */
+.row-placeholder { min-height: 54px; }
+/* UserMessageBubble: at the end, UserBubbleShape (27 dp corners, a 6 dp bottom-end tail). */
+.user-row { display: flex; flex-direction: column; align-items: flex-end; }
+.user-bubble {
+  display: flex;
+  justify-content: center;
+  min-width: 54px;
+  max-width: 300px;
+  padding: 15px;
+  border-radius: 27px;
+  border-end-end-radius: 6px;
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+}
+/* ChatType.userBody 15/24.2 plain text; text narrower than the bubble's minimum sits centered. */
+.user-text {
+  min-width: 0;
+  font-size: 15px;
+  line-height: 24.2px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* Assistant content: 8 dp in from the list edges, onSurface on the background. */
+.model-message { padding: 0 8px; color: var(--md-on-surface); }
+/* An error message: centered, errorContainer, 12 dp corners. */
+.model-message.error {
+  width: fit-content;
+  margin: 0 auto;
+  border-radius: 12px;
+  background: var(--md-error-container);
+  color: var(--md-on-error-container);
+}
+/*
+ * Markdown, as rememberChatMarkdownAssets: ChatType sizes with 1.1x line height, 8 dp block
+ * spacers (5 dp in thoughts), library list, quote and code metrics, links in primary.
+ */
+.markdown {
+  --md-block: 8px;
+  --code-background: color-mix(in srgb, var(--md-on-background) 10%, var(--md-surface));
+  font-size: 16px;
+  line-height: 26.4px;
+  overflow-wrap: anywhere;
+}
+.markdown.thought { --md-block: 5px; font-size: 13px; line-height: 20.9px; }
+.md-spacer { height: var(--md-block); }
+/* Resets the dialog text style that the sign-in page gives every p. */
+.markdown p { margin: 0; color: inherit; font: inherit; letter-spacing: normal; }
+.markdown a { color: var(--md-primary); text-decoration: none; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 { margin: 0; }
+.markdown h1 { font-size: 22px; line-height: 30.8px; font-weight: 700; }
+.markdown h2 { font-size: 19px; line-height: 27.5px; font-weight: 700; }
+.markdown h3 { font-size: 17px; line-height: 25.3px; font-weight: 600; }
+.markdown h4 { font-size: 16px; line-height: 24.2px; font-weight: 600; }
+.markdown h5, .markdown h6 { font-size: 15px; line-height: 24.2px; font-weight: 500; }
+.markdown.thought h1 { font-size: 18px; line-height: 25.3px; }
+.markdown.thought h2 { font-size: 16px; line-height: 23.1px; }
+.markdown.thought h3 { font-size: 15px; line-height: 22px; }
+.markdown.thought h4 { font-size: 14px; line-height: 20.9px; }
+.markdown.thought h5, .markdown.thought h6 { font-size: 13px; line-height: 20.9px; }
+.markdown.thought h6 { font-weight: 400; }
+/* ChatType.code 14/20 (thoughtCode 12/17), 1.1x; inline code has no background. */
+.markdown code { font-family: var(--mono-font); font-size: 14px; line-height: 22px; }
+.markdown.thought code { font-size: 12px; line-height: 18.7px; }
+/* MarkdownListItems: 4 dp around a list and each item; nested lists indent 8 dp per level. */
+.md-list { margin: 0; padding: 4px 0; list-style: none; }
+.md-list li { display: flex; padding: 4px 0; }
+.md-marker { flex: none; white-space: pre; }
+ul.md-list > li > .md-marker { padding-bottom: 4px; }
+.md-item { flex: 1; min-width: 0; }
+.md-item > p + p { margin-top: var(--md-block); }
+.md-list[data-depth="1"] { padding-left: 8px; }
+.md-list[data-depth="2"] { padding-left: 16px; }
+.md-list[data-depth="3"] { padding-left: 24px; }
+.md-list[data-depth="4"] { padding-left: 32px; }
+.md-list[data-depth="5"] { padding-left: 40px; }
+.md-list[data-depth="6"] { padding-left: 48px; }
+/* MarkdownBlockQuote: 16 dp sides, 4 dp text padding, a 2 dp bar in the text color at 4 dp. */
+.markdown blockquote { position: relative; margin: 0; padding: 4px 16px; }
+.markdown blockquote::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 3px;
+  width: 2px;
+  background: currentColor;
+}
+.markdown hr { height: 1px; margin: 0; border: 0; background: var(--md-outline-variant); }
+/* MarkdownTable: 8 dp corners on the faint table background, 16 dp cells at least 160 dp wide. */
+.markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--md-on-background) 2%, transparent);
+}
+.markdown th, .markdown td {
+  min-width: 160px;
+  padding: 16px;
+  border-bottom: 1px solid var(--md-outline-variant);
+  text-align: start;
+  vertical-align: top;
+}
+.markdown tr:last-child td { border-bottom: 0; }
+/* Display math scrolls sideways instead of widening the message. */
+.markdown .katex-display { margin: 0; overflow-x: auto; overflow-y: hidden; }
+/* Fenced code: 8 dp above and below, codeBackground with 8 dp corners, 8 dp code padding. */
+.code-block { margin: 8px 0; border-radius: 8px; background: var(--code-background); }
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-bottom: 0.5px solid color-mix(in srgb, var(--md-outline-variant) 30%, transparent);
+}
+/* The language tag uses the platform monospace at 10 sp and 60 % of the text color. */
+.code-language {
+  font-family: monospace;
+  font-size: 10px;
+  line-height: normal;
+  color: color-mix(in srgb, currentColor 60%, transparent);
+}
+.code-copy {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: color-mix(in srgb, currentColor 60%, transparent);
+  cursor: pointer;
+}
+.code-copy svg { width: 14px; height: 14px; fill: currentColor; }
+.code-copy:hover { background: color-mix(in srgb, var(--md-on-surface) 8%, transparent); }
+.code-block pre { margin: 0; padding: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.nowrap .code-block pre { white-space: pre; overflow-wrap: normal; overflow-x: auto; }
 /* ChatComposerSurface: 12 dp above, 8 dp around, content at most 840 dp. */
 .composer-host {
   flex: none;
