@@ -797,8 +797,16 @@ web styles use the app's type scale and Material 3 metrics: a `28 dp` dialog-lik
 `surfaceContainer`, `16 dp` outlined fields with a floating label and an eye toggle, `40 dp` capsule
 buttons. A theme change reaches a browser on its next page load.
 After sign-in the browser mirrors the app's chat screen (`assets/webui/shell.js`, `style.css`) and
-invents no layout of its own; Settings and Remote pages and drawer entries are absent. Tasks remains
-visible but disabled until its browser behavior is approved; other controls the browser cannot use
+invents no layout of its own; Settings and Remote pages and drawer entries are absent.
+WebUI Blur Effects and Reduced Motion follow the App's stored preferences only, not the browser or
+its operating system's reduced-motion preference. No browser settings or switches are added.
+The signed-in shell receives both values through the existing display event and applies updates
+without replacing its details or media preview. Reduced Motion snaps spatial transitions and stops
+continuous indicators; component-owned color and opacity feedback, including the tool image's
+200 ms loading/loaded/failed crossfade, remains. Disabling Blur Effects removes the detail backdrop
+blur without changing its scrim, geometry, input ownership, focus, or scroll position.
+Tasks remains visible but disabled until its browser behavior is approved; other controls the browser
+cannot use
 yet are shown as in the app but disabled. Tonal surfaces use Compose's `surfaceColorAtElevation` mix (primary over surface at
 `(4.5 ln(e + 1) + 2) %`). The top bar is the `ChatTopBar` new-chat state: a `52 dp` row inset
 `12 dp` at the sides and `8 dp` above and below over the fading background, a title capsule

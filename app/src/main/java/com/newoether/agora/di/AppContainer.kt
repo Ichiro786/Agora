@@ -40,6 +40,7 @@ import com.newoether.agora.webui.WebUiController
 import com.newoether.agora.webui.WebUiSettingsStore
 import com.newoether.agora.util.appLanguageResources
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
@@ -402,6 +403,14 @@ class AppContainer(
                     parseInlineDollarMath = inlineMath,
                     autoWrapCodeBlocks = autoWrap,
                 )
+            }.combine(
+                kotlinx.coroutines.flow.combine(
+                    settingsRepository.blurEffectsEnabled,
+                    settingsRepository.reduceMotion,
+                    ::Pair,
+                ),
+            ) { context, (blur, reduceMotion) ->
+                context.copy(blurEffectsEnabled = blur, reduceMotion = reduceMotion)
             },
         )
     }

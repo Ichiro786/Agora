@@ -217,7 +217,8 @@ export function Shell({ onSignedOut }) {
   const shellClass = ["shell", drawerOpen && "drawer-open", sideBySide ? "side-by-side" : "modal"]
     .filter(Boolean).join(" ");
   return html`
-    <div class=${shellClass}>
+    <div class=${shellClass} data-blur-effects=${state.display?.blurEffectsEnabled == null ? null : String(state.display.blurEffectsEnabled)}
+      data-reduce-motion=${state.display?.reduceMotion == null ? null : String(state.display.reduceMotion)}>
       <aside id="drawer" class="drawer" ref=${drawer} aria-label=${t.conversations} tabindex="-1"
         role=${sideBySide ? null : "dialog"} aria-modal=${modalOpen ? "true" : null}
         inert=${!drawerOpen}>

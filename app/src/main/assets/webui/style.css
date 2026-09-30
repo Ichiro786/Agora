@@ -261,8 +261,8 @@ p {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .spinner { animation-duration: 2400ms; }
-  .field, .field label, .button::after { transition: none; }
+  .sign-in-page .spinner { animation-duration: 2400ms; }
+  .sign-in-page .field, .sign-in-page .field label, .sign-in-page .button::after { transition: none; }
 }
 
 :focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
@@ -753,16 +753,11 @@ p {
 .info-item-icon { color: color-mix(in srgb, var(--md-primary) 70%, transparent); }
 .info-item-arrow { color: color-mix(in srgb, var(--md-on-surface-variant) 50%, transparent); }
 .info-item-icon svg, .info-item-arrow svg { width: 16px; height: 16px; fill: currentColor; }
-@media (prefers-reduced-motion: reduce) {
-  .info-group-surface, .info-disclosure svg, .info-group-reveal, .info-card-surface,
-  .info-group.entering .info-group-surface,
-  .info-card.entering .info-card-surface,
-  .info-group.has-tool.entering .info-group-surface,
-  .info-card.has-tool.entering .info-card-surface {
-    transition: none !important;
-    animation: none !important;
-  }
+.shell[data-reduce-motion="true"] :is(.info-group-surface, .info-disclosure svg, .info-card-surface) {
+  transition: none !important;
+  animation: none !important;
 }
+.shell[data-reduce-motion="true"] .info-group-reveal { transition: opacity 400ms; }
 /* The shared Thinking sheet sits above the drawer and the chat, at the 0.45/0.94 anchors. */
 .detail-sheet-layer { position: fixed; inset: 0; z-index: 10; }
 .detail-sheet-backdrop {
@@ -774,6 +769,7 @@ p {
   backdrop-filter: blur(4px);
   cursor: default;
 }
+.shell[data-blur-effects="false"] .detail-sheet-backdrop { backdrop-filter: none; }
 .detail-sheet {
   position: absolute;
   bottom: 0;
@@ -946,16 +942,10 @@ a.tool-search-result:hover { background: color-mix(in srgb, var(--md-on-surface)
 .tool-media-previous, .tool-media-next { position: absolute; top: 50%; transform: translateY(-50%); }
 .tool-media-previous { left: 20px; }
 .tool-media-next { right: 20px; }
-@media (prefers-reduced-motion: reduce) {
-  .tool-image img, .tool-image-overlay { transition: none; }
-  .tool-image .spinner { animation: none; }
+.shell[data-reduce-motion="true"] :is(.spinner, .card-spinner, .detail-sheet, .detail-sheet-page) {
+  animation: none !important;
 }
-@media (prefers-reduced-motion: reduce) {
-  .detail-sheet, .detail-sheet-page, .detail-sheet-page.list-page {
-    animation: none !important;
-    transition: none !important;
-  }
-}
+.shell[data-reduce-motion="true"] .detail-sheet { transition: none !important; }
 /* An error message: centered, errorContainer, 12 dp corners. */
 .model-message.error {
   width: fit-content;
@@ -1185,6 +1175,4 @@ ul.md-list > li > .md-marker { padding-bottom: 4px; }
   color: var(--md-on-surface-variant);
 }
 .send-button svg { width: 24px; height: 24px; fill: currentColor; }
-@media (prefers-reduced-motion: reduce) {
-  .chat, .drawer, .drawer-open .drawer, .scrim { transition: none; }
-}
+.shell[data-reduce-motion="true"] :is(.chat, .drawer, .scrim) { transition: none; }

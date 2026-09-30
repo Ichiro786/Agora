@@ -357,6 +357,8 @@ internal sealed interface WebSyncEvent {
         val thinkingSegmentDisplayMode: String,
         val autoExpandActiveGroup: Boolean,
         val autoWrapCodeBlocks: Boolean,
+        val blurEffectsEnabled: Boolean,
+        val reduceMotion: Boolean,
         val liveThinking: WebLiveTimerStrings,
     ) : WebSyncEvent
 

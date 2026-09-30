@@ -79,11 +79,23 @@ class WebUiSyncTest {
     private val hydration = mockk<ConversationMessagePayloadHydration> {
         every { observeMessage(any(), any()) } answers { flowOf(bodies[firstArg<String>()]) }
     }
+    private val display = MutableStateFlow(
+        WebDisplayContext(
+            resources = mockk(relaxed = true),
+            toolCallDisplayMode = ToolCallDisplayModes.DEFAULT,
+            thinkingSegmentDisplayMode = ThinkingSegmentDisplayModes.DEFAULT,
+            autoExpandActiveGroup = true,
+            parseInlineDollarMath = false,
+            autoWrapCodeBlocks = false,
+        ),
+    )
 
     @Test
     fun listThenOpenSendsTheSavedBranchAfterRecovery() = sync { send, received ->
         val first = received()
         assertEquals("false", first.single { it.type == "display" }.string("autoWrapCodeBlocks"))
+        assertEquals("true", first.single { it.type == "display" }.string("blurEffectsEnabled"))
+        assertEquals("false", first.single { it.type == "display" }.string("reduceMotion"))
         val listed = first.single { it.type == "conversations" }
         val items = listed["items"]!!.jsonArray.map { it.jsonObject }
         assertEquals(listOf("a", "b"), items.map { it.string("id") })
@@ -164,6 +176,26 @@ class WebUiSyncTest {
         }
     }
 
+    @Test
+    fun appearanceChangesKeepTheOpenConversationAndExistingPayloadSubscription() = sync { send, received ->
+        received()
+        send("""{"type":"open","conversationId":"a"}""")
+        received()
+        send("""{"type":"watch","messageIds":["m1"]}""")
+        received()
+        for ((blur, reduceMotion) in listOf(false to true, false to false, true to true, true to false)) {
+            display.value = display.value.copy(blurEffectsEnabled = blur, reduceMotion = reduceMotion)
+            val events = received()
+            val appearance = events.single { it.type == "display" }
+            assertEquals(blur.toString(), appearance.string("blurEffectsEnabled"))
+            assertEquals(reduceMotion.toString(), appearance.string("reduceMotion"))
+            assertEquals("m1", events.single { it.type == "payload" }["message"]!!.jsonObject.string("id"))
+        }
+        coVerify(exactly = 1) { conversations.recoverConversationRuntime("a", any()) }
+        verify(exactly = 1) { hydration.observeMessage("m1", any()) }
+        verify(exactly = 0) { hydration.observeMessage("m2", any()) }
+    }
+
     private fun sync(
         block: suspend TestScope.(send: suspend (String) -> Unit, received: () -> List<JsonObject>) -> Unit,
     ) = runTest {
@@ -174,16 +206,7 @@ class WebUiSyncTest {
             executionCoordinator = ConversationExecutionCoordinator(),
             hydration = hydration,
             customProviders = MutableStateFlow(emptyList()),
-            display = flowOf(
-                WebDisplayContext(
-                    resources = mockk(relaxed = true),
-                    toolCallDisplayMode = ToolCallDisplayModes.DEFAULT,
-                    thinkingSegmentDisplayMode = ThinkingSegmentDisplayModes.DEFAULT,
-                    autoExpandActiveGroup = true,
-                    parseInlineDollarMath = false,
-                    autoWrapCodeBlocks = false,
-                ),
-            ),
+            display = display,
             projectionDispatcher = dispatcher,
         )
         val incoming = Channel<String>(Channel.UNLIMITED)

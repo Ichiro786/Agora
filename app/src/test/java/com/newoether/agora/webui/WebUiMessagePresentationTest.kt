@@ -132,6 +132,18 @@ class WebUiMessagePresentationTest {
     }
 
     @Test
+    fun appearanceFlagsPreserveBothExplicitValues() {
+        for ((blur, reduceMotion) in listOf(false to true, true to false)) {
+            val event = display().copy(blurEffectsEnabled = blur, reduceMotion = reduceMotion).toEvent()
+            assertEquals(blur, event.blurEffectsEnabled)
+            assertEquals(reduceMotion, event.reduceMotion)
+            val encoded = WebUiSync.json.encodeToString(WebSyncEvent.serializer(), event)
+            val decoded = WebUiSync.json.decodeFromString(WebSyncEvent.serializer(), encoded) as WebSyncEvent.Display
+            assertEquals(event, decoded)
+        }
+    }
+
+    @Test
     fun `display event follows the app language and serializes`() {
         val en = display().toEvent()
         val zh = display(language = "zh").toEvent()
