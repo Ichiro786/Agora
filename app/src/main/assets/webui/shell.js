@@ -71,24 +71,138 @@ function DrawerContent({ conversations, openId, onSelect }) {
 }
 
 /** AgoraDropdownMenu: 24 dp corners, 48 dp items with an inset capsule highlight. */
-function MoreMenu({ onSignOut, onClose }) {
+function MoreMenu({ expanded, reduceMotion, anchor, onSignOut, onClose, onExited }) {
   const menu = useRef(null);
-  useEffect(() => {
-    menu.current?.querySelector("[role=menuitem]:not([disabled])")?.focus();
-    const onPointer = (event) => {
-      if (!menu.current?.parentElement?.contains(event.target)) onClose(false);
+  const motion = useRef({ scale: 0.8, alpha: 0, scaleVelocity: 0, alphaVelocity: 0 });
+  useLayoutEffect(() => {
+    const node = menu.current;
+    const measure = () => {
+      const bounds = anchor.current.getBoundingClientRect();
+      const left = bounds.right - node.offsetWidth;
+      const top = bounds.bottom + 4;
+      node.style.left = `${left}px`;
+      node.style.top = `${top}px`;
+      const pivotX = bounds.left >= left + node.offsetWidth ? 1 : bounds.right <= left ? 0
+        : ((Math.max(bounds.left, left) + Math.min(bounds.right, left + node.offsetWidth)) / 2 - left) / node.offsetWidth;
+      const pivotY = top >= bounds.bottom ? 0 : top + node.offsetHeight <= bounds.top ? 1
+        : ((Math.max(bounds.top, top) + Math.min(bounds.bottom, top + node.offsetHeight)) / 2 - top) / node.offsetHeight;
+      node.style.transformOrigin = `${pivotX * 100}% ${pivotY * 100}%`;
     };
+    const geometry = new ResizeObserver(measure);
+    [node, anchor.current].forEach((element) => geometry.observe(element, { box: "border-box" }));
+    window.addEventListener("resize", measure);
+    measure();
+    node.querySelector("[role=menuitem]:not([disabled])")?.focus();
+    return () => { geometry.disconnect(); window.removeEventListener("resize", measure); };
+  }, []);
+  useLayoutEffect(() => {
+    const node = menu.current;
+    const values = motion.current;
+    let frame = 0;
+    const started = performance.now();
+    const samples = ["scale", "alpha"].map((key) => {
+      const target = key === "scale" ? expanded ? 1 : 0.8 : expanded ? 1 : 0;
+      const omega = Math.sqrt(key === "scale" ? 1400 : 3800);
+      const damping = key === "scale" ? Math.fround(0.9) : 1;
+      const displacement = values[key] - target;
+      const velocity = values[`${key}Velocity`];
+      // Compose estimates the final visibility-threshold crossing, not instantaneous speed.
+      const position = Math.abs(Math.fround(displacement / 0.01));
+      const speed = Math.fround(velocity / 0.01) * (displacement < 0 ? -1 : 1);
+      const root = -damping * omega;
+      const frequency = omega * Math.sqrt(1 - damping * damping);
+      let duration = 0;
+      if (position !== 0 || speed !== 0) {
+        if (damping < 1) {
+          const coefficient = (speed - root * position) / frequency;
+          duration = Math.log(1 / Math.hypot(position, coefficient)) / root;
+        } else {
+          const coefficient = speed - root * position;
+          const first = Math.log(Math.abs(1 / position)) / root;
+          const guess = Math.log(Math.abs(1 / coefficient));
+          let second = guess;
+          for (let i = 0; i < 6; i++) second = guess - Math.log(Math.abs(second / root));
+          second /= root;
+          duration = !Number.isFinite(first) ? second : !Number.isFinite(second) ? first : Math.max(first, second);
+          const inflection = -(root * position + coefficient) / (root * coefficient);
+          const extremum = (position + coefficient * inflection) * Math.exp(root * inflection);
+          let delta = -1;
+          if (inflection > 0 && -extremum >= 1) {
+            duration = -2 / root - position / coefficient;
+            delta = 1;
+          } else if (inflection > 0 && coefficient < 0 && position > 0) duration = 0;
+          for (let i = 0; i < 100; i++) {
+            const before = duration;
+            const decay = Math.exp(root * duration);
+            duration -= ((position + coefficient * duration) * decay + delta) /
+              ((coefficient * (root * duration + 1) + position * root) * decay);
+            if (Math.abs(before - duration) <= 0.001) break;
+          }
+        }
+      }
+      return { key, target, omega, damping, displacement, velocity,
+        duration: Math.max(0, Math.trunc(duration * 1000)) };
+    });
+    const advance = (time) => {
+      const elapsedMs = Math.max(0, Math.trunc(time - started));
+      const elapsed = elapsedMs / 1000;
+      // Material3 1.4.0 Standard FastSpatial / FastEffects, sampled with retained velocity.
+      for (const { key, target, omega, damping, displacement, velocity, duration } of samples) {
+        const speedKey = `${key}Velocity`;
+        if ((key === "scale" && reduceMotion) || elapsedMs >= duration) {
+          values[key] = target;
+          values[speedKey] = 0;
+          continue;
+        }
+        const decay = Math.exp(-damping * omega * elapsed);
+        if (damping === 1) {
+          const coefficient = velocity + omega * displacement;
+          values[key] = target + decay * (displacement + coefficient * elapsed);
+          values[speedKey] = decay * (coefficient - omega * (displacement + coefficient * elapsed));
+        } else {
+          const frequency = omega * Math.sqrt(1 - damping * damping);
+          const coefficient = (velocity + damping * omega * displacement) / frequency;
+          const cosine = Math.cos(frequency * elapsed);
+          const sine = Math.sin(frequency * elapsed);
+          const position = displacement * cosine + coefficient * sine;
+          values[key] = target + decay * position;
+          values[speedKey] = decay * (-damping * omega * position + frequency * (coefficient * cosine - displacement * sine));
+        }
+      }
+      node.style.transform = `scale(${values.scale})`;
+      node.style.opacity = String(values.alpha);
+    };
+    const tick = (time) => {
+      advance(time);
+      if (values.scaleVelocity !== 0 || values.alphaVelocity !== 0 ||
+          values.scale !== (expanded ? 1 : 0.8) || values.alpha !== (expanded ? 1 : 0)) {
+        frame = requestAnimationFrame(tick);
+      } else if (!expanded) onExited(node.contains(document.activeElement));
+    };
+    tick(started);
+    return () => { cancelAnimationFrame(frame); advance(performance.now()); };
+  }, [expanded, reduceMotion]);
+  useLayoutEffect(() => {
     const onKey = (event) => {
-      if (event.key === "Escape") onClose(true);
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
+      if (["Tab", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) {
+        event.preventDefault();
+        const controls = [...menu.current.querySelectorAll("[role=menuitem]:not([disabled])")];
+        const current = controls.indexOf(document.activeElement);
+        const next = event.key === "Home" ? 0 : event.key === "End" ? controls.length - 1
+          : (current + (event.shiftKey || event.key === "ArrowUp" ? -1 : 1) + controls.length) % controls.length;
+        controls[next]?.focus();
+      }
     };
-    document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, []);
   return html`
+    <div class="menu-popup-layer" onPointerDown=${(event) => {
+      if (!menu.current.contains(event.target)) { event.preventDefault(); onClose(); }
+      event.stopPropagation();
+    }} onWheel=${(event) => { if (!menu.current.contains(event.target)) event.preventDefault(); }}
+      onContextMenu=${(event) => event.preventDefault()}>
     <div class="dropdown" role="menu" ref=${menu}>
       <button class="dropdown-item" role="menuitem" type="button" disabled>
         ${icon(ICON_SEARCH)}<span>${t.conversationSearch}</span>
@@ -105,6 +219,7 @@ function MoreMenu({ onSignOut, onClose }) {
       <button class="dropdown-item" role="menuitem" type="button" onClick=${onSignOut}>
         ${icon(ICON_LOGOUT)}<span>${t.signOut}</span>
       </button>
+    </div>
     </div>`;
 }
 
@@ -112,17 +227,17 @@ function MoreMenu({ onSignOut, onClose }) {
  * ChatTopBar: title capsule (menu + brand, or the conversation title at conversationTitleSolo)
  * and actions capsule (new chat + more).
  */
-function TopBar({ title, drawerOpen, onToggleDrawer, menuButton, onSignedOut }) {
+function TopBar({ title, drawerOpen, onToggleDrawer, menuButton, reduceMotion, onSignedOut }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [retainedMenu, setRetainedMenu] = useState(false);
   const moreButton = useRef(null);
   async function signOut() {
     setMenuOpen(false);
     await postJson("/api/logout", {}).catch(() => null);
     onSignedOut();
   }
-  function closeMenu(restoreFocus) {
+  function closeMenu() {
     setMenuOpen(false);
-    if (restoreFocus) moreButton.current?.focus();
   }
   return html`
     <header class="top-bar">
@@ -142,13 +257,15 @@ function TopBar({ title, drawerOpen, onToggleDrawer, menuButton, onSignedOut }) 
         <div class="menu-anchor">
           <button class="bar-button" type="button" ref=${moreButton} aria-label=${t.options}
             aria-haspopup="menu" aria-expanded=${menuOpen ? "true" : "false"}
-            onClick=${() => setMenuOpen(!menuOpen)}>
+            onClick=${() => { setRetainedMenu(true); setMenuOpen(!menuOpen); }}>
             ${icon(ICON_MORE_VERT)}
           </button>
-          ${menuOpen && html`<${MoreMenu} onSignOut=${signOut} onClose=${closeMenu} />`}
         </div>
       </div>
-    </header>`;
+    </header>
+    ${(menuOpen || retainedMenu) && html`<${MoreMenu} expanded=${menuOpen} reduceMotion=${reduceMotion}
+      anchor=${moreButton} onSignOut=${signOut} onClose=${closeMenu}
+      onExited=${(ownedFocus) => { setRetainedMenu(false); if (ownedFocus) moreButton.current?.focus(); }} />`}`;
 }
 
 /** ChatBottomBar: surface card with the text field, the expand button and the controls row. */
@@ -365,7 +482,7 @@ export function Shell({ onSignedOut }) {
       </aside>
       <div class="scrim" aria-hidden="true" onClick=${() => settleDrawer(false)}></div>
       <main class="chat" inert=${modalOpen}>
-        <${TopBar} title=${openTitle} drawerOpen=${drawerOpen} menuButton=${menuButton} onSignedOut=${onSignedOut}
+        <${TopBar} title=${openTitle} drawerOpen=${drawerOpen} menuButton=${menuButton} reduceMotion=${reduceMotion} onSignedOut=${onSignedOut}
           onToggleDrawer=${() => settleDrawer(drawerTarget.current === 0)} />
         <${MessageList} state=${state} label=${openTitle || t.newChat} />
         <${Composer} />

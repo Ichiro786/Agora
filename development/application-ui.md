@@ -815,9 +815,12 @@ without replacing its details or media preview. Reduced Motion snaps spatial tra
 continuous indicators; component-owned color and opacity feedback, including the tool image's
 200 ms loading/loaded/failed crossfade, remains. Disabling Blur Effects removes the detail backdrop
 blur without changing its scrim, geometry, input ownership, focus, or scroll position.
-WebUI conversation loading uses the circular cover below. Remaining menu parity includes the pinned
-Compose Material dropdown's default entrance, exit and retained exit lifetime. Shape-only menus with
-abrupt mounting/removal are not complete parity.
+WebUI conversation loading uses the circular cover below. Its existing More menu mirrors pinned
+Material3 1.4.0 Standard FastSpatial scale (0.8 to 1) and FastEffects opacity (0 to 1), with the
+anchor/menu intersection pivot and retained popup through settled exit. Rapid target changes retain
+the current values and velocities, not a remounted menu or queued animation. App Reduced Motion
+snaps scale and retains opacity feedback. The popup owns covered input and focus through exit;
+outside dismissal does not activate the underlying chat. Geometry, item order and enablement remain.
 The requested loading overlay is specifically for opening or switching a conversation, matching
 ChatApp's content-area cover, measured top/composer available-range centering, 200ms opacity and
 touch exclusion through retained exit. It does not add a login-session-check, drawer-list,
