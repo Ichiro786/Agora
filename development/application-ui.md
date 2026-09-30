@@ -815,6 +815,14 @@ without replacing its details or media preview. Reduced Motion snaps spatial tra
 continuous indicators; component-owned color and opacity feedback, including the tool image's
 200 ms loading/loaded/failed crossfade, remains. Disabling Blur Effects removes the detail backdrop
 blur without changing its scrim, geometry, input ownership, focus, or scroll position.
+The browser TopBar keeps its title content on stable final constraints, capped at 260px after the
+98px actions and 16px gap. Its existing owner measures the natural title and draws one start-anchored
+rounded boundary over 400ms; the same boundary drives the surface, shadow and content reveal.
+Brand/conversation ID/title identity changes crossfade title-only snapshots over 200ms. Both use
+FastOutSlowIn; initial composition is stable, interruptions retain current values and geometry-only
+changes rebase toward the latest target within the original deadline. App Reduced Motion snaps only
+the spatial boundary. Outgoing labels are noninteractive and hidden from accessibility. Context
+subtitle data remains separate unfinished work, not a fabricated value in this title-motion stage.
 WebUI conversation loading uses the circular cover below. Its existing More menu mirrors pinned
 Material3 1.4.0 Standard FastSpatial scale (0.8 to 1) and FastEffects opacity (0 to 1), with the
 anchor/menu intersection pivot and retained popup through settled exit. Rapid target changes retain

@@ -521,7 +521,51 @@ p {
   box-shadow: var(--shadow-4);
   pointer-events: auto;
 }
-.title-capsule { flex: 0 1 auto; min-width: 0; max-width: 260px; padding-left: 5px; }
+@property --title-clip-width { syntax: "<length>"; inherits: true; initial-value: 260px; }
+.title-capsule {
+  position: relative;
+  flex: 1 1 260px;
+  min-width: 0;
+  max-width: 260px;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+/* One draw boundary owns the surface/shadow silhouette and content clip, never text layout. */
+.title-canvas {
+  --title-clip-width: 260px;
+  position: relative;
+  width: 100%;
+  height: 52px;
+  pointer-events: none;
+}
+.title-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: min(100%, var(--title-clip-width));
+  border-radius: 26px;
+  background: var(--tonal-4);
+  box-shadow: var(--shadow-4);
+}
+.title-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 5px;
+  clip-path: inset(0 max(0px, calc(100% - var(--title-clip-width))) 0 0 round 26px);
+  pointer-events: auto;
+}
+.title-labels {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  max-width: 180px;
+  height: 100%;
+  margin: 0 20px 0 5px;
+}
+.title-content > .bar-button { pointer-events: auto; }
 .actions-capsule { flex: none; width: 98px; padding: 0 5px; }
 .menu-anchor { position: relative; }
 /* IconButton: 44 dp; Menu and More icons 26 dp, New Chat 30 dp. */
@@ -551,9 +595,13 @@ p {
 /* ChatType.brandTitle 20/26 bold, at most 180 dp, 20 dp end padding. */
 .brand-title,
 .conversation-bar-title {
-  margin: 0 20px 0 5px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: max-content;
+  margin: 0;
   min-width: 0;
-  max-width: 180px;
+  max-width: 100%;
   overflow: hidden;
   font-size: 20px;
   line-height: 26px;
@@ -563,6 +611,7 @@ p {
 }
 /* An open conversation's title uses ChatType.conversationTitleSolo 17/22 bold. */
 .conversation-bar-title { font-size: 17px; line-height: 22px; }
+.title-labels h1[aria-hidden="true"] { pointer-events: none; user-select: none; }
 /* AgoraDropdownMenu on surfaceContainer: 24 dp corners, 48 dp items, highlight inset 8 dp. */
 .menu-popup-layer {
   position: fixed;

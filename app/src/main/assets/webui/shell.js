@@ -227,10 +227,89 @@ function MoreMenu({ expanded, reduceMotion, anchor, onSignOut, onClose, onExited
  * ChatTopBar: title capsule (menu + brand, or the conversation title at conversationTitleSolo)
  * and actions capsule (new chat + more).
  */
-function TopBar({ title, drawerOpen, onToggleDrawer, menuButton, reduceMotion, onSignedOut }) {
+function TopBar({ title, conversationId, drawerOpen, onToggleDrawer, menuButton, reduceMotion, onSignedOut }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [retainedMenu, setRetainedMenu] = useState(false);
   const moreButton = useRef(null);
+  const titleIdentity = title ? JSON.stringify([conversationId, title]) : "brand";
+  const [titleFrames, setTitleFrames] = useState([{ identity: titleIdentity, title, initialAlpha: 1 }]);
+  const presentations = titleFrames.some((frame) => frame.identity === titleIdentity) ? titleFrames
+    : [...titleFrames, { identity: titleIdentity, title, initialAlpha: 0 }];
+  const titleCanvas = useRef(null);
+  const titleClip = useRef({ identity: null, target: 0, deadline: 0, animation: null });
+  const titleFade = useRef({ identity: titleIdentity, animations: new Map() });
+  useLayoutEffect(() => {
+    const canvas = titleCanvas.current;
+    const clip = titleClip.current;
+    const measure = () => {
+      const label = [...canvas.querySelectorAll("h1")].find((node) => node.dataset.titleIdentity === titleIdentity);
+      const target = Math.min(canvas.clientWidth, 74 + Math.min(label.scrollWidth, 180));
+      const initial = clip.identity === null;
+      const changed = clip.identity !== titleIdentity;
+      if (!changed && clip.target === target && (!reduceMotion || !clip.animation)) return;
+      const now = performance.now();
+      const from = initial ? target : parseFloat(getComputedStyle(canvas).getPropertyValue("--title-clip-width"));
+      canvas.style.setProperty("--title-clip-width", `${from}px`);
+      clip.animation?.cancel();
+      clip.animation = null;
+      if (changed) clip.deadline = now + 400;
+      clip.identity = titleIdentity;
+      clip.target = target;
+      if (initial || reduceMotion || now >= clip.deadline) {
+        canvas.style.setProperty("--title-clip-width", `${target}px`);
+        clip.deadline = 0;
+        return;
+      }
+      // Identity changes restart; geometry alone rebases within the same original deadline.
+      const animation = canvas.animate([
+        { "--title-clip-width": `${from}px` }, { "--title-clip-width": `${target}px` },
+      ], { duration: clip.deadline - now, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" });
+      clip.animation = animation;
+      animation.onfinish = () => {
+        if (clip.animation !== animation) return;
+        canvas.style.setProperty("--title-clip-width", `${clip.target}px`);
+        animation.cancel();
+        clip.animation = null;
+        clip.deadline = 0;
+      };
+    };
+    measure();
+    const geometry = new ResizeObserver(measure);
+    [canvas, ...canvas.querySelectorAll("h1")].forEach((node) => geometry.observe(node, { box: "border-box" }));
+    document.fonts.addEventListener("loadingdone", measure);
+    return () => { geometry.disconnect(); document.fonts.removeEventListener("loadingdone", measure); };
+  }, [titleIdentity, reduceMotion, titleFrames]);
+  useLayoutEffect(() => {
+    const fade = titleFade.current;
+    if (fade.identity === titleIdentity) return;
+    const labels = [...titleCanvas.current.querySelectorAll("h1")];
+    for (const label of labels) {
+      const alpha = getComputedStyle(label).opacity;
+      fade.animations.get(label.dataset.titleIdentity)?.cancel();
+      label.style.opacity = alpha;
+    }
+    fade.animations.clear();
+    fade.identity = titleIdentity;
+    setTitleFrames(presentations);
+    for (const label of labels) {
+      const identity = label.dataset.titleIdentity;
+      const animation = label.animate([{ opacity: getComputedStyle(label).opacity },
+        { opacity: identity === titleIdentity ? 1 : 0 }],
+      { duration: 200, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" });
+      fade.animations.set(identity, animation);
+      if (identity === titleIdentity) animation.onfinish = () => {
+        if (fade.animations.get(identity) !== animation) return;
+        labels.forEach((node) => { node.style.opacity = node === label ? "1" : "0"; });
+        fade.animations.forEach((owned) => owned.cancel());
+        fade.animations.clear();
+        setTitleFrames([{ identity, title, initialAlpha: 1 }]);
+      };
+    }
+  }, [titleIdentity]);
+  useLayoutEffect(() => () => {
+    titleClip.current.animation?.cancel();
+    titleFade.current.animations.forEach((animation) => animation.cancel());
+  }, []);
   async function signOut() {
     setMenuOpen(false);
     await postJson("/api/logout", {}).catch(() => null);
@@ -242,13 +321,20 @@ function TopBar({ title, drawerOpen, onToggleDrawer, menuButton, reduceMotion, o
   return html`
     <header class="top-bar">
       <div class="capsule title-capsule">
-        <button class="bar-button" type="button" ref=${menuButton} aria-label=${t.menu}
-          aria-controls="drawer" aria-expanded=${drawerOpen ? "true" : "false"} onClick=${onToggleDrawer}>
-          ${icon(ICON_MENU)}
-        </button>
-        ${title
-          ? html`<h1 class="conversation-bar-title">${title}</h1>`
-          : html`<h1 class="brand-title">${t.title}</h1>`}
+        <div class="title-canvas" ref=${titleCanvas}>
+          <div class="title-content">
+            <button class="bar-button" type="button" ref=${menuButton} aria-label=${t.menu}
+              aria-controls="drawer" aria-expanded=${drawerOpen ? "true" : "false"} onClick=${onToggleDrawer}>
+              ${icon(ICON_MENU)}
+            </button>
+            <div class="title-labels">
+              ${presentations.map((frame) => html`<h1 key=${frame.identity}
+                class=${frame.title ? "conversation-bar-title" : "brand-title"}
+                data-title-identity=${frame.identity} aria-hidden=${frame.identity === titleIdentity ? null : "true"}
+                style=${{ opacity: frame.initialAlpha }}>${frame.title || t.title}</h1>`)}
+            </div>
+          </div>
+        </div>
       </div>
       <div class="capsule actions-capsule">
         <button class="bar-button add" type="button" aria-label=${t.newChat} disabled>
@@ -482,7 +568,7 @@ export function Shell({ onSignedOut }) {
       </aside>
       <div class="scrim" aria-hidden="true" onClick=${() => settleDrawer(false)}></div>
       <main class="chat" inert=${modalOpen}>
-        <${TopBar} title=${openTitle} drawerOpen=${drawerOpen} menuButton=${menuButton} reduceMotion=${reduceMotion} onSignedOut=${onSignedOut}
+        <${TopBar} title=${openTitle} conversationId=${state.openId} drawerOpen=${drawerOpen} menuButton=${menuButton} reduceMotion=${reduceMotion} onSignedOut=${onSignedOut}
           onToggleDrawer=${() => settleDrawer(drawerTarget.current === 0)} />
         <${MessageList} state=${state} label=${openTitle || t.newChat} />
         <${Composer} />
