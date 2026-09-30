@@ -818,6 +818,14 @@ expand button, and the controls row with the `48 dp` control group (attachment, 
 tools) and the `48 dp` send button. English and Chinese labels are the app's own strings. The
 sign-in page centers its card with flex and caps it at `400 px`: a grid's auto track sized to the
 card's max-content and pushed it past a narrow screen once the app font loaded.
+The browser's message details mirror `SegmentDetailSheet` for Thought and Transcription. In
+Grouped/Compact Bottom Sheet mode, the group header opens a segment list; ordinary Timeline
+cards and inline Grouped/Compact rows open the selected detail directly. Tool entries stay
+visible but inactive until tool details are implemented. The browser-local sheet uses 45%/94%
+viewport anchors, scrim and blur, list/detail back and close, Escape, focus return and Reduced
+Motion snap. It stays on the selected message while a streaming frame hands off to its durable
+payload, preserving detail scroll and focus; switching conversations or removing the selected
+message dismisses it. The sheet keeps the selected message watched even when its row is off screen.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.

@@ -9,6 +9,28 @@ import { sync } from "./sync.js";
 // Rows within one screen above or below stay watched, so scrolling rarely meets a blank row.
 const WATCH_MARGIN = "100% 0px";
 
+const SHEET_BACK_PATH = "M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z";
+const SHEET_CLOSE_PATH = "M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.41 4.29 19.71 2.88 18.3 9.17 12 2.88 5.7 4.29 4.29 10.59 10.59 16.89 4.29z";
+
+function groupForMessage(message, groupKey) {
+  const presentation = message?.presentation;
+  if (!presentation) return null;
+  if (presentation.compact?.key === groupKey) return presentation.compact;
+  return presentation.blocks?.find((block) => block.type === "group" && block.group.key === groupKey)?.group ?? null;
+}
+
+function sheetItemsForMessage(message, groupKey) {
+  if (!message?.presentation) return [];
+  if (groupKey != null) return groupForMessage(message, groupKey)?.items ?? [];
+  return message.presentation.blocks
+    ?.filter((block) => block.type === "card")
+    .map((block) => block.item) ?? [];
+}
+
+function canOpenSheetItem(item) {
+  return item?.type === "thought" || item?.type === "transcription";
+}
+
 /** UserMessageBubble: plain text in a primaryContainer bubble, 54-300 dp wide. */
 function UserBubble({ message }) {
   return html`
@@ -92,13 +114,17 @@ function createGroupExpansionController() {
   };
 }
 
-/** The preview rows stay inert until the shared segment detail sheet is implemented. */
-function InfoItem({ item, compact = false }) {
+/** A row can activate details only when it has a Thought or Transcription target. */
+function InfoItem({ item, compact = false, onClick }) {
   const text = item.type === "thought" ? item.content?.markdown?.replace(/\n/g, " ")
     : item.type === "transcription" ? item.content?.markdown?.replace(/\n/g, " ") || "Image transcription is empty."
       : item.summary;
+  const interactive = typeof onClick === "function";
+  const Tag = interactive ? "button" : "div";
   return html`
-    <div class=${compact ? "info-item compact-item" : "info-item timeline-item"}>
+    <${Tag} class=${`${compact ? "info-item compact-item" : "info-item timeline-item"} ${interactive ? "sheet-item" : ""}`}
+      type=${interactive ? "button" : null}
+      onClick=${onClick}>
       ${!compact && html`<span class="info-item-icon">
         <${CardIcon} kind=${item.type === "tool" ? "TOOL" : item.type === "transcription" ? "IMAGE" : "THINKING"} />
       </span>`}
@@ -106,12 +132,12 @@ function InfoItem({ item, compact = false }) {
         <span class="info-item-title">${item.title}</span>
         ${text && html`<span class="info-item-summary">${text}</span>`}
       </div>
-      ${!compact && html`<span class="info-item-arrow">${icon(ICON_CHEVRON_RIGHT)}</span>`}
-    </div>`;
+      ${!compact && interactive && html`<span class="info-item-arrow">${icon(ICON_CHEVRON_RIGHT)}</span>`}
+    </${Tag}>`;
 }
 
 /** Browser-local expansion memory survives payload eviction and off-screen row hydration. */
-function InfoGroup({ group, messageId, display, expansion, expansionController, opensSheet, appearances, streaming }) {
+function InfoGroup({ group, messageId, display, expansion, expansionController, opensSheet, onOpenSheet, onOpenDetail, appearances, streaming }) {
   const key = `${messageId}:${group.key}`;
   const initiallyActive = !!(display?.autoExpandActiveGroup && group.autoExpansionActive);
   const imageBoundary = group.imageDetailIndex != null;
@@ -176,33 +202,141 @@ function InfoGroup({ group, messageId, display, expansion, expansionController, 
       <div class="info-group-surface" ref=${surface}
         style=${widths == null ? null : { width: `${targetExpanded ? widths.expanded : widths.collapsed}px` }}>
         <button class="info-group-header" type="button" aria-expanded=${opensSheet ? null : expanded}
-          onClick=${opensSheet ? undefined : toggle} disabled=${opensSheet}>
+          aria-haspopup=${opensSheet ? "dialog" : null}
+          onClick=${opensSheet ? () => onOpenSheet?.(messageId, group.key) : toggle}>
           <span class="info-header-icon"><${CardIcon} kind=${group.icon} /></span>
           <span class="info-header-title" ref=${titleNode}>${title}</span>
           <span class="info-disclosure">${icon(ICON_CHEVRON_DOWN)}</span>
         </button>
         <div class="info-group-reveal" inert=${!targetExpanded}>
           <div class="info-group-items">
-            ${group.items.map((item) => html`<${InfoItem} key=${item.detailIndex} item=${item} compact />`)}
+            ${group.items.map((item) => html`<${InfoItem} key=${item.detailIndex} item=${item} compact
+              onClick=${canOpenSheetItem(item)
+                ? () => onOpenDetail(messageId, group.key, item.detailIndex) : undefined} />`)}
           </div>
         </div>
       </div>
     </div>`;
 }
 
-function InfoCard({ block, messageId, appearances, streaming }) {
+function InfoCard({ block, messageId, appearances, streaming, onOpenDetail }) {
   const key = `${messageId}:card:${block.item.detailIndex}`;
   const entering = useRef(!appearances.has(key) && streaming);
   useEffect(() => { appearances.add(key); }, [key]);
   return html`
     <div class=${`info-card ${block.groupPosition.toLowerCase()} ${block.precededByAnswer ? "after-answer" : ""} ${block.item.type === "tool" ? "has-tool" : ""} ${entering.current ? "entering" : ""}`}
       data-detail=${block.item.detailIndex}>
-      <div class="info-card-surface"><${InfoItem} item=${block.item} /></div>
+      <div class="info-card-surface"><${InfoItem} item=${block.item}
+        onClick=${canOpenSheetItem(block.item)
+          ? () => onOpenDetail(messageId, null, block.item.detailIndex) : undefined} /></div>
+    </div>`;
+}
+
+function DetailSheet({ group, items, page, detailIndex, selectedItem, display, wrap, onSelectItem, onBack, onClose }) {
+  const [expanded, setExpanded] = useState(false);
+  const closeButton = useRef(null);
+  const restoreFocus = useRef(null);
+  const sheet = useRef(null);
+  const dragStart = useRef(null);
+  const suppressHandleClick = useRef(false);
+  const backAction = useRef(onBack);
+  backAction.current = onBack;
+  const groupTitle = useCardTitle(group ?? { title: "", liveBaseMs: null }, display?.liveThinking);
+  const title = page === "detail" ? selectedItem?.title : groupTitle;
+  useEffect(() => {
+    restoreFocus.current = document.activeElement;
+    closeButton.current?.focus();
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        backAction.current();
+      } else if (event.key === "Tab") {
+        const controls = [...sheet.current?.querySelectorAll("button:not([disabled])") ?? []];
+        if (!controls.length) return;
+        const target = event.shiftKey ? controls.at(-1) : controls[0];
+        const atEdge = event.shiftKey ? document.activeElement === controls[0]
+          : document.activeElement === controls.at(-1);
+        if (atEdge || !sheet.current?.contains(document.activeElement)) {
+          event.preventDefault();
+          target.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      if (restoreFocus.current?.isConnected) restoreFocus.current.focus();
+    };
+  }, []);
+  useEffect(() => {
+    sheet.current?.querySelector(".detail-sheet-content")?.scrollTo(0, 0);
+  }, [page, detailIndex]);
+  function beginDrag(event) {
+    dragStart.current = event.clientY;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+  function endDrag(event) {
+    if (dragStart.current == null) return;
+    const delta = event.clientY - dragStart.current;
+    dragStart.current = null;
+    if (Math.abs(delta) > 24) {
+      suppressHandleClick.current = true;
+      if (delta < 0) setExpanded(true);
+      else setExpanded(false);
+    }
+  }
+  function onWheel(event) {
+    const content = sheet.current?.querySelector(".detail-sheet-content");
+    if (event.deltaY < 0 && content?.scrollTop === 0 && expanded) setExpanded(false);
+    else if (event.deltaY > 0 && !expanded) setExpanded(true);
+  }
+  return html`
+    <div class="detail-sheet-layer">
+      <button class="detail-sheet-backdrop" type="button" aria-label="Close" onClick=${onClose}></button>
+      <section class=${`detail-sheet ${expanded ? "expanded" : ""}`} role="dialog" aria-modal="true"
+        aria-label=${title || "Message details"} ref=${sheet}>
+        <button class="detail-sheet-handle" type="button"
+          aria-label=${expanded ? "Collapse details" : "Expand details"}
+          onPointerDown=${beginDrag} onPointerUp=${endDrag} onPointerCancel=${() => { dragStart.current = null; }}
+          onClick=${() => {
+            if (suppressHandleClick.current) suppressHandleClick.current = false;
+            else setExpanded((value) => !value);
+          }}>
+          <span></span>
+        </button>
+        <header class="detail-sheet-header">
+          ${page === "detail" && group && html`<button class="detail-sheet-icon detail-sheet-back" type="button" aria-label="Back" onClick=${onBack}>
+            ${icon(SHEET_BACK_PATH)}
+          </button>`}
+          <h2>${title || "Message details"}</h2>
+          <button class="detail-sheet-icon" type="button" aria-label="Close" ref=${closeButton} onClick=${onClose}>
+            ${icon(SHEET_CLOSE_PATH)}
+          </button>
+        </header>
+        <div class="detail-sheet-content" onWheel=${onWheel}>
+          <div class=${`detail-sheet-page ${page === "list" ? "list-page" : "detail-page"}`} key=${page}>
+            ${page === "list" ? html`
+              <div class="detail-sheet-list">
+                ${items.map((item, index) => html`
+                  <div class=${`detail-sheet-list-row ${index === 0 ? "first" : index === items.length - 1 ? "last" : "middle"}`} key=${item.detailIndex}>
+                    <${InfoItem} item=${item}
+                      onClick=${canOpenSheetItem(item) ? () => onSelectItem(item.detailIndex) : undefined} />
+                  </div>`)}
+              </div>` : selectedItem && html`
+              <div class=${`detail-sheet-markdown ${selectedItem.streaming ? "streaming" : ""}`}>
+                ${selectedItem.type === "transcription" && !selectedItem.content?.markdown
+                  ? html`<p class="detail-sheet-empty">Image transcription is empty.</p>`
+                  : html`<${Markdown} text=${selectedItem.content} variant="thought" wrap=${wrap} />`}
+              </div>`}
+          </div>
+        </div>
+      </section>
     </div>`;
 }
 
 /** AssistantMessageContent reads the same presentation decisions as the phone. */
-function ModelMessage({ message, wrap, display, expansion, expansionController, appearances, streaming }) {
+function ModelMessage({ message, wrap, display, expansion, expansionController, appearances, streaming, onOpenSheet, onOpenDetail }) {
   const presentation = message.presentation;
   const error = message.participant === "ERROR";
   let body = null;
@@ -216,11 +350,13 @@ function ModelMessage({ message, wrap, display, expansion, expansionController, 
         case "group":
           return html`<${InfoGroup} key=${block.group.key} group=${block.group}
             messageId=${message.id} display=${display} expansion=${expansion}
-            expansionController=${expansionController}
+            expansionController=${expansionController} onOpenSheet=${onOpenSheet}
+            onOpenDetail=${onOpenDetail}
             appearances=${appearances} streaming=${streaming} opensSheet=${presentation.useThinkingSheet} />`;
         case "card":
           return html`<${InfoCard} key=${`card:${block.item.detailIndex}`} block=${block}
-            messageId=${message.id} appearances=${appearances} streaming=${streaming} />`;
+            messageId=${message.id} appearances=${appearances} streaming=${streaming}
+            onOpenDetail=${onOpenDetail} />`;
         default:
           return null;
       }
@@ -229,13 +365,14 @@ function ModelMessage({ message, wrap, display, expansion, expansionController, 
     body = html`
       ${presentation?.compact && html`<${InfoGroup} group=${presentation.compact} messageId=${message.id}
         display=${display} expansion=${expansion} expansionController=${expansionController}
+        onOpenSheet=${onOpenSheet} onOpenDetail=${onOpenDetail}
         appearances=${appearances} streaming=${streaming} opensSheet=${presentation.useThinkingSheet} />`}
       ${presentation?.answer && html`<${Markdown} text=${presentation.answer} wrap=${wrap} />`}`;
   }
   return html`<div class=${error ? "model-message error" : "model-message"}>${body}</div>`;
 }
 
-function Row({ entry, body, wrap, display, expansion, expansionController, appearances, streaming }) {
+function Row({ entry, body, wrap, display, expansion, expansionController, appearances, streaming, onOpenSheet, onOpenDetail }) {
   const message = body ?? null;
   let content = html`<div class="row-placeholder"></div>`;
   if (message) {
@@ -243,7 +380,8 @@ function Row({ entry, body, wrap, display, expansion, expansionController, appea
       ? html`<${UserBubble} message=${message} />`
       : html`<${ModelMessage} message=${message} wrap=${wrap} display=${display}
           expansion=${expansion} expansionController=${expansionController}
-          appearances=${appearances} streaming=${streaming} />`;
+          appearances=${appearances} streaming=${streaming}
+          onOpenSheet=${onOpenSheet} onOpenDetail=${onOpenDetail} />`;
   }
   return html`<div class="message-row" data-id=${entry.id}>${content}</div>`;
 }
@@ -256,8 +394,38 @@ export function MessageList({ state, label }) {
   const expansionController = useRef(createGroupExpansionController());
   const appearances = useRef(new Set());
   const previousOpenId = useRef(state.openId);
+  const [sheet, setSheet] = useState(null);
+  const sheetWatchedId = sheet?.conversationId === state.openId ? sheet.messageId : null;
+  const watchedSheet = useRef(sheetWatchedId);
+  watchedSheet.current = sheetWatchedId;
   const ids = state.path.map((entry) => entry.id).join(",");
   const wrap = state.display?.autoWrapCodeBlocks ?? true;
+  const selectedOnPath = sheet && state.openId === sheet.conversationId &&
+    state.path.some((entry) => entry.id === sheet.messageId);
+  const sheetMessage = selectedOnPath
+    ? state.streaming?.id === sheet.messageId ? state.streaming : state.bodies.get(sheet.messageId)
+    : null;
+  const sheetGroup = sheetMessage && sheet?.groupKey != null
+    ? groupForMessage(sheetMessage, sheet.groupKey) : null;
+  const sheetItems = sheetMessage ? sheetItemsForMessage(sheetMessage, sheet.groupKey) : [];
+  const selectedItem = sheetItems.find((item) => item.detailIndex === sheet?.detailIndex);
+  const validSheet = selectedOnPath && (!sheetMessage ||
+    ((sheet.groupKey == null || sheetGroup) &&
+      (sheet.page !== "detail" || canOpenSheetItem(selectedItem))));
+
+  function openSheet(messageId, groupKey) {
+    setSheet({ conversationId: state.openId, messageId, groupKey, page: "list", detailIndex: null });
+  }
+  function openDetail(messageId, groupKey, detailIndex) {
+    setSheet({ conversationId: state.openId, messageId, groupKey, page: "detail", detailIndex });
+  }
+  useEffect(() => {
+    if (!sheet) return;
+    if (sheet.conversationId !== state.openId || state.openStatus === "deleted" ||
+        state.openStatus === "failed" ||
+        (state.openStatus === "ready" && !state.path.some((entry) => entry.id === sheet.messageId)) ||
+        (sheetMessage && !validSheet)) setSheet(null);
+  }, [sheet, state.openId, state.openStatus, ids, sheetMessage, validSheet]);
 
   useEffect(() => {
     if (previousOpenId.current === state.openId) return;
@@ -277,11 +445,19 @@ export function MessageList({ state, label }) {
         if (entry.isIntersecting) visible.current.add(id);
         else visible.current.delete(id);
       }
-      sync.watch([...visible.current]);
+      const watched = new Set(visible.current);
+      if (watchedSheet.current) watched.add(watchedSheet.current);
+      sync.watch([...watched]);
     }, { root, rootMargin: WATCH_MARGIN });
     root.querySelectorAll(".message-row").forEach((row) => observer.observe(row));
     return () => observer.disconnect();
   }, [ids]);
+
+  useEffect(() => {
+    const watched = new Set(visible.current);
+    if (sheetWatchedId) watched.add(sheetWatchedId);
+    sync.watch([...watched]);
+  }, [sheetWatchedId]);
 
   // The app opens a conversation at its newest message. Row bodies arrive after the path, so
   // the list stays at the bottom while they load, until the reader scrolls.
@@ -312,8 +488,16 @@ export function MessageList({ state, label }) {
           <${Row} key=${entry.id} entry=${entry} wrap=${wrap} display=${state.display}
             expansion=${expansion.current} expansionController=${expansionController.current}
             appearances=${appearances.current}
+            onOpenSheet=${openSheet} onOpenDetail=${openDetail}
             streaming=${state.streaming?.id === entry.id}
             body=${state.streaming?.id === entry.id ? state.streaming : state.bodies.get(entry.id)} />`)}
       </div>
-    </section>`;
+    </section>
+    ${sheet && validSheet && html`<${DetailSheet} key=${`${sheet.conversationId}:${sheet.messageId}:${sheet.groupKey ?? "direct"}`}
+      group=${sheetGroup} items=${sheetItems} page=${sheet.page} detailIndex=${sheet.detailIndex}
+      selectedItem=${selectedItem} display=${state.display} wrap=${wrap}
+      onSelectItem=${(detailIndex) => setSheet({ ...sheet, page: "detail", detailIndex })}
+      onBack=${() => sheet.page === "detail" && sheetGroup
+        ? setSheet({ ...sheet, page: "list", detailIndex: null }) : setSheet(null)}
+      onClose=${() => setSheet(null)} />`}`;
 }

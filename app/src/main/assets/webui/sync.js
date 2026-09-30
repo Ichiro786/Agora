@@ -64,7 +64,11 @@ function receive(event, size) {
       break;
     case "path":
       if (event.conversationId !== state.openId) return;
-      update({ path: event.messages, generating: event.generating, openStatus: "ready" });
+      if (state.streaming && !event.messages.some((message) => message.id === state.streaming.id)) {
+        update({ path: event.messages, generating: event.generating, streaming: null, openStatus: "ready" });
+      } else {
+        update({ path: event.messages, generating: event.generating, openStatus: "ready" });
+      }
       break;
     case "payload": {
       if (event.conversationId !== state.openId) return;
@@ -73,11 +77,26 @@ function receive(event, size) {
       bodies.set(event.message.id, event.message);
       bodySizes.set(event.message.id, size * 2);
       evict(bodies);
-      update({ bodies });
+      if (state.streaming?.id === event.message.id &&
+          ["SUCCESS", "STOPPED", "ERROR"].includes(event.message.status)) {
+        update({ bodies, streaming: null });
+      } else {
+        update({ bodies });
+      }
       break;
     }
     case "streaming":
-      if (event.conversationId === state.openId) update({ streaming: event.message ?? null });
+      if (event.conversationId !== state.openId) return;
+      if (event.message &&
+          !["SUCCESS", "STOPPED", "ERROR"].includes(state.bodies.get(event.message.id)?.status)) {
+        update({ streaming: event.message });
+      } else if (!event.message && state.streaming &&
+          ["SUCCESS", "STOPPED", "ERROR"].includes(state.bodies.get(state.streaming.id)?.status)) {
+        update({ streaming: null });
+      } else if (!state.streaming) {
+        update({ streaming: null });
+      }
+      // Otherwise retain the last frame until the watched terminal row arrives.
       break;
     case "deleted":
       if (event.conversationId === state.openId) update({ openStatus: "deleted" });
