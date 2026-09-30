@@ -1,6 +1,6 @@
 // The open conversation's selected branch, drawn as the app's MessageList and MessageItem.
 // Only rows near the screen are watched, so the phone sends just those bodies.
-import { useEffect, useRef, useState } from "./vendor/preact-hooks.mjs";
+import { useEffect, useLayoutEffect, useRef, useState } from "./vendor/preact-hooks.mjs";
 import { html } from "./html.js";
 import { Markdown } from "./markdown.js";
 import { icon, ICON_BUILD, ICON_CHEVRON_DOWN, ICON_CHEVRON_RIGHT, ICON_IMAGE, ICON_NEUROLOGY } from "./icons.js";
@@ -572,6 +572,12 @@ export function MessageList({ state, label }) {
   const scroller = useRef(null);
   const visible = useRef(new Set());
   const pinned = useRef(false);
+  const cover = useRef(null);
+  const [settledOpenId, setSettledOpenId] = useState(null);
+  const [retainedCover, setRetainedCover] = useState(false);
+  const switching = !!state.openId && (state.openStatus === "loading" ||
+    (state.openStatus === "ready" && settledOpenId !== state.openId));
+  const covered = switching || retainedCover;
   const expansion = useRef(new Map());
   const expansionController = useRef(createGroupExpansionController());
   const appearances = useRef(new Set());
@@ -642,29 +648,76 @@ export function MessageList({ state, label }) {
   }, [sheetWatchedId]);
 
   // The app opens a conversation at its newest message. Row bodies arrive after the path, so
-  // the list stays at the bottom while they load, until the reader scrolls.
-  useEffect(() => {
+  // this same owner releases the cover after visible bodies and bottom layout have settled.
+  useLayoutEffect(() => {
     pinned.current = true;
+    setSettledOpenId(null);
   }, [state.openId]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = scroller.current;
     const column = root?.firstElementChild;
     if (!root || !column) return undefined;
-    const release = () => { pinned.current = false; };
-    const follow = new ResizeObserver(() => {
+    let frame = 0;
+    let previousLayout = null;
+    const pending = state.openStatus === "ready" && settledOpenId !== state.openId;
+    const settle = () => {
+      frame = 0;
+      const viewport = root.getBoundingClientRect();
+      const rows = [...column.querySelectorAll(".message-row")].filter((row) => {
+        const bounds = row.getBoundingClientRect();
+        return bounds.bottom > viewport.top && bounds.top < viewport.bottom;
+      });
+      if (rows.some((row) => state.streaming?.id !== row.dataset.id && !state.bodies.has(row.dataset.id))) {
+        previousLayout = null;
+        return;
+      }
+      const layout = `${root.scrollHeight}:${root.clientHeight}:${root.scrollTop}`;
+      if (layout === previousLayout && Math.abs(root.scrollHeight - root.clientHeight - root.scrollTop) <= 1) {
+        setSettledOpenId(state.openId);
+      } else {
+        previousLayout = layout;
+        frame = requestAnimationFrame(settle);
+      }
+    };
+    const followBottom = () => {
       if (pinned.current) root.scrollTop = root.scrollHeight;
-    });
+      if (pending && !frame) frame = requestAnimationFrame(settle);
+    };
+    const release = () => { pinned.current = false; };
+    const follow = new ResizeObserver(followBottom);
     follow.observe(column);
+    follow.observe(root);
+    followBottom();
     const inputs = ["wheel", "touchstart", "keydown", "pointerdown"];
     inputs.forEach((type) => root.addEventListener(type, release, { passive: true }));
     return () => {
       follow.disconnect();
+      cancelAnimationFrame(frame);
       inputs.forEach((type) => root.removeEventListener(type, release));
     };
-  }, []);
+  }, [state.openId, state.openStatus, ids, state.bodies, state.streaming, settledOpenId]);
+
+  useLayoutEffect(() => {
+    const node = cover.current;
+    if (!node) return undefined;
+    setRetainedCover(true);
+    const animation = node.animate(
+      [{ opacity: getComputedStyle(node).opacity }, { opacity: switching ? 1 : 0 }],
+      { duration: 200, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" },
+    );
+    animation.onfinish = () => {
+      node.style.opacity = switching ? "1" : "0";
+      animation.cancel();
+      if (!switching) setRetainedCover(false);
+    };
+    return () => {
+      node.style.opacity = getComputedStyle(node).opacity;
+      animation.cancel();
+    };
+  }, [switching]);
 
   return html`
-    <section class="messages" ref=${scroller} aria-label=${label}>
+    <section class="messages" ref=${scroller} aria-label=${label} aria-busy=${covered} inert=${covered}>
       <div class="message-column">
         ${state.path.map((entry) => html`
           <${Row} key=${entry.id} entry=${entry} wrap=${wrap} display=${state.display}
@@ -675,6 +728,13 @@ export function MessageList({ state, label }) {
             body=${state.streaming?.id === entry.id ? state.streaming : state.bodies.get(entry.id)} />`)}
       </div>
     </section>
+    ${covered && html`<div class="conversation-loading-cover" ref=${cover}
+      onPointerDown=${(event) => { event.preventDefault(); event.stopPropagation(); }}
+      onWheel=${(event) => event.preventDefault()} onContextMenu=${(event) => event.preventDefault()}>
+      <div class="conversation-loading-range">
+        <span class="spinner" role="progressbar" aria-label=${label}></span>
+      </div>
+    </div>`}
     ${sheet && validSheet && html`<${DetailSheet} key=${`${sheet.conversationId}:${sheet.messageId}:${sheet.groupKey ?? "direct"}`}
       group=${sheetGroup} items=${sheetItems} page=${sheet.page} detailIndex=${sheet.detailIndex}
       selectedItem=${selectedItem} display=${state.display} wrap=${wrap}

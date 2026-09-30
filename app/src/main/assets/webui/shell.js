@@ -203,6 +203,22 @@ export function Shell({ onSignedOut }) {
   const wasModalOpen = useRef(false);
   const modalOpen = drawerOpen && !sideBySide;
   const reduceMotion = !!state.display?.reduceMotion;
+  useLayoutEffect(() => {
+    const chat = shell.current.querySelector(".chat");
+    const composer = chat.querySelector(".composer-host");
+    const capsules = [...chat.querySelectorAll(".top-bar > .capsule")];
+    const measure = () => {
+      const bounds = chat.getBoundingClientRect();
+      const top = Math.max(...capsules.map((node) => node.getBoundingClientRect().bottom)) - bounds.top + 8;
+      const bottom = bounds.bottom - composer.getBoundingClientRect().top;
+      chat.style.setProperty("--chat-top-inset", `${top}px`);
+      chat.style.setProperty("--chat-bottom-inset", `${bottom}px`);
+    };
+    const geometry = new ResizeObserver(measure);
+    [chat, composer, ...capsules].forEach((node) => geometry.observe(node, { box: "border-box" }));
+    measure();
+    return () => geometry.disconnect();
+  }, []);
   // One interpolated progress drives drawer, scrim and desktop inset; freeze its actual value on takeover.
   function freezeDrawer() {
     const progress = Number(getComputedStyle(shell.current).getPropertyValue("--drawer-progress"));

@@ -815,6 +815,27 @@ without replacing its details or media preview. Reduced Motion snaps spatial tra
 continuous indicators; component-owned color and opacity feedback, including the tool image's
 200 ms loading/loaded/failed crossfade, remains. Disabling Blur Effects removes the detail backdrop
 blur without changing its scrim, geometry, input ownership, focus, or scroll position.
+WebUI conversation loading uses the circular cover below. Remaining menu parity includes the pinned
+Compose Material dropdown's default entrance, exit and retained exit lifetime. Shape-only menus with
+abrupt mounting/removal are not complete parity.
+The requested loading overlay is specifically for opening or switching a conversation, matching
+ChatApp's content-area cover, measured top/composer available-range centering, 200ms opacity and
+touch exclusion through retained exit. It does not add a login-session-check, drawer-list,
+per-message hydration, generation or background-reconnect cover. These effects follow the App-only
+appearance policy above.
+The existing MessageList initial-bottom owner ends this cover only after the selected path arrives,
+visible watched row bodies (or the current streaming row) exist and bottom layout settles. It does
+not hydrate all history, wait for generation or media downloads, or run another scroll actor. Empty
+ready paths settle directly; failed/deleted selections exit, and stale selection work cannot finish
+the current cover. The message viewport stays inert and the cover consumes new pointer, context-menu
+and wheel input through its retained 200ms exit; top controls, drawer and composer retain ownership.
+Its primary ring is 48px with a 5px stroke; App Reduced Motion stops rotation but retains the fade.
+Browser visual verification must load the actual App font and theme; empty theme.css or an absent
+font resource is not font-parity evidence. Model selection, New Chat and Send remain unfinished
+chat-action work. Disabled placeholders must not be described as a completed WebUI. The reported
+green drawer-row outline is keyboard focus, not conversation selection; the report does not define
+a replacement focus style or authorize removing keyboard feedback.
+
 Tasks remains visible but disabled until its browser behavior is approved; other controls the browser
 cannot use
 yet are shown as in the app but disabled. Tonal surfaces use Compose's `surfaceColorAtElevation` mix (primary over surface at

@@ -606,7 +606,31 @@ p {
   color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
 }
 .dropdown-item:disabled svg { fill: currentColor; }
-.messages { flex: 1; min-height: 0; overflow-y: auto; }
+.messages { position: relative; flex: 1; min-height: 0; overflow-y: auto; }
+/* ChatSwitchingOverlay: full body barrier, indicator in the measured top/composer range. */
+.conversation-loading-cover {
+  position: absolute;
+  inset: 0;
+  background: var(--md-background);
+  opacity: 0;
+  touch-action: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+.conversation-loading-range {
+  position: absolute;
+  inset: var(--chat-top-inset) 0 var(--chat-bottom-inset);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.conversation-loading-range .spinner {
+  width: 48px;
+  height: 48px;
+  border-width: 5px;
+  color: var(--md-primary);
+}
 /* MessageList: at most 840 dp wide, 8 dp sides, 140 dp above (under the top bar), 8 dp below. */
 .message-column { max-width: 840px; margin: 0 auto; padding: 140px 8px 8px; }
 /* MessageItem: 8 dp above and below each message. */
@@ -1059,6 +1083,8 @@ ul.md-list > li > .md-marker { padding-bottom: 4px; }
 .nowrap .code-block pre { white-space: pre; overflow-wrap: normal; overflow-x: auto; }
 /* ChatComposerSurface: 12 dp above, 8 dp around, content at most 840 dp. */
 .composer-host {
+  position: relative;
+  z-index: 1;
   flex: none;
   padding: 12px 8px calc(8px + env(safe-area-inset-bottom));
 }
