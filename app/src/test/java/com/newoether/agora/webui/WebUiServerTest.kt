@@ -11,6 +11,7 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.client.call.body
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -21,8 +22,17 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
+import java.io.File
+import com.newoether.agora.model.ChatMessage
+import com.newoether.agora.model.MessageSegment
+import com.newoether.agora.model.MessageStatus
+import com.newoether.agora.model.Participant
+import com.newoether.agora.model.ToolImageAttachment
 
 class WebUiServerTest {
+    @get:Rule val temporary = TemporaryFolder()
     private val hasher = WebUiPasswordHasher(iterations = 1_000)
     private val assets = mapOf(
         "index.html" to "<!doctype html><title>Agora</title>".toByteArray(),
@@ -201,9 +211,80 @@ class WebUiServerTest {
         login("pw").headers.getAll(HttpHeaders.SetCookie)!!.single()
             .substringAfter('=').substringBefore(';')
 
+    @Test
+    fun toolImagesRequireTheSessionAndOriginBeforeLoadingAnyMessage() {
+        val root = temporary.newFolder("media")
+        val bytes = byteArrayOf(1, 2, 3, 4)
+        val image = File(root, "image.png").apply { writeBytes(bytes) }
+        var loads = 0
+        val images = WebUiToolImages(root) { conversation, message ->
+            loads++
+            if (conversation == "c" && message == "m") imageMessage(image, bytes.size.toLong()) else null
+        }
+        webUi(toolImages = images) { auth ->
+            val path = "${WebUiServer.TOOL_IMAGE_PATH}/c/m/0/0"
+            assertEquals(HttpStatusCode.Forbidden, client.get(path).status)
+            val token = sessionToken()
+            val cookie = "${WebUiServer.SESSION_COOKIE}=$token"
+            assertEquals(HttpStatusCode.Forbidden, client.get(path) {
+                header(HttpHeaders.Cookie, cookie)
+                header(HttpHeaders.Host, "localhost:8686")
+                header(HttpHeaders.Origin, "https://other.example")
+            }.status)
+            assertEquals(0, loads)
+            val response = client.get(path) {
+                header(HttpHeaders.Cookie, cookie)
+                header(HttpHeaders.Host, "localhost:8686")
+                header(HttpHeaders.Origin, "https://localhost:8686")
+            }
+            assertEquals(HttpStatusCode.OK, response.status)
+            org.junit.Assert.assertArrayEquals(bytes, response.body<ByteArray>())
+            assertEquals("image/png", response.headers[HttpHeaders.ContentType])
+            assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+            assertEquals("nosniff", response.headers["X-Content-Type-Options"])
+            for (invalid in listOf("c/m/bad/0", "c/m/-1/0", "c/m/0/99", "other/m/0/0", "c/missing/0/0")) {
+                assertEquals(HttpStatusCode.NotFound, client.get("${WebUiServer.TOOL_IMAGE_PATH}/$invalid") {
+                    header(HttpHeaders.Cookie, cookie)
+                }.status)
+            }
+            val beforeLogout = loads
+            auth.logout(token)
+            assertEquals(HttpStatusCode.Forbidden, client.get(path) { header(HttpHeaders.Cookie, cookie) }.status)
+            assertEquals(beforeLogout, loads)
+        }
+    }
+
+    @Test
+    fun imageSessionRevokedDuringMessageReadNeverReceivesBytes() {
+        val root = temporary.newFolder("media")
+        val file = File(root, "image.png").apply { writeBytes(byteArrayOf(1)) }
+        lateinit var auth: WebUiAuth
+        val images = WebUiToolImages(root) { _, _ ->
+            auth.revokeAllSessions()
+            imageMessage(file, 1)
+        }
+        webUi(toolImages = images) { currentAuth ->
+            auth = currentAuth
+            val token = sessionToken()
+            val response = client.get("${WebUiServer.TOOL_IMAGE_PATH}/c/m/0/0") {
+                header(HttpHeaders.Cookie, "${WebUiServer.SESSION_COOKIE}=$token")
+            }
+            assertEquals(HttpStatusCode.Forbidden, response.status)
+            assertEquals("", response.bodyAsText())
+        }
+    }
+
+    private fun imageMessage(file: File, size: Long) = ChatMessage(
+        id = "m", text = "", participant = Participant.MODEL, status = MessageStatus.SUCCESS,
+        segments = listOf(MessageSegment(type = "tool", toolName = "view_image", toolResult = "{}",
+            toolImages = listOf(ToolImageAttachment(file.absolutePath, "image/png", size, sha256 = "hash")),
+        )),
+    )
+
     private fun webUi(
         hash: String? = hasher.hash("pw"),
         syncSession: suspend (ReceiveChannel<String>, suspend (String) -> Unit) -> Unit = { _, _ -> },
+        toolImages: WebUiToolImages? = null,
         block: suspend ApplicationTestBuilder.(WebUiAuth) -> Unit,
     ) {
         val auth = WebUiAuth(passwordHash = { hash }, hasher = hasher, clock = { 0L })
@@ -212,6 +293,7 @@ class WebUiServerTest {
             readAsset = assets::get,
             syncSession = syncSession,
             clock = { 0L },
+            toolImages = toolImages,
         )
         testApplication {
             application { server.install(this) }

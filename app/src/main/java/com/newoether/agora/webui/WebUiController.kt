@@ -77,6 +77,7 @@ internal class WebUiController(
     /** Serves one `/api/sync` connection; [WebUiSync.serve] in production. */
     syncSession: suspend (ReceiveChannel<String>, suspend (String) -> Unit) -> Unit,
     private val hasher: WebUiPasswordHasher = WebUiPasswordHasher(),
+    toolImages: WebUiToolImages? = null,
 ) {
     @Volatile private var passwordHash: String? = null
     private val auth = WebUiAuth(passwordHash = { passwordHash }, hasher = hasher)
@@ -92,6 +93,7 @@ internal class WebUiController(
         readAppFont = ::readAppFont,
         readMonoFont = ::readMonoFont,
         secureCookies = { call -> call.request.local.localPort == tlsBackendPort },
+        toolImages = toolImages,
     )
     private val serverLock = Mutex()
     private var engine: EmbeddedServer<*, *>? = null

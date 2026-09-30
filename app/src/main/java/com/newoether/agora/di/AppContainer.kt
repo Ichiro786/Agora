@@ -360,6 +360,15 @@ class AppContainer(
                 addresses = WebUiController::interfaceAddresses,
             ),
             syncSession = { incoming, send -> webUiSync.serve(incoming, send) },
+            toolImages = com.newoether.agora.webui.WebUiToolImages(
+                directory = java.io.File(appContext.filesDir, "tool-media"),
+                loadMessage = { conversationId, messageId ->
+                    com.newoether.agora.viewmodel.ConversationMessagePayloadHydration(
+                        conversations = conversationRepository,
+                        appContext = appContext,
+                    ).loadMessages(conversationId, listOf(messageId)).singleOrNull()
+                },
+            ),
         )
     }
     // Built on the first browser connection, so app start never touches conversation data here.

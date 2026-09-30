@@ -17,6 +17,7 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
+import io.ktor.server.response.respondOutputStream
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
@@ -37,6 +38,8 @@ import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.produceIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -64,6 +67,7 @@ internal class WebUiServer(
     /** True when this request arrived over HTTPS: its session cookie is then marked Secure. */
     private val secureCookies: (ApplicationCall) -> Boolean = { false },
     private val clock: () -> Long = System::currentTimeMillis,
+    private val toolImages: WebUiToolImages? = null,
 ) {
     fun install(application: Application) = with(application) {
         install(SecurityHeaders)
@@ -84,6 +88,38 @@ internal class WebUiServer(
             route("/api/sync") {
                 install(syncGate)
                 webSocket { serveSync() }
+            }
+            route("$TOOL_IMAGE_PATH/{conversationId}/{messageId}/{detailIndex}/{imageIndex}") {
+                install(syncGate)
+                get {
+                    call.response.header(HttpHeaders.CacheControl, "no-store")
+                    val conversationId = call.parameters["conversationId"] ?: return@get call.respond(HttpStatusCode.NotFound)
+                    val messageId = call.parameters["messageId"] ?: return@get call.respond(HttpStatusCode.NotFound)
+                    val detailIndex = call.parameters["detailIndex"]?.toIntOrNull() ?: return@get call.respond(HttpStatusCode.NotFound)
+                    val imageIndex = call.parameters["imageIndex"]?.toIntOrNull() ?: return@get call.respond(HttpStatusCode.NotFound)
+                    val image = toolImages?.open(conversationId, messageId, detailIndex, imageIndex)
+                        ?: return@get call.respond(HttpStatusCode.NotFound)
+                    if (!auth.isValidSession(call.request.cookies[SESSION_COOKIE])) {
+                        return@get call.respond(HttpStatusCode.Forbidden)
+                    }
+                    call.respondOutputStream(ContentType.parse(image.mimeType), contentLength = image.size) {
+                        withContext(Dispatchers.IO) {
+                            java.io.FileInputStream(image.file).use { input ->
+                                if (input.channel.size() != image.size) {
+                                    throw java.io.IOException("Tool image size changed before response")
+                                }
+                                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                                var remaining = image.size
+                                while (remaining > 0) {
+                                    val count = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                                    if (count < 0) throw java.io.EOFException("Tool image ended before its recorded size")
+                                    write(buffer, 0, count)
+                                    remaining -= count
+                                }
+                            }
+                        }
+                    }
+                }
             }
             get("/") { call.respondAsset(INDEX) }
             get("/assets/{path...}") {
@@ -252,6 +288,7 @@ internal class WebUiServer(
         const val SESSION_COOKIE = "agora_session"
         const val INDEX = "index.html"
         const val MONO_FONT_PATH = "/fonts/mono"
+        const val TOOL_IMAGE_PATH = "/api/tool-images"
         private const val MAX_LOGIN_BODY_BYTES = 4_096L
         /** Browser commands are small; this bounds what one incoming frame may allocate. */
         private const val MAX_SYNC_FRAME_BYTES = 64L * 1024L
