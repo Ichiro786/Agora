@@ -118,6 +118,14 @@ prompt, and one frozen API-only Compact invocation. It reuses ordinary admission
 creation, context/API-path assembly, Provider execution, streaming/checkpoints, Stop/cancellation,
 terminal settlement, recovery, and queue release.
 
+Compact's frozen request parameters are separate from the ordinary conversation preferences.
+Manual Compact, automatic Compact, and Recompact use their selected model in the request snapshot
+and output message's model identity, but must not overwrite the conversation's ordinary model,
+System Prompt, or saved generation controls. The shared admission transaction accepts an explicit
+optional conversation-model update: no update retains the current stored value atomically, including
+an unset value. Ordinary admissions continue to commit their selected conversation model. Neither
+the UI nor a caller may copy and restore a previous model after Compact admission or settlement.
+
 The Compact invocation is appended by the shared pre-Provider request projection as the final USER
 message. It is request-only configuration: it participates in exact token accounting but is never
 written to Room, rendered as a visible message, assigned a Run boundary, or used to alter durable

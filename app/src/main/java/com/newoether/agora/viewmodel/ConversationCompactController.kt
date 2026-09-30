@@ -162,6 +162,7 @@ internal class ConversationCompactController(
                 modelMessageId = messageId,
                 replacementMessageId = target?.id,
                 requestKind = "compact",
+                conversationModelId = null,
                 touchConversationOnAdmission = touchConversationOnAdmission,
                 queueDrainRequiresSuccess = true,
                 transformFinalText = transform,

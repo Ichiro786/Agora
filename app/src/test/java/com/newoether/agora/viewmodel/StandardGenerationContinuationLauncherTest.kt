@@ -23,6 +23,55 @@ import org.junit.Test
 
 class StandardGenerationContinuationLauncherTest {
     @Test
+    fun compactUsesItsOwnModelWithoutWritingTheConversationModel() = runBlocking {
+        val conversations = mockk<ConversationRepository>()
+        val boundLauncher = mockk<BoundRunGenerationLauncher>()
+        val state = ConversationGenerationState("conversation")
+        val parent = MessageEntity(
+            id = "parent", conversationId = "conversation", text = "source",
+            participant = Participant.MODEL, status = MessageStatus.SUCCESS,
+            timestamp = 100L, runId = "origin-run", runSequence = 0,
+        )
+        val snapshot = testGenerationAdmissionSnapshot(selectedModelId = "provider:compact")
+        val persistedModels = mutableListOf<String?>()
+        val requests = mutableListOf<BoundRunGenerationRequest>()
+        coEvery { conversations.getMessage(parent.id) } returns parent
+        coEvery { conversations.restoreBranchSelections("conversation") } returns emptyMap()
+        coEvery {
+            conversations.createRunWithMessages(any(), any(), any(), any(), any(), any())
+        } answers {
+            persistedModels += arg<String?>(3)
+            RunGraphCommit(arg(1), arg(2), emptyMap())
+        }
+        coEvery { boundLauncher.launch(capture(requests), state) } returns Unit
+        val launcher = StandardGenerationContinuationLauncher(
+            conversations = conversations,
+            executionCoordinator = ConversationExecutionCoordinator(),
+            terminalSettlement = mockk(),
+            boundRunGenerationLauncher = { boundLauncher },
+            toUiMessage = ::toUiMessage,
+            isConversationOpen = { false },
+            projectGraph = { _, _, _, _ -> },
+        )
+        val launch = requireNotNull(launcher.launch(
+            StandardGenerationContinuationRequest(
+                conversationId = "conversation", parentMessageId = parent.id,
+                snapshot = snapshot, requestKind = "compact",
+                conversationModelId = null,
+                modelMessageId = "compact_summary", touchConversationOnAdmission = true,
+            ),
+            state,
+        ))
+        launch.job.join()
+        assertTrue(launch.started.await())
+        assertEquals(listOf<String?>(null), persistedModels)
+        assertEquals("provider:compact", requests.single().snapshot.selectedModelId)
+        assertEquals("compact", requests.single().requestKind)
+        state.dispose()
+        Unit
+    }
+
+    @Test
     fun createsFreshRunAndAssistantUnderDurableBoundary() = runBlocking {
         val conversations = mockk<ConversationRepository>()
         val terminalSettlement = mockk<GenerationTerminalSettlementController>()
@@ -41,6 +90,7 @@ class StandardGenerationContinuationLauncherTest {
         )
         val createdRun = slot<com.newoether.agora.data.local.RunEntity>()
         val createdMessages = slot<List<MessageEntity>>()
+        val conversationModel = slot<String>()
         val touchConversationOnAdmission = slot<Boolean>()
         val launchedRequest = slot<BoundRunGenerationRequest>()
         val launched = CompletableDeferred<Unit>()
@@ -54,7 +104,7 @@ class StandardGenerationContinuationLauncherTest {
                 run = capture(createdRun),
                 messages = capture(createdMessages),
                 messageSelectionUpdates = any(),
-                conversationModelId = any(),
+                conversationModelId = capture(conversationModel),
                 at = any(),
                 touchConversationOnAdmission = capture(touchConversationOnAdmission),
             )
@@ -103,6 +153,7 @@ class StandardGenerationContinuationLauncherTest {
         assertEquals(parent.id, createdMessages.captured.single().parentId)
         assertEquals(MessageStatus.SENDING, createdMessages.captured.single().status)
         assertFalse(touchConversationOnAdmission.captured)
+        assertEquals("provider:model", conversationModel.captured)
         assertEquals("continuation-run", launchedRequest.captured.runId)
         assertEquals("continuation-message", launchedRequest.captured.modelMessageId)
         coVerify(exactly = 1) { boundLauncher.launch(any(), state) }

@@ -194,7 +194,7 @@ interface ChatDao :
         UPDATE conversations
         SET selectedBranchesJson = :selectedBranchesJson,
             selectedRunBranchesJson = :selectedRunBranchesJson,
-            modelId = :modelId,
+            modelId = CASE WHEN :modelId IS NULL THEN modelId ELSE :modelId END,
             dataChangedAt = :at,
             lastUpdated = CASE
                 WHEN :touchConversationOnAdmission THEN :at
@@ -207,7 +207,7 @@ interface ChatDao :
         conversationId: String,
         selectedBranchesJson: String,
         selectedRunBranchesJson: String,
-        modelId: String,
+        modelId: String?,
         at: Long,
         touchConversationOnAdmission: Boolean,
     ): Int
@@ -260,14 +260,14 @@ interface ChatDao :
         run: RunEntity,
         messages: List<MessageEntity>,
         messageSelectionUpdates: Map<String?, String>,
-        conversationModelId: String,
+        conversationModelId: String?,
         at: Long,
         touchConversationOnAdmission: Boolean,
     ): RunGraphCommit {
         require(run.status == RunStatus.ACTIVE)
         require(run.activeSlot == 1)
         require(messages.isNotEmpty())
-        require(conversationModelId.isNotBlank())
+        require(conversationModelId == null || conversationModelId.isNotBlank())
         require(messages.all { it.runId == run.id })
         require(messages.map { it.runSequence } == messages.indices.map { it.toLong() })
         val conversation = checkNotNull(getConversation(run.conversationId)) {

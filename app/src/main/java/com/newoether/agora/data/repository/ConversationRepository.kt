@@ -257,7 +257,7 @@ class ConversationRepository(
         run: RunEntity,
         messages: List<MessageEntity>,
         messageSelectionUpdates: Map<String?, String>,
-        conversationModelId: String,
+        conversationModelId: String?,
         at: Long = System.currentTimeMillis(),
         touchConversationOnAdmission: Boolean,
     ): RunGraphCommit = withSemanticTransaction(messages.map(MessageEntity::id), at) {

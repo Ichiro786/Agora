@@ -24,6 +24,7 @@ import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -99,6 +100,7 @@ class ConversationCompactControllerTest {
         assertEquals(null, launchRequest.captured.replacementMessageId)
         assertEquals("compact", launchRequest.captured.requestKind)
         assertFalse(launchRequest.captured.touchConversationOnAdmission)
+        assertNull(launchRequest.captured.conversationModelId)
         assertEquals("compact prompt", launchRequest.captured.snapshot.config.effectiveSystemPrompt)
         assertEquals(
             BuiltInPrompts.CONTEXT_COMPACT_USER,
@@ -199,6 +201,7 @@ class ConversationCompactControllerTest {
         )
 
         assertTrue(result is CompactResult.Created)
+        assertNull(launchRequest.captured.conversationModelId)
         assertEquals(
             "system",
             launchRequest.captured.snapshot.config.effectiveSystemPrompt,
@@ -288,6 +291,7 @@ class ConversationCompactControllerTest {
         assertEquals("compact-preflight-run", launchRequest.captured.snapshot.runId)
         assertEquals("compact", launchRequest.captured.requestKind)
         assertTrue(launchRequest.captured.touchConversationOnAdmission)
+        assertNull(launchRequest.captured.conversationModelId)
         assertEquals(suffix, before.single { it.id == suffix.id })
         coVerify(exactly = 0) {
             conversations.createRunWithMessages(any(), any(), any(), any(), any(), any())
