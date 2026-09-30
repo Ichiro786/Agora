@@ -818,10 +818,17 @@ expand button, and the controls row with the `48 dp` control group (attachment, 
 tools) and the `48 dp` send button. English and Chinese labels are the app's own strings. The
 sign-in page centers its card with flex and caps it at `400 px`: a grid's auto track sized to the
 card's max-content and pushed it past a narrow screen once the app font loaded.
-The browser's message details mirror `SegmentDetailSheet` for Thought and Transcription. In
+The browser's message details mirror `SegmentDetailSheet` for Thought, Transcription, and Tool. In
 Grouped/Compact Bottom Sheet mode, the group header opens a segment list; ordinary Timeline
-cards and inline Grouped/Compact rows open the selected detail directly. Tool entries stay
-visible but inactive until tool details are implemented. The browser-local sheet uses 45%/94%
+cards and inline Grouped/Compact rows open the selected detail directly. Tool details consume the
+shared typed presentation, including lifecycle, shell/file/search results and prefix-aware JSON
+nodes; they never parse tool-result envelopes in the browser. Failed/stopped details retain the
+shared unboxed neutral terminal text. Persisted tool images are requested only from authenticated
+`GET /api/tool-images/{conversationId}/{messageId}/{detailIndex}/{imageIndex}` with original
+attachment indices. Each request revalidates message ownership, real-path containment in the private
+tool-media store, raster MIME and recorded size; browser paths and inline image bytes are forbidden.
+The preview keeps its Compose-sized viewport through loading, failure and decoding, follows square
+crop metadata, and opens a full-image viewer. The browser-local sheet uses 45%/94%
 viewport anchors, scrim and blur, list/detail back and close, Escape, focus return and Reduced
 Motion snap. It stays on the selected message while a streaming frame hands off to its durable
 payload, preserving detail scroll and focus; switching conversations or removing the selected

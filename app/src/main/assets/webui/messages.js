@@ -28,7 +28,186 @@ function sheetItemsForMessage(message, groupKey) {
 }
 
 function canOpenSheetItem(item) {
-  return item?.type === "thought" || item?.type === "transcription";
+  return item?.type === "thought" || item?.type === "transcription" ||
+    (item?.type === "tool" && item.toolDetail != null);
+}
+
+function ToolDocument({ document }) {
+  if (!document) return null;
+  return html`<div class="tool-document">
+    ${document.text != null ? html`<div class="tool-code tool-plain">${document.text}</div>`
+      : document.roots.map((node, index) => html`<${ToolJsonNode} key=${index} node=${node} />`)}
+    ${document.marker && html`<div class="tool-muted tool-marker">${document.marker}</div>`}
+  </div>`;
+}
+
+/** Draw only the shared parser's real prefix nodes; never complete or parse JSON in the browser. */
+function ToolJsonNode({ node, depth = 0 }) {
+  if (node.type === "scalar") return html`<span class=${`tool-scalar ${node.kind === "STRING" ? "" : "tool-code literal"}`}>
+    ${node.kind === "NULL" && node.complete ? "\u2014" : node.content}</span>`;
+  if (node.type === "array") return html`<div class="tool-json-array">
+    ${node.values.map((value, index) => html`<div class="tool-json-array-row" key=${index}>
+      <span class="tool-json-label">${index + 1}</span>
+      <div class="tool-json-value"><${ToolJsonNode} node=${value} depth=${depth} /></div>
+    </div>`)}
+  </div>`;
+  return html`<div class="tool-json-object">
+    ${node.entries.map((entry, index) => {
+      const value = entry.value;
+      const block = value?.type === "scalar" && value.kind === "STRING" &&
+        (value.content.length > 40 || value.content.includes("\n"));
+      const nested = value && value.type !== "scalar";
+      return html`<div class="tool-json-entry" key=${index}>
+        <div class="tool-json-row">
+          ${(entry.key || entry.keyComplete) && html`<span class="tool-json-label key">${entry.key}</span>`}
+          ${value && !block && (nested
+            ? html`<span class="tool-muted">${value.type === "object" ? "{\u2026}" : "[\u2026]"}</span>`
+            : html`<div class="tool-json-value"><${ToolJsonNode} node=${value} /></div>`)}
+        </div>
+        ${block && html`<div class="tool-json-block"><${ToolJsonNode} node=${value} /></div>`}
+        ${nested && html`<div class="tool-json-nested" style=${{ paddingLeft: `${(depth + 1) * 16}px` }}>
+          <${ToolJsonNode} node=${value} depth=${depth + 1} />
+        </div>`}
+      </div>`;
+    })}
+  </div>`;
+}
+
+function ToolPill({ text, emphasized = false }) {
+  return text == null ? null : html`<span class=${`tool-pill ${emphasized ? "emphasized" : ""}`} title=${text}>${text}</span>`;
+}
+
+function ToolOutput({ text }) {
+  return html`<div class="tool-output tool-code">${text}</div>`;
+}
+
+function ToolBody({ body }) {
+  switch (body.type) {
+    case "active":
+    case "failed":
+      return html`<div class=${body.type === "active" ? "tool-active" : "tool-terminal"}>${body.text}</div>
+        ${body.output && html`<div class="tool-gap"><${ToolOutput} text=${body.output} /></div>`}`;
+    case "stopped": return html`<div class="tool-terminal">${body.text}</div>`;
+    case "muted": return html`<div class="tool-muted">${body.text}</div>`;
+    case "documents": return body.values.map((document, index) => html`
+      <div class="tool-result-document" key=${index}><${ToolDocument} document=${document} /></div>`);
+    case "shell": return html`<div class="tool-meta-row">
+        <${ToolPill} text=${body.status} emphasized /><${ToolPill} text=${body.device} />
+      </div>
+      ${body.error && html`<div class="tool-terminal tool-gap">${body.error}</div>`}
+      <div class="tool-gap"><${ToolOutput} text=${body.output} /></div>`;
+    case "paths": return html`<div class="tool-paths">
+      ${body.values.map((path, index) => html`<div class="tool-indexed-line" key=${index}>
+        <span class="tool-index">${index + 1}</span><span class="tool-code">${path}</span>
+      </div>`)}
+    </div>`;
+    case "grep": return html`<div class="tool-grep">
+      ${body.groups.map((group, index) => html`<div key=${index}>
+        <div class="tool-grep-path tool-code">${group.path}</div>
+        <div class="tool-matches">${group.matches.map((match, i) => html`<div class="tool-match" key=${i}>
+          <span class="tool-line-number">${match.line ?? "\u2014"}</span><span class="tool-code">${match.content}</span>
+        </div>`)}</div>
+      </div>`)}
+    </div>`;
+    case "file": return html`
+      ${(body.path || body.lineCount) && html`<div class="tool-meta-row tool-file-meta">
+        <${ToolPill} text=${body.path} /><${ToolPill} text=${body.lineCount} />
+      </div>`}
+      ${body.content ? html`<${ToolOutput} text=${body.content} />` : html`<div class="tool-muted">${body.emptyText}</div>`}
+      ${body.truncationText && html`<div class="tool-muted tool-gap">${body.truncationText}</div>`}`;
+    case "search": return html`<div class="tool-search-results">
+      ${body.results.map((result, index) => {
+        const Tag = result.safeUrl ? "a" : "div";
+        return html`<${Tag} class="tool-search-result" key=${index} href=${result.safeUrl ?? null}
+          target=${result.safeUrl ? "_blank" : null} rel=${result.safeUrl ? "noopener noreferrer" : null}>
+          <div class="tool-search-title">${result.title}</div>
+          ${result.snippet && html`<div class="tool-search-snippet">${result.snippet}</div>`}
+          ${result.url && html`<div class="tool-search-url">${result.url}</div>`}
+        </${Tag}>`;
+      })}
+    </div>`;
+    default: return null;
+  }
+}
+
+function toolImageUrl(conversationId, messageId, detailIndex, image) {
+  return `/api/tool-images/${encodeURIComponent(conversationId)}/${encodeURIComponent(messageId)}/${detailIndex}/${image.index}?v=${encodeURIComponent(image.version)}`;
+}
+
+function ToolImage({ src, image, detail, full = false, onClick }) {
+  const [state, setState] = useState("loading");
+  const aspect = image.width > 0 && image.height > 0 ? Math.max(0.55, Math.min(2.2, image.width / image.height)) : 1;
+  const Tag = full ? "div" : "button";
+  return html`<${Tag} class=${`tool-image ${detail.squareCrop && !full ? "square" : ""} ${full ? "full" : ""}`}
+    type=${full ? null : "button"} disabled=${full ? null : state !== "loaded"} onClick=${onClick}
+    aria-label=${full ? null : detail.imageLabel} data-state=${state} style=${{ aspectRatio: String(aspect) }}>
+    <img src=${src} alt=${detail.imageLabel} loading=${full ? "eager" : "lazy"} decoding="async"
+      onLoad=${() => setState("loaded")} onError=${() => setState("failed")} />
+    <span class="tool-image-overlay loading" aria-hidden=${state !== "loading"}>
+      <span class="spinner" role="status" aria-label=${detail.imageLabel}></span>
+    </span>
+    <span class="tool-image-overlay failed" aria-hidden=${state !== "failed"}>
+      <span class="tool-image-failed" role="img" aria-label=${detail.imageFailedLabel}>${icon(ICON_IMAGE)}</span>
+    </span>
+  </${Tag}>`;
+}
+
+function ToolMediaPreview({ detail, urls, initialIndex, onClose }) {
+  const dialog = useRef(null);
+  const [index, setIndex] = useState(initialIndex);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    dialog.current.showModal();
+    return () => dialog.current?.close();
+  }, []);
+  function navigate(next) { setIndex(next); setScale(1); }
+  return html`<dialog class="tool-media-viewer" ref=${dialog} aria-label=${detail.imageLabel}
+    onCancel=${(event) => { event.preventDefault(); onClose(); }}
+    onKeyDown=${(event) => {
+      event.stopPropagation();
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        if (event.key === "ArrowLeft" && index > 0) navigate(index - 1);
+        if (event.key === "ArrowRight" && index < urls.length - 1) navigate(index + 1);
+      }
+    }}>
+    <div class="tool-media-scroll" onDblClick=${() => setScale((value) => value === 1 ? 3 : 1)}>
+      <div class="tool-media-frame" style=${{ width: `${scale * 100}%`, height: `${scale * 100}%` }}>
+        <${ToolImage} key=${urls[index]} src=${urls[index]} image=${detail.images[index]} detail=${detail} full />
+      </div>
+    </div>
+    <div class="tool-media-controls">
+      ${urls.length > 1 && html`<span class="tool-media-count">${index + 1} / ${urls.length}</span>`}
+      <button class="detail-sheet-icon" type="button" aria-label="Close" onClick=${onClose}>${icon(SHEET_CLOSE_PATH)}</button>
+    </div>
+    ${urls.length > 1 && html`<button class="tool-media-previous detail-sheet-icon" type="button"
+      aria-label="Previous image" disabled=${index === 0} onClick=${() => navigate(index - 1)}>${icon(SHEET_BACK_PATH)}</button>
+      <button class="tool-media-next detail-sheet-icon" type="button" aria-label="Next image"
+        disabled=${index === urls.length - 1} onClick=${() => navigate(index + 1)}>${icon(ICON_CHEVRON_RIGHT)}</button>`}
+  </dialog>`;
+}
+
+function ToolDetail({ item, conversationId, messageId }) {
+  const detail = item.toolDetail;
+  const [preview, setPreview] = useState(null);
+  const urls = detail.images.map((image) => toolImageUrl(conversationId, messageId, item.detailIndex, image));
+  const previewVersion = urls.join("\n");
+  useEffect(() => { setPreview(null); }, [previewVersion]);
+  return html`<div class=${`tool-detail ${detail.kind === "WEB_SEARCH" ? "search" : ""}`}>
+    ${detail.arguments && html`<div class="tool-arguments">
+      <div class="tool-section-label">${detail.argumentsLabel}</div><${ToolDocument} document=${detail.arguments} />
+    </div>`}
+    ${detail.kind === "MCP" && html`<div class="tool-mcp-meta tool-meta-row">
+      <${ToolPill} text="MCP" emphasized /><${ToolPill} text=${detail.mcpDevice} />
+    </div>`}
+    <div class="tool-section-label result">${detail.resultLabel}</div>
+    ${detail.images.length > 0 && html`<div class="tool-images">
+      ${detail.images.map((image, index) => html`<${ToolImage} key=${urls[index]} src=${urls[index]}
+        image=${image} detail=${detail} onClick=${() => setPreview(index)} />`)}
+    </div>`}
+    <${ToolBody} body=${detail.body} />
+    ${preview != null && html`<${ToolMediaPreview} detail=${detail} urls=${urls} initialIndex=${preview} onClose=${() => setPreview(null)} />`}
+  </div>`;
 }
 
 /** UserMessageBubble: plain text in a primaryContainer bubble, 54-300 dp wide. */
@@ -114,7 +293,7 @@ function createGroupExpansionController() {
   };
 }
 
-/** A row can activate details only when it has a Thought or Transcription target. */
+/** Activate only segments whose detail projection is available. */
 function InfoItem({ item, compact = false, onClick }) {
   const text = item.type === "thought" ? item.content?.markdown?.replace(/\n/g, " ")
     : item.type === "transcription" ? item.content?.markdown?.replace(/\n/g, " ") || "Image transcription is empty."
@@ -232,7 +411,7 @@ function InfoCard({ block, messageId, appearances, streaming, onOpenDetail }) {
     </div>`;
 }
 
-function DetailSheet({ group, items, page, detailIndex, selectedItem, display, wrap, onSelectItem, onBack, onClose }) {
+function DetailSheet({ group, items, page, detailIndex, selectedItem, conversationId, messageId, display, wrap, onSelectItem, onBack, onClose }) {
   const [expanded, setExpanded] = useState(false);
   const closeButton = useRef(null);
   const restoreFocus = useRef(null);
@@ -247,12 +426,13 @@ function DetailSheet({ group, items, page, detailIndex, selectedItem, display, w
     restoreFocus.current = document.activeElement;
     closeButton.current?.focus();
     const onKey = (event) => {
+      if (event.target.closest?.(".tool-media-viewer")) return;
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
         backAction.current();
       } else if (event.key === "Tab") {
-        const controls = [...sheet.current?.querySelectorAll("button:not([disabled])") ?? []];
+        const controls = [...sheet.current?.querySelectorAll("button:not([disabled]), a[href]") ?? []];
         if (!controls.length) return;
         const target = event.shiftKey ? controls.at(-1) : controls[0];
         const atEdge = event.shiftKey ? document.activeElement === controls[0]
@@ -323,7 +503,9 @@ function DetailSheet({ group, items, page, detailIndex, selectedItem, display, w
                     <${InfoItem} item=${item}
                       onClick=${canOpenSheetItem(item) ? () => onSelectItem(item.detailIndex) : undefined} />
                   </div>`)}
-              </div>` : selectedItem && html`
+              </div>` : selectedItem?.type === "tool" ? html`
+                <${ToolDetail} key=${detailIndex} item=${selectedItem} conversationId=${conversationId} messageId=${messageId} />`
+              : selectedItem && html`
               <div class=${`detail-sheet-markdown ${selectedItem.streaming ? "streaming" : ""}`}>
                 ${selectedItem.type === "transcription" && !selectedItem.content?.markdown
                   ? html`<p class="detail-sheet-empty">Image transcription is empty.</p>`
@@ -496,6 +678,7 @@ export function MessageList({ state, label }) {
     ${sheet && validSheet && html`<${DetailSheet} key=${`${sheet.conversationId}:${sheet.messageId}:${sheet.groupKey ?? "direct"}`}
       group=${sheetGroup} items=${sheetItems} page=${sheet.page} detailIndex=${sheet.detailIndex}
       selectedItem=${selectedItem} display=${state.display} wrap=${wrap}
+      conversationId=${sheet.conversationId} messageId=${sheet.messageId}
       onSelectItem=${(detailIndex) => setSheet({ ...sheet, page: "detail", detailIndex })}
       onBack=${() => sheet.page === "detail" && sheetGroup
         ? setSheet({ ...sheet, page: "list", detailIndex: null }) : setSheet(null)}
