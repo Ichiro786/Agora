@@ -77,7 +77,7 @@ internal fun webPresentation(
         } else {
             emptyList()
         },
-        compact = projector.compact().takeIf { presentation.compactVisible },
+        compact = if (presentation.compactVisible) projector.compact() else null,
         answer = answerBody
             .takeIf { !presentation.useTimelineSegments && it.isNotEmpty() }
             ?.toWebText(display.parseInlineDollarMath),
@@ -200,6 +200,7 @@ private class WebPresentationProjector(
         content = seg.content.toWebText(display.parseInlineDollarMath),
         streaming = streaming,
         toolState = seg.toolState,
+        toolDetail = if (seg.type == "tool") resources.webToolDetail(seg) else null,
     )
 }
 
@@ -264,4 +265,5 @@ internal data class WebInfoItem(
     val content: WebText,
     val streaming: Boolean,
     val toolState: String?,
+    val toolDetail: WebToolDetail? = null,
 )

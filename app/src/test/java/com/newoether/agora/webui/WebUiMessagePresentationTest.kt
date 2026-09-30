@@ -108,6 +108,30 @@ class WebUiMessagePresentationTest {
     }
 
     @Test
+    fun toolDetailsUseTheExistingMessageProjectionForStreamingAndFinalPayloads() {
+        val active = model(MessageStatus.SENDING,
+            MessageSegment(type = "tool", toolName = "file_read", toolArgs = "{\"path\":\"/file\"}"),
+        )
+        fun item(message: ChatMessage, streaming: Boolean, mode: String): WebInfoItem {
+            val projected = webPresentation(message, streaming, display(toolMode = mode))!!
+            return projected.compact?.items?.single()
+                ?: (projected.blocks.single() as WebTimelineBlock.Group).group.items.single()
+        }
+        for (mode in listOf(ToolCallDisplayModes.GROUPED_TIMELINE, ToolCallDisplayModes.COMPACT)) {
+            assertTrue(item(active, true, mode).toolDetail!!.body is WebToolBody.Active)
+            val done = active.copy(status = MessageStatus.SUCCESS, segments = active.segments.orEmpty().map {
+                it.copy(toolResult = "{\"path\":\"/file\",\"content\":\"result\"}")
+            })
+            assertEquals("result", (item(done, false, mode).toolDetail!!.body as WebToolBody.FileContent).content)
+            val encoded = WebUiSync.json.encodeToString(WebPresentation.serializer(), webPresentation(done, false, display(toolMode = mode))!!)
+            assertTrue(encoded.contains("\"toolDetail\""))
+            assertTrue(encoded.contains("\"type\":\"file\""))
+        }
+        val thought = model(MessageStatus.SUCCESS, MessageSegment(type = "thought", content = "plan"))
+        assertNull(item(thought, false, ToolCallDisplayModes.GROUPED_TIMELINE).toolDetail)
+    }
+
+    @Test
     fun `display event follows the app language and serializes`() {
         val en = display().toEvent()
         val zh = display(language = "zh").toEvent()
