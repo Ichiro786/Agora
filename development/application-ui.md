@@ -808,6 +808,13 @@ web styles use the app's type scale and Material 3 metrics: a `28 dp` dialog-lik
 buttons. A theme change reaches a browser on its next page load.
 After sign-in the browser mirrors the app's chat screen (`assets/webui/shell.js`, `style.css`) and
 invents no layout of its own; Settings and Remote pages and drawer entries are absent.
+The normal browser message foreground spans the chat viewport behind the composer. One CSS alpha
+mask stays opaque above the measured composer-host top, fades over the next 40px, and stays
+transparent below it, revealing the existing background rather than a painted color cover.
+The existing Shell border-box measurement includes the host's 12px lift once. An equal bottom
+content inset preserves row coordinates, numeric scroll range and initial-bottom ownership.
+The mask remains with App Blur Effects off or Reduced Motion on; composer, top bar, loading cover,
+menus and detail sheets are outside it. Disabled expanded-composer mode is not implemented here.
 WebUI Blur Effects and Reduced Motion follow the App's stored preferences only, not the browser or
 its operating system's reduced-motion preference. No browser settings or switches are added.
 The signed-in shell receives both values through the existing display event and applies updates

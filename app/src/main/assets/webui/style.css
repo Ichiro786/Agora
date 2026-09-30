@@ -663,7 +663,18 @@ p {
   color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
 }
 .dropdown-item:disabled svg { fill: currentColor; }
-.messages { position: relative; flex: 1; min-height: 0; overflow-y: auto; }
+/* One foreground viewport fades into the measured composer host; the background stays untouched. */
+.messages {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin-bottom: calc(-1 * var(--chat-bottom-inset));
+  overflow-y: auto;
+  mask-image: linear-gradient(to bottom,
+    #000 calc(100% - var(--chat-bottom-inset)),
+    transparent calc(100% - var(--chat-bottom-inset) + 40px));
+  mask-mode: alpha;
+}
 /* ChatSwitchingOverlay: full body barrier, indicator in the measured top/composer range. */
 .conversation-loading-cover {
   position: absolute;
@@ -689,7 +700,11 @@ p {
   color: var(--md-primary);
 }
 /* MessageList: at most 840 dp wide, 8 dp sides, 140 dp above (under the top bar), 8 dp below. */
-.message-column { max-width: 840px; margin: 0 auto; padding: 140px 8px 8px; }
+.message-column {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 140px 8px calc(8px + var(--chat-bottom-inset));
+}
 /* MessageItem: 8 dp above and below each message. */
 .message-row { padding: 8px 0; }
 /* Layout only: an unloaded row keeps a one-line height so only rows near the screen are watched. */
