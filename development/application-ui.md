@@ -830,8 +830,19 @@ and the list below. As in `ChatDrawerHost`, the drawer overlays the chat with a
 `32%` scrim up to `960 dp` wide (`DRAWER_MAX_WIDTH + CHAT_APP_WIDTH_THRESHOLD`) and sits beside the
 narrowed chat above that; it starts closed and opens from the Menu button. The open modal drawer is
 `role="dialog"` with `aria-modal`, the chat behind it is inert, Escape or the scrim closes it, and
-focus returns to the Menu button. The composer is the `ChatBottomBar` card: at most `840 dp`, `2 dp`
-tonal, `8 dp` shadow, `28 dp` corners, the Ask Agora field (input `16/23`, 6 lines), the `40 dp`
+focus returns to the Menu button.
+The drawer's single progress owns its offset, side-by-side chat inset and modal scrim opacity. It
+settles over 300 ms with LinearOutSlowInEasing, or snaps under the App's Reduced Motion setting.
+Modal horizontal dragging can take over an in-flight settle at its current visible position;
+pressing during a settle freezes that progress, but only horizontal intent claims pointer capture.
+An ordinary tap retains its original control's click, and vertical input resumes the same target.
+Release follows the Compose velocity-direction rule, or the half-width threshold at rest. Vertical
+scrolling, text selection and real horizontal-scroll controls retain their input ownership. Pointer
+cancellation releases capture and returns to the existing target. Selecting a conversation closes
+only the modal drawer; the desktop side-by-side drawer stays open. Focus and modal input exclusion
+remain through the close transition, and window changes preserve the selected conversation.
+The composer is the `ChatBottomBar` card: at most `840 dp`, `2 dp` tonal, `8 dp` shadow, `28 dp`
+corners, the Ask Agora field (input `16/23`, 6 lines), the `40 dp`
 expand button, and the controls row with the `48 dp` control group (attachment, model selector,
 tools) and the `48 dp` send button. English and Chinese labels are the app's own strings. The
 sign-in page centers its card with flex and caps it at `400 px`: a grid's auto track sized to the

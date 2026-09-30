@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "./vendor/preact-hooks.mjs";
+import { useEffect, useLayoutEffect, useRef, useState } from "./vendor/preact-hooks.mjs";
 import { html } from "./html.js";
 import { t } from "./i18n.js";
 import {
@@ -192,10 +192,111 @@ export function Shell({ onSignedOut }) {
   }, []);
   const sideBySide = useMediaQuery(SIDE_BY_SIDE_QUERY);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const shell = useRef(null);
+  const drawerTarget = useRef(0);
+  const drawerAnimation = useRef(null);
+  const drawerDrag = useRef(null);
+  const dragClick = useRef(null);
   const drawer = useRef(null);
   const menuButton = useRef(null);
   const wasOpen = useRef(false);
+  const wasModalOpen = useRef(false);
   const modalOpen = drawerOpen && !sideBySide;
+  const reduceMotion = !!state.display?.reduceMotion;
+  // One interpolated progress drives drawer, scrim and desktop inset; freeze its actual value on takeover.
+  function freezeDrawer() {
+    const progress = Number(getComputedStyle(shell.current).getPropertyValue("--drawer-progress"));
+    shell.current.style.setProperty("--drawer-progress", String(progress));
+    drawerAnimation.current?.cancel();
+    drawerAnimation.current = null;
+    return progress;
+  }
+  function settleDrawer(open) {
+    const from = freezeDrawer();
+    const to = open ? 1 : 0;
+    drawerTarget.current = to;
+    setDrawerOpen(from > 0 || to > 0);
+    if (reduceMotion || from === to) {
+      shell.current.style.setProperty("--drawer-progress", String(to));
+      setDrawerOpen(to > 0);
+      return;
+    }
+    const animation = shell.current.animate(
+      [{ "--drawer-progress": String(from) }, { "--drawer-progress": String(to) }],
+      { duration: 300, easing: "cubic-bezier(0, 0, 0.2, 1)", fill: "forwards" },
+    );
+    drawerAnimation.current = animation;
+    animation.onfinish = () => {
+      if (drawerAnimation.current !== animation) return;
+      shell.current.style.setProperty("--drawer-progress", String(to));
+      animation.cancel();
+      drawerAnimation.current = null;
+      setDrawerOpen(to > 0);
+    };
+  }
+  function endDrawerDrag(event, cancelled = false) {
+    const drag = drawerDrag.current;
+    if (!drag || (event && drag.id !== event.pointerId)) return;
+    drawerDrag.current = null;
+    if (shell.current.hasPointerCapture(drag.id)) shell.current.releasePointerCapture(drag.id);
+    if (!drag.accepted) {
+      if (drag.interrupted) settleDrawer(drawerTarget.current > 0);
+      return;
+    }
+    dragClick.current = drag.id;
+    const progress = freezeDrawer();
+    const velocity = event && event.timeStamp - drag.time < 100 ? drag.velocity : 0;
+    settleDrawer(cancelled ? drawerTarget.current > 0 : velocity === 0 ? progress >= 0.5 : velocity > 0);
+  }
+  function beginDrawerDrag(event) {
+    dragClick.current = null;
+    if (sideBySide || !event.isPrimary || event.button !== 0 ||
+        event.target.closest(".detail-sheet-layer, .dropdown, dialog, input, textarea, a, [contenteditable]") ||
+        !window.getSelection()?.isCollapsed ||
+        (event.pointerType === "mouse" && event.target.closest(".markdown, .user-text"))) return;
+    for (let node = event.target; node && node !== shell.current; node = node.parentElement) {
+      if (node.scrollWidth > node.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(node).overflowX)) return;
+    }
+    const interrupted = drawerAnimation.current != null;
+    drawerDrag.current = { id: event.pointerId, x: event.clientX, y: event.clientY,
+      lastX: event.clientX, time: event.timeStamp, velocity: 0, accepted: false, interrupted, progress: freezeDrawer() };
+  }
+  function moveDrawerDrag(event) {
+    const drag = drawerDrag.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    if (!drag.accepted) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 8) return;
+      if (Math.abs(dy) >= Math.abs(dx)) { endDrawerDrag(event, true); return; }
+      drag.accepted = true;
+      shell.current.setPointerCapture(event.pointerId);
+    }
+    const elapsed = event.timeStamp - drag.time;
+    if (elapsed > 0) drag.velocity = (event.clientX - drag.lastX) / elapsed;
+    drag.lastX = event.clientX;
+    drag.time = event.timeStamp;
+    const progress = Math.max(0, Math.min(1, drag.progress + dx / drawer.current.clientWidth));
+    shell.current.style.setProperty("--drawer-progress", String(progress));
+    setDrawerOpen(progress > 0);
+    event.preventDefault();
+  }
+  useLayoutEffect(() => {
+    const node = shell.current;
+    const stopOwnedTouch = (event) => { if (drawerDrag.current?.accepted) event.preventDefault(); };
+    const onResize = () => endDrawerDrag(null, true);
+    node.addEventListener("touchmove", stopOwnedTouch, { passive: false });
+    window.addEventListener("resize", onResize);
+    return () => {
+      node.removeEventListener("touchmove", stopOwnedTouch);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [sideBySide, reduceMotion]);
+  useEffect(() => () => drawerAnimation.current?.cancel(), []);
+  useLayoutEffect(() => {
+    endDrawerDrag(null, true);
+    settleDrawer(drawerTarget.current > 0);
+  }, [sideBySide, reduceMotion]);
   // ChatTopBar falls back to the brand while the title is blank.
   const openTitle = state.conversations.find((c) => c.id === state.openId)?.title?.trim() || null;
 
@@ -203,32 +304,53 @@ export function Shell({ onSignedOut }) {
     // The chat is inert until the closed state renders, so focus returns to the menu button here.
     if (!drawerOpen && wasOpen.current) menuButton.current?.focus();
     wasOpen.current = drawerOpen;
+    const enteringModal = modalOpen && !wasModalOpen.current;
+    wasModalOpen.current = modalOpen;
     if (!modalOpen) return undefined;
     // The dialog itself takes focus while none of its controls is enabled yet.
-    (drawer.current?.querySelector("input:not([disabled]), button:not([disabled])") ?? drawer.current)
-      ?.focus();
+    if (enteringModal) {
+      (drawer.current?.querySelector("input:not([disabled]), button:not([disabled])") ?? drawer.current)
+        ?.focus();
+    }
     const onKey = (event) => {
-      if (event.key === "Escape") setDrawerOpen(false);
+      if (event.defaultPrevented || shell.current.querySelector(".detail-sheet-layer, .dropdown")) return;
+      if (event.key === "Escape") { event.preventDefault(); settleDrawer(false); }
+      if (event.key === "Tab") {
+        const controls = [...drawer.current.querySelectorAll("input:not([disabled]), button:not([disabled])")];
+        const first = controls[0] ?? drawer.current;
+        const last = controls.at(-1) ?? drawer.current;
+        if (!drawer.current.contains(document.activeElement) ||
+            (event.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        }
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [drawerOpen, modalOpen]);
+  }, [drawerOpen, modalOpen, reduceMotion]);
 
   const shellClass = ["shell", drawerOpen && "drawer-open", sideBySide ? "side-by-side" : "modal"]
     .filter(Boolean).join(" ");
   return html`
-    <div class=${shellClass} data-blur-effects=${state.display?.blurEffectsEnabled == null ? null : String(state.display.blurEffectsEnabled)}
-      data-reduce-motion=${state.display?.reduceMotion == null ? null : String(state.display.reduceMotion)}>
+    <div class=${shellClass} ref=${shell} data-blur-effects=${state.display?.blurEffectsEnabled == null ? null : String(state.display.blurEffectsEnabled)}
+      data-reduce-motion=${state.display?.reduceMotion == null ? null : String(state.display.reduceMotion)}
+      onPointerDown=${beginDrawerDrag} onPointerMove=${moveDrawerDrag}
+      onPointerUp=${(event) => endDrawerDrag(event)} onPointerCancel=${(event) => endDrawerDrag(event, true)}
+      onLostPointerCapture=${(event) => { if (event.target === shell.current) endDrawerDrag(event, true); }}
+      onClickCapture=${(event) => {
+        if (event.pointerId === dragClick.current) { event.preventDefault(); event.stopPropagation(); dragClick.current = null; }
+      }}>
       <aside id="drawer" class="drawer" ref=${drawer} aria-label=${t.conversations} tabindex="-1"
         role=${sideBySide ? null : "dialog"} aria-modal=${modalOpen ? "true" : null}
         inert=${!drawerOpen}>
         <${DrawerContent} conversations=${state.conversations} openId=${state.openId}
-          onSelect=${(id) => { sync.open(id); setDrawerOpen(false); }} />
+          onSelect=${(id) => { sync.open(id); if (!sideBySide) settleDrawer(false); }} />
       </aside>
-      <div class="scrim" aria-hidden="true" onClick=${() => setDrawerOpen(false)}></div>
+      <div class="scrim" aria-hidden="true" onClick=${() => settleDrawer(false)}></div>
       <main class="chat" inert=${modalOpen}>
         <${TopBar} title=${openTitle} drawerOpen=${drawerOpen} menuButton=${menuButton} onSignedOut=${onSignedOut}
-          onToggleDrawer=${() => setDrawerOpen(!drawerOpen)} />
+          onToggleDrawer=${() => settleDrawer(drawerTarget.current === 0)} />
         <${MessageList} state=${state} label=${openTitle || t.newChat} />
         <${Composer} />
       </main>
