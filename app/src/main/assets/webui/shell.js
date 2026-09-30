@@ -433,7 +433,7 @@ export function Shell({ onSignedOut }) {
   // ChatTopBar falls back to the brand while the title is blank.
   const openTitle = state.conversations.find((c) => c.id === state.openId)?.title?.trim() || null;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // The chat is inert until the closed state renders, so focus returns to the menu button here.
     if (!drawerOpen && wasOpen.current) menuButton.current?.focus();
     wasOpen.current = drawerOpen;

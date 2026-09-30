@@ -865,6 +865,9 @@ scrolling, text selection and real horizontal-scroll controls retain their input
 cancellation releases capture and returns to the existing target. Selecting a conversation closes
 only the modal drawer; the desktop side-by-side drawer stays open. Focus and modal input exclusion
 remain through the close transition, and window changes preserve the selected conversation.
+Modal drawer focus and keyboard admission start at the same layout commit that makes the chat
+inert. Escape is available before the first animated frame; Tab stays in the drawer through exit.
+Focus returns only after the closed chat is no longer inert; a retained menu keeps keyboard priority.
 The composer is the `ChatBottomBar` card: at most `840 dp`, `2 dp` tonal, `8 dp` shadow, `28 dp`
 corners, the Ask Agora field (input `16/23`, 6 lines), the `40 dp`
 expand button, and the controls row with the `48 dp` control group (attachment, model selector,
