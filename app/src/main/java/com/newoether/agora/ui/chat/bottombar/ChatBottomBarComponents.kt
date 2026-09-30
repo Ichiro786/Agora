@@ -190,13 +190,14 @@ internal fun ComposerContextIndicator(
     compactEnabled: Boolean = true,
     systemPromptTokens: Int = 0,
     toolTokens: Int = 0,
+    showBreakdown: Boolean = true,
     expanded: Boolean,
     onClick: () -> Unit,
     onDismissRequest: () -> Unit,
 ) {
     val motionPolicy = LocalAgoraMotionPolicy.current
     val available = estimatedTokens != null && tokenBudget != null
-    val overCompactThreshold = estimatedTokens != null && tokenBudget != null &&
+    val overCompactThreshold = showBreakdown && estimatedTokens != null && tokenBudget != null &&
         contextUsageExceedsCompactThreshold(estimatedTokens, tokenBudget, compactThresholdPercent)
     val contextProgressColor = if (overCompactThreshold) {
         MaterialTheme.colorScheme.error
@@ -265,6 +266,7 @@ internal fun ComposerContextIndicator(
                     compactThresholdPercent = compactThresholdPercent,
                     compactEnabled = compactEnabled,
                     overCompactThreshold = overCompactThreshold,
+                    showBreakdown = showBreakdown,
                 )
             }
         }

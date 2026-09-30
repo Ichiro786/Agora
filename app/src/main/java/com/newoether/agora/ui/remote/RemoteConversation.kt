@@ -170,6 +170,7 @@ internal fun RemoteConversation(
     val animatedScrollRequest by vm.animatedScrollRequest.collectAsState()
     var barHeightPx by remember { mutableFloatStateOf(0f) }
     val barHeight = with(density) { barHeightPx.toDp() }
+    val topBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp
     SnackbarOffsetEffect(drawerProgress = 0f, isExpanded = expanded, bottomBarHeight = barHeight,
         settingsButtonTopDp = 0f, bottomInset = maxOf(
             WindowInsets.ime.asPaddingValues().calculateBottomPadding(),
@@ -177,6 +178,19 @@ internal fun RemoteConversation(
         onOffsetChanged = { if (active) onSnackbarOffsetChanged(it) })
     var initiallyPositioned by remember(owner) { mutableStateOf(state.isDraft) }
     val switching = !initiallyPositioned
+    val showBottomButton by rememberAbsoluteBottomButtonVisible(
+        conversationId = owner,
+        loadedMessagesConversationId = owner.takeIf { initiallyPositioned },
+        isNewChatMode = newChatEntry && messages.isEmpty(),
+        isSwitching = switching,
+        shareSelectionActive = false,
+        isNearAbsoluteBottom = scroll.isNearAbsoluteBottom,
+        absoluteBottomScrollPhase = scroll.absoluteBottomScrollPhase,
+        listState = scroll.listState,
+        streamingTailController = scroll.streamingTailController,
+        regenerationScrollActive = animatedScrollRequest?.conversationId == owner,
+        imeBottomAnchorActive = scroll.imeBottomAnchorState.active,
+    )
     scroll.BindLayoutObservation(owner, owner, ime, density)
     scroll.BindImeEffects(owner, messageState, density, barHeight, 0.dp, ime)
     scroll.BindRequestEffects(owner, false, generationVisible, false, switching, interaction.searchActive, false, null, animatedScrollRequest,
@@ -308,41 +322,18 @@ internal fun RemoteConversation(
                     contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 140.dp + leadingSpace.dp, bottom = barHeight + 8.dp))
                 }
                 ChatBottomScrollButton(
-                    shouldShowAbsoluteBottomButton(
-                        isNewChatMode = newChatEntry && messages.isEmpty(),
-                        isSwitching = switching,
-                        conversationContentReady = initiallyPositioned,
-                        shareSelectionActive = false,
-                        hasItems = scroll.listState.layoutInfo.totalItemsCount > 1,
-                        canScrollForward = scroll.listState.canScrollForward,
-                        isNearBottom = scroll.isNearAbsoluteBottom,
-                        isStreamingAutoFollowing = scroll.streamingTailController.isAutoFollowing,
-                        scrollPhase = scroll.absoluteBottomScrollPhase,
-                        competingProgrammaticScrollActive = scroll.imeBottomAnchorState.active,
-                    ),
+                    showBottomButton,
                     barHeight,
                 ) {
                     scroll.requestAbsoluteBottomScroll()
                 }
 
-                AnimatedVisibility(
-                    visible = switching && !newChatEntry && !state.error,
-                    enter = fadeIn(animationSpec = tween(200)),
-                    exit = fadeOut(animationSpec = tween(200))
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        MotionAwareCircularProgressIndicator(
-                            modifier = Modifier.size(48.dp),
-                            strokeWidth = 5.dp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
+                ChatSwitchingOverlay(
+                    isSwitching = switching && !state.error,
+                    isTransitioningToNewChat = newChatEntry,
+                    topBarHeight = topBarHeight,
+                    bottomBarHeight = barHeight,
+                )
             }
         }
         ChatComposerSurface(expanded, { barHeightPx = it }, Modifier.align(Alignment.BottomCenter), spacer.outerHeightPx) {
@@ -399,6 +390,7 @@ internal fun RemoteConversation(
                         )
                         ComposerContextIndicator(
                             estimatedTokens = state.runtime?.contextTokens, tokenBudget = state.runtime?.contextWindow,
+                            showBreakdown = false,
                             expanded = activeMenu == "context",
                             onClick = {
                                 val now = System.currentTimeMillis()

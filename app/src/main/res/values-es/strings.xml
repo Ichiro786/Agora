@@ -672,6 +672,7 @@
     <string name="context_part_messages">Mensajes</string>
     <string name="context_part_free">Libre</string>
     <string name="context_part_reserved">Reservado</string>
+    <string name="context_part_used">Usado</string>
     <string name="context_compact_streaming">Compactando contexto…</string>
     <string name="context_compact_error">Error de compactación</string>
     <string name="context_compact_stopped">Compactación detenida</string>

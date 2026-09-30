@@ -45,6 +45,16 @@ A screen may reuse an established motion language directly without creating anot
 owner. Interaction state stays local to the interactive control and must not alter navigation,
 validation, persistence, or completion semantics.
 
+Ordinary ChatApp and Android Remote chat circular loading covers must block touch input to covered
+content throughout their visible enter, loading and exit lifetime. Taps, long presses and drags must
+not activate or scroll the content beneath them; a painted background alone is not an input barrier.
+The cover consumes gestures that start while it is present. Immediate cancellation of gestures
+already held before the cover appears is not required. Do not dispatch window-wide cancellation
+or introduce a global input owner for this cover.
+The existing content-area cover owns this exclusion, without a Remote-wide or separate interception
+layer. Indicator placement uses ChatApp's measured top-bar and bottom-bar available range, including
+IME-driven bottom-bar changes. Remote must reuse that centering rule rather than the full-body center.
+
 Every overlay blocks haptics originating from the chat beneath it, including a continuous answer
 texture and asynchronous send acknowledgements. Settings, Tasks, Remote, text/media previews,
 modal sheets, dialogs, and menus retain this exclusion until they finish covering the chat.

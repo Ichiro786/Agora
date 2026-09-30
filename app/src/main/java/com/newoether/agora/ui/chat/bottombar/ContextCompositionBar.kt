@@ -72,12 +72,28 @@ internal fun ContextCompositionBar(
     compactThresholdPercent: Int,
     compactEnabled: Boolean,
     overCompactThreshold: Boolean,
+    showBreakdown: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val budget = tokenBudget.coerceAtLeast(1)
     val system = systemPromptTokens.coerceAtLeast(0)
     val tools = toolTokens.coerceAtLeast(0)
     val messages = messageTokens.coerceAtLeast(0)
+    if (!showBreakdown) {
+        val total = system + tools + messages
+        val primary = MaterialTheme.colorScheme.primary
+        Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            SegmentedBar(
+                fractions = listOf(total.toFloat() / budget),
+                colors = listOf(primary),
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                reservedFraction = 0f,
+                reservedColor = MaterialTheme.colorScheme.outline,
+            )
+            LegendRow(primary, stringResource(R.string.context_part_used), total)
+        }
+        return
+    }
     val used = (system + tools + messages).coerceAtMost(budget)
     // Without automatic compaction nothing claims the tail of the window, so there is no reserve to
     // show and the whole remainder is free.
