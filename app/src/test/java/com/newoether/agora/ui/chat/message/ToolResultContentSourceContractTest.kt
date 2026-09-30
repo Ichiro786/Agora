@@ -24,7 +24,9 @@ class ToolResultContentSourceContractTest {
         assertFalse(webSearch.contains(".background("))
         assertTrue(webSearch.contains("val uriHandler = LocalUriHandler.current"))
         assertTrue(webSearch.contains("val resultShape = RoundedCornerShape(12.dp)"))
-        assertTrue(webSearch.contains("val safeUrl = remember(url) { CitationPolicy.safeHttpUrl(url) }"))
+        val model = source(locateMainSourceRoot(), "ToolDetailPresentation.kt")
+        assertTrue(model.contains("safeUrl = CitationPolicy.safeHttpUrl(url)"))
+        assertTrue(webSearch.contains("val safeUrl = item.safeUrl"))
         assertTrue(webSearch.contains("enabled = safeUrl != null"))
         assertTrue(webSearch.contains("runCatching { uriHandler.openUri(destination) }"))
         assertTrue(

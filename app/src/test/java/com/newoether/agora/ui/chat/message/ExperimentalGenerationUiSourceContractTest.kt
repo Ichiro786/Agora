@@ -330,23 +330,16 @@ class ExperimentalGenerationUiSourceContractTest {
         val terminalText = source(locateMainSourceRoot(), "message/GenerationErrorBar.kt")
             .substringAfter("internal fun GenerationTerminalText(")
             .substringBefore("internal fun GenerationErrorBar(")
-        val webSearchCompletionOnly = detail
-            .substringAfter("presentation.kind == ToolKind.WEB_SEARCH &&")
-            .substringBefore("ToolCompletedContent(presentation)")
-        val failedContent = detail
-            .substringAfter("ToolPresentationState.FAILED -> {")
+        val model = source(locateMainSourceRoot(), "message/ToolDetailPresentation.kt")
+        val failedContent = model
+            .substringAfter("ToolPresentationState.FAILED ->")
             .substringBefore("ToolPresentationState.STOPPED ->")
-        val completedContent = toolResult
-            .substringAfter("private fun ToolCompletedContent(")
-            .substringBefore("private fun McpResultContent(")
-
-        assertTrue(detail.contains("ToolPresentationState.FAILED ->"))
-        assertTrue(detail.contains("ToolErrorContent("))
-        assertFalse(failedContent.contains("McpResultContent("))
+        assertTrue(detail.contains("is ToolDetailBody.Failed ->"))
+        assertTrue(detail.contains("ToolErrorContent(body.text)"))
         assertFalse(failedContent.contains("rawTextResult"))
         assertFalse(failedContent.contains("rawStructuredResult"))
-        assertTrue(completedContent.contains("ToolKind.MCP -> McpResultContent(presentation)"))
-        assertTrue(detail.contains("ToolPresentationState.STOPPED -> GenerationTerminalText("))
+        assertTrue(model.contains("ToolKind.MCP ->"))
+        assertTrue(detail.contains("is ToolDetailBody.Stopped -> GenerationTerminalText("))
         assertTrue(errorContent.contains("GenerationTerminalText("))
         assertTrue(errorContent.contains("selectable = true"))
         assertTrue(errorContent.contains("fillWidth = true"))
@@ -359,10 +352,8 @@ class ExperimentalGenerationUiSourceContractTest {
                 "color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)",
             ),
         )
-        assertTrue(webSearchCompletionOnly.contains("ToolPresentationState.EMPTY"))
-        assertTrue(webSearchCompletionOnly.contains("ToolPresentationState.COMPLETED"))
-        assertFalse(webSearchCompletionOnly.contains("ToolPresentationState.FAILED"))
-        assertFalse(webSearchCompletionOnly.contains("ToolPresentationState.STOPPED"))
+        assertTrue(model.contains("ToolPresentationState.EMPTY,"))
+        assertTrue(model.contains("ToolPresentationState.COMPLETED -> completedToolDetailBody(presentation)"))
     }
 
     @Test

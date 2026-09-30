@@ -2,6 +2,12 @@
 
 This contract defines the user-visible title and summary semantics for every built-in, MCP, and unknown tool. `ToolPresentationResolver` is the canonical lifecycle resolver and `MessageItemToolLabels` is the canonical summary renderer.
 
+`ToolDetailPresentation` owns resource-backed detail content selection and result fields shared by
+Compose and the WebUI. It consumes `ToolPresentationResolver` rather than resolving another lifecycle.
+Compose retains layout, selection, prefix-aware JSON rendering, and local image loading; browser
+projection stays demand-driven within watched message payloads. Failed/stopped content does not
+replay completed MCP/search results, and shell exit codes remain command results rather than failures.
+
 ## Lifecycle
 
 The visible lifecycle is deliberately small. `CALLING` and `RUNNING` share one active presentation. They must not create separate user-visible states or wording systems. Terminal presentations are completed, empty, failed, stopped, or running in background.
