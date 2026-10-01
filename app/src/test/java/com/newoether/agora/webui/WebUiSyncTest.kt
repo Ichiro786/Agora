@@ -1,4 +1,6 @@
 package com.newoether.agora.webui
+import com.newoether.agora.data.CustomProviderConfig
+import com.newoether.agora.data.CustomEndpointProtocol
 
 import com.newoether.agora.automation.ConversationExecutionCoordinator
 import com.newoether.agora.data.local.MessageContextTopology
@@ -103,6 +105,7 @@ class WebUiSyncTest {
     private val snackbars = MutableSharedFlow<String>(extraBufferCapacity = 4)
     private val scrollRequests = MutableSharedFlow<WebSyncEvent.ScrollToBottom>(extraBufferCapacity = 4)
     private val composerState = MutableSharedFlow<WebUiChatSession.ComposerState>(extraBufferCapacity = 4)
+    private val customProviders = MutableStateFlow<List<CustomProviderConfig>>(emptyList())
     private val session = mockk<WebUiChatSession> {
         every { openTarget } returns this@WebUiSyncTest.openTarget
         every { snackbars } returns this@WebUiSyncTest.snackbars
@@ -168,6 +171,32 @@ class WebUiSyncTest {
         assertEquals("false", projected.string("showLowContextMode"))
         assertEquals("false", projected.string("shellAvailable"))
         assertEquals("32768", projected.string("contextWindow"))
+        send("""{"type":"setting","seq":7,"actionId":10,"setting":"thinkingLevel","value":"high"}""")
+        coVerify { session.settingCommand(WebSyncCommand("setting", seq = 7, actionId = 10, setting = "thinkingLevel", value = "high")) }
+        received()
+        composerState.emit(WebUiChatSession.ComposerState(null, ConversationComposerSubmissionSnapshot(),
+            modelValid = true, modelId = "OpenAI:gpt-6-astra", controls = controls.copy(thinkingEnabled = false, thinkingLevel = "minimal", openAiServiceTierState = controls.openAiServiceTierState.copy(tier = "ultrafast"))))
+        val resolved = received().single { it.type == "composer" }["controls"]!!.jsonObject
+        assertEquals("false", resolved.string("thinkingEnabled"))
+        assertEquals("true", resolved.string("displayedThinkingEnabled"))
+        assertEquals("low", resolved.string("displayedThinkingLevel"))
+        assertEquals("false", resolved.string("thinkingCanDisable"))
+        assertEquals("false", resolved.string("thinkingSupportsBudget"))
+        assertEquals("fast", resolved.string("displayedServiceTier"))
+        assertEquals(listOf("auto", "default", "flex", "fast"), resolved["serviceTiers"]!!.jsonArray.map { it.jsonPrimitive.content })
+        val customId = "custom-provider-12345678-1234-4234-8234-123456789abc"
+        customProviders.value = listOf(CustomProviderConfig(name = "Relay", id = customId, responsesApiEnabled = true))
+        received()
+        composerState.emit(WebUiChatSession.ComposerState(null, ConversationComposerSubmissionSnapshot(),
+            modelValid = true, modelId = "$customId:unlisted", controls = controls))
+        assertEquals("true", received().single { it.type == "composer" }["controls"]!!.jsonObject.string("thinkingSupportsBudget"))
+        composerState.emit(WebUiChatSession.ComposerState(null, ConversationComposerSubmissionSnapshot(),
+            modelValid = true, modelId = "$customId:claude-opus-4-6", controls = controls))
+        assertEquals(listOf("minimal", "low", "medium", "high", "xhigh", "max"), received().single { it.type == "composer" }["controls"]!!.jsonObject["thinkingEfforts"]!!.jsonArray.map { it.jsonPrimitive.content })
+        customProviders.value = listOf(customProviders.value.single().copy(protocol = CustomEndpointProtocol.ANTHROPIC))
+        val updated = received().single { it.type == "composer" }["controls"]!!.jsonObject
+        assertEquals("true", updated.string("thinkingSupportsBudget"))
+        assertEquals(listOf("low", "medium", "high", "xhigh", "max"), updated["thinkingEfforts"]!!.jsonArray.map { it.jsonPrimitive.content })
     }
     @Test
     fun attachmentCommandsKeepTheExactIdSelectionAndConfiguration() = sync { send, _ ->
@@ -426,7 +455,7 @@ class WebUiSyncTest {
         registry = registry,
         executionCoordinator = ConversationExecutionCoordinator(),
         hydration = hydration,
-        customProviders = MutableStateFlow(emptyList()),
+        customProviders = customProviders,
         display = display,
         openChatSession = { session },
         projectionDispatcher = dispatcher,

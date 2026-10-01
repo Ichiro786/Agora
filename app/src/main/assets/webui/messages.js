@@ -411,19 +411,19 @@ function InfoCard({ block, messageId, appearances, streaming, onOpenDetail }) {
     </div>`;
 }
 
-function DetailSheet({ group, items, page, detailIndex, selectedItem, conversationId, messageId, display, wrap, onSelectItem, onBack, onClose }) {
+export function DetailSheet({ group, items, page, detailIndex, selectedItem, conversationId, messageId, display, wrap, onSelectItem, onBack, onClose, title: suppliedTitle, children, focusReturn }) {
   const [expanded, setExpanded] = useState(false);
   const closeButton = useRef(null);
   const restoreFocus = useRef(null);
   const sheet = useRef(null);
   const dragStart = useRef(null);
   const suppressHandleClick = useRef(false);
-  const backAction = useRef(onBack);
-  backAction.current = onBack;
+  const backAction = useRef(onBack ?? onClose);
+  backAction.current = onBack ?? onClose;
   const groupTitle = useCardTitle(group ?? { title: "", liveBaseMs: null }, display?.liveThinking);
-  const title = page === "detail" ? selectedItem?.title : groupTitle;
+  const title = suppliedTitle ?? (page === "detail" ? selectedItem?.title : groupTitle);
   useEffect(() => {
-    restoreFocus.current = document.activeElement;
+    restoreFocus.current = focusReturn?.current ?? document.activeElement;
     closeButton.current?.focus();
     const onKey = (event) => {
       if (event.target.closest?.(".tool-media-viewer")) return;
@@ -432,7 +432,8 @@ function DetailSheet({ group, items, page, detailIndex, selectedItem, conversati
         event.stopPropagation();
         backAction.current();
       } else if (event.key === "Tab") {
-        const controls = [...sheet.current?.querySelectorAll("button:not([disabled]), a[href]") ?? []];
+        const controls = [...sheet.current?.querySelectorAll("button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])") ?? []]
+          .filter(node => getComputedStyle(node).visibility !== "hidden" && node.getClientRects().length);
         if (!controls.length) return;
         const target = event.shiftKey ? controls.at(-1) : controls[0];
         const atEdge = event.shiftKey ? document.activeElement === controls[0]
@@ -495,7 +496,7 @@ function DetailSheet({ group, items, page, detailIndex, selectedItem, conversati
           </button>
         </header>
         <div class="detail-sheet-content" onWheel=${onWheel}>
-          <div class=${`detail-sheet-page ${page === "list" ? "list-page" : "detail-page"}`} key=${page}>
+          ${children ?? html`<div class=${`detail-sheet-page ${page === "list" ? "list-page" : "detail-page"}`} key=${page}>
             ${page === "list" ? html`
               <div class="detail-sheet-list">
                 ${items.map((item, index) => html`
@@ -511,7 +512,7 @@ function DetailSheet({ group, items, page, detailIndex, selectedItem, conversati
                   ? html`<p class="detail-sheet-empty">Image transcription is empty.</p>`
                   : html`<${Markdown} text=${selectedItem.content} variant="thought" wrap=${wrap} />`}
               </div>`}
-          </div>
+          </div>`}
         </div>
       </section>
     </div>`;

@@ -545,6 +545,51 @@ class WebUiChatSessionTest {
         verify(exactly = 1) { settings.updateConversationSettings(any(), any()) }
     }
     @Test
+    fun thinkingAndTierCommandsUseTheSelectedModelsAcceptedOptions() = runBlocking {
+        val model = MutableStateFlow("OpenAI:gpt-6-astra")
+        every { settings.selectedModel } returns model
+        every { settings.enabledModels } returns MutableStateFlow(setOf(model.value, "OpenAI:gpt-5.6-sol", "relay:test"))
+        every { settings.openAiResponsesApiEnabled } returns MutableStateFlow(true)
+        session.start()
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.modelId == model.value && it.modelValid } }
+        session.settingCommand(WebSyncCommand("setting", setting = "thinkingEnabled", enabled = false))
+        assertTrue(session.composerState.first().controls!!.thinkingEnabled)
+        session.settingCommand(WebSyncCommand("setting", setting = "thinkingLevel", value = "minimal"))
+        assertEquals("medium", session.composerState.first().controls!!.thinkingLevel)
+        session.settingCommand(WebSyncCommand("setting", setting = "thinkingLevel", value = "max"))
+        assertEquals("max", session.composerState.first().controls!!.thinkingLevel)
+        session.settingCommand(WebSyncCommand("setting", modelId = "old-model", setting = "thinkingLevel", value = "low"))
+        assertEquals("max", session.composerState.first().controls!!.thinkingLevel)
+        session.settingCommand(WebSyncCommand("setting", setting = "thinkingBudgetEnabled", enabled = true))
+        assertFalse(session.composerState.first().controls!!.thinkingBudgetEnabled)
+        session.settingCommand(WebSyncCommand("setting", setting = "openAiServiceTier", value = "fast"))
+        assertEquals("auto", session.composerState.first().controls!!.openAiServiceTierState.tier)
+        session.settingCommand(WebSyncCommand("setting", setting = "openAiServiceTierEnabled", enabled = true))
+        session.settingCommand(WebSyncCommand("setting", setting = "openAiServiceTier", value = "ultrafast"))
+        assertEquals("auto", session.composerState.first().controls!!.openAiServiceTierState.tier)
+        session.settingCommand(WebSyncCommand("setting", setting = "openAiServiceTier", value = "fast"))
+        assertEquals("fast", session.composerState.first().controls!!.openAiServiceTierState.tier)
+        model.value = "relay:test"
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.modelId == model.value } }
+        session.settingCommand(WebSyncCommand("setting", setting = "thinkingBudgetEnabled", enabled = true))
+        session.settingCommand(WebSyncCommand("setting", setting = "thinkingBudgetTokens", tokens = 8192))
+        assertEquals(8192, session.composerState.first().controls!!.thinkingBudgetTokens)
+        session.settingCommand(WebSyncCommand("setting", setting = "thinkingLevel", value = "low"))
+        session.settingCommand(WebSyncCommand("setting", setting = "thinkingBudgetTokens", tokens = -1))
+        assertEquals("max", session.composerState.first().controls!!.thinkingLevel)
+        assertEquals(8192, session.composerState.first().controls!!.thinkingBudgetTokens)
+        session.settingCommand(WebSyncCommand("setting", setting = "thinkingBudgetEnabled", enabled = false))
+        session.settingCommand(WebSyncCommand("setting", setting = "thinkingLevel", value = "low"))
+        assertEquals("low", session.composerState.first().controls!!.thinkingLevel)
+        model.value = "OpenAI:gpt-5.6-sol"
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.modelId == model.value } }
+        assertEquals("fast", session.composerState.first().controls!!.openAiServiceTierState.tier)
+        session.settingCommand(WebSyncCommand("setting", setting = "openAiServiceTier", value = "ultrafast", actionId = 7))
+        val changed = withTimeout(TIMEOUT_MS) { session.composerState.first { it.actionId == 7L } }
+        assertEquals("ultrafast", changed.controls!!.openAiServiceTierState.tier)
+        verify(exactly = 0) { settings.updateConversationSettings(any(), any()) }
+    }
+    @Test
     fun customResponsesAvailabilityUsesItsIdentityAndTracksProtocolChanges() = runBlocking {
         val providerId = "custom-provider-12345678-1234-4234-8234-123456789abc"
         val model = "$providerId:unlisted"

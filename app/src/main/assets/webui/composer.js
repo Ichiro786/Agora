@@ -4,6 +4,8 @@ import { t } from "./i18n.js";
 import { icon, ICON_ADD, ICON_ARROW_UPWARD, ICON_EXPAND_ALL, ICON_MORE_VERT, ICON_STOP, ICON_CHECK, ICON_CLOSE, ICON_ATTACH_FILE } from "./icons.js";
 import { sync } from "./sync.js";
 import { Markdown } from "./markdown.js";
+import { DetailSheet } from "./messages.js";
+import { ICON_NEUROLOGY, ICON_MEMORY, ICON_SPEED, ICON_TERMINAL, ICON_LANGUAGE, ICON_COMPRESS, ICON_TUNE, ICON_CHEVRON_DOWN, ICON_GOOGLE, ICON_OPENAI } from "./icons.js";
 import { ICON_IMAGE, ICON_CHEVRON_RIGHT, ICON_CAMERA, ICON_VIDEO, ICON_ERROR, ICON_BROKEN_IMAGE } from "./icons.js";
 
 /** ChatBottomBar: surface card with the text field, the expand button and the controls row. */
@@ -13,6 +15,26 @@ export function Composer({ state, MoreMenu }) {
   const addButton = useRef(null);
   const picker = useRef(null);
   const pickerTarget = useRef(null);
+  const toolsButton = useRef(null);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [retainedTools, setRetainedTools] = useState(false);
+  const [toolPanel, setToolPanel] = useState(null);
+  const [advancedThinking, setAdvancedThinking] = useState(false);
+  const [slider, setSlider] = useState(null);
+  const controls = state.composer?.controls;
+  const settingsEditable = state.connected && !!controls && !state.pendingAction;
+  const capabilityEnabled = settingsEditable && !controls?.lowContextModeEnabled;
+  const validPanel = toolPanel && toolPanel.connectionId === state.connectionId && toolPanel.seq === state.composer?.seq &&
+    !!controls && (toolPanel.kind === "thinking" || (controls.openAiServiceTierAvailable && state.composer.modelValid));
+  useEffect(() => { setToolsOpen(false); setToolPanel(null); setSlider(null); }, [state.openId, state.connectionId]);
+  useEffect(() => { if (!state.pendingAction) setSlider(null); }, [state.pendingAction]);
+  useEffect(() => { setSlider(null); }, [state.composer?.modelId]);
+  useEffect(() => { if (controls?.displayedThinkingBudgetEnabled) setAdvancedThinking(true); }, [controls?.displayedThinkingBudgetEnabled]);
+  function openTool(kind) {
+    setToolPanel({ ...sync.attachmentTarget(), kind });
+    setAdvancedThinking(!!controls.displayedThinkingBudgetEnabled);
+    setToolsOpen(false);
+  }
   const [addOpen, setAddOpen] = useState(false);
   const [retainedAdd, setRetainedAdd] = useState(false);
   const [viewer, setViewer] = useState(null);
@@ -113,7 +135,8 @@ export function Composer({ state, MoreMenu }) {
               aria-haspopup="menu" aria-expanded=${modelOpen} data-valid=${!!state.composer?.modelValid}
               disabled=${!state.connected || !state.composer || !!state.pendingAction}
               onClick=${() => { setRetainedModelMenu(true); setModelOpen(!modelOpen); }}>${modelLabel}</button>
-            <button class="control-icon" type="button" aria-label=${t.tools} disabled>
+            <button ref=${toolsButton} class="control-icon" type="button" aria-label=${t.tools} disabled=${!settingsEditable}
+              aria-haspopup="menu" aria-expanded=${toolsOpen} onClick=${() => { setRetainedTools(true); setToolsOpen(!toolsOpen); }}>
               ${icon(ICON_MORE_VERT)}
             </button>
           </div>
@@ -139,6 +162,87 @@ export function Composer({ state, MoreMenu }) {
         ${[["camera", ICON_CAMERA], ["photos", ICON_IMAGE], ["videos", ICON_VIDEO], ["files", ICON_ATTACH_FILE]].map(([kind, path]) => html`
           <button class="dropdown-item" role="menuitem" type="button" disabled=${!editable} onClick=${() => choose(kind)}>${icon(path)}<span>${t[kind]}</span></button>`)}
       </${MoreMenu}>`}
+      ${retainedTools && html`<${MoreMenu} expanded=${toolsOpen} reduceMotion=${state.display.reduceMotion} anchor=${toolsButton} above
+        onClose=${() => setToolsOpen(false)} onExited=${restore => { setRetainedTools(false); if (restore) toolsButton.current?.focus(); }}>
+        ${controls?.showLowContextMode && html`<button class="dropdown-item" role="menuitemcheckbox" aria-checked=${controls.lowContextModeEnabled}
+          disabled=${!settingsEditable} onClick=${() => sync.setting("lowContextModeEnabled", !controls.lowContextModeEnabled)}>
+          ${icon(ICON_MEMORY)}<span class="tool-label">${t.lowContext}</span><span class="tool-switch" data-checked=${controls.lowContextModeEnabled}></span></button>`}
+        <div class="dropdown-item tool-split">
+          ${icon(ICON_NEUROLOGY, "0 0 960 960")}<button class="tool-label" role="menuitem" disabled=${!settingsEditable} onClick=${() => openTool("thinking")}>
+            ${t.thinking}<small>${!controls?.displayedThinkingEnabled ? t.off : controls.displayedThinkingBudgetEnabled ? t.tokens(controls.displayedThinkingBudgetTokens) : t.efforts[controls.displayedThinkingLevel] ?? controls.displayedThinkingLevel}</small></button>
+          <button class="tool-switch" data-checked=${!!controls?.displayedThinkingEnabled} role="menuitemcheckbox" aria-label=${t.thinking}
+            aria-checked=${!!controls?.displayedThinkingEnabled} disabled=${!settingsEditable || (!controls?.thinkingCanDisable && controls?.displayedThinkingEnabled)}
+            onClick=${() => sync.setting("thinkingEnabled", !controls.displayedThinkingEnabled)}></button>
+        </div>
+        ${controls?.isGemini && [["codeExecutionEnabled", t.codeExecution, ICON_TERMINAL], ["googleSearchEnabled", t.googleSearch, ICON_GOOGLE]].map(([key, label, path]) => html`
+          <button class="dropdown-item" role="menuitemcheckbox" aria-checked=${controls[key]} disabled=${!capabilityEnabled} onClick=${() => sync.setting(key, !controls[key])}>
+            ${icon(path)}<span class="tool-label">${label}</span><small class="provider-badge">Gemini</small><span class="tool-switch" data-checked=${controls[key]}></span></button>`)}
+        ${controls?.openAiServiceTierAvailable && state.composer.modelValid && html`<div class="dropdown-item tool-split" data-disabled=${!capabilityEnabled}>
+          ${icon(ICON_SPEED)}<button class="tool-label" role="menuitem" disabled=${!capabilityEnabled} onClick=${() => openTool("tier")}>
+            ${t.serviceTier}<small>${controls.openAiServiceTierEnabled ? t.tiers[controls.displayedServiceTier] : t.off}</small></button>
+          <button class="tool-switch" data-checked=${controls.openAiServiceTierEnabled} role="menuitemcheckbox" aria-label=${t.serviceTier}
+            aria-checked=${controls.openAiServiceTierEnabled} disabled=${!capabilityEnabled} onClick=${() => sync.setting("openAiServiceTierEnabled", !controls.openAiServiceTierEnabled)}></button>
+        </div>`}
+        ${[["openAiWebSearchAvailable", "openAiWebSearchEnabled", t.openAiSearch, ICON_OPENAI], ["webSearchAvailable", "webSearchEnabled", t.webSearch, ICON_LANGUAGE], ["shellAvailable", "shellEnabled", t.shell, ICON_TERMINAL]]
+          .filter(([available]) => controls?.[available] && (available !== "openAiWebSearchAvailable" || state.composer.modelValid)).map(([, key, label, path]) => html`
+          <button class="dropdown-item" role="menuitemcheckbox" aria-checked=${controls[key]} disabled=${!capabilityEnabled} onClick=${() => sync.setting(key, !controls[key])}>
+            ${icon(path)}<span class="tool-label">${label}</span><span class="tool-switch" data-checked=${controls[key]}></span></button>`)}
+        <button class="dropdown-item" role="menuitem" disabled>${icon(ICON_COMPRESS)}<span>${t.compact}</span></button>
+        <button class="dropdown-item" role="menuitem" disabled>${icon(ICON_TUNE)}<span>${t.advanced}</span></button>
+      </${MoreMenu}>`}
+      ${validPanel && !retainedTools && html`<${DetailSheet} key=${`${toolPanel.connectionId}:${toolPanel.seq}:${toolPanel.kind}`}
+        title=${toolPanel.kind === "thinking" ? t.thinking : t.serviceTier} display=${state.display} focusReturn=${toolsButton} onClose=${() => setToolPanel(null)}>
+        <div class="tool-settings">
+          <div class="tool-setting-header">
+            ${icon(toolPanel.kind === "thinking" ? ICON_NEUROLOGY : ICON_SPEED, toolPanel.kind === "thinking" ? "0 0 960 960" : "0 0 24 24")}
+            <div><strong>${toolPanel.kind === "thinking" ? t.thinking : t.serviceTier}</strong><p>${toolPanel.kind === "thinking"
+              ? !controls.displayedThinkingEnabled ? t.off : controls.displayedThinkingBudgetEnabled ? t.tokens(controls.displayedThinkingBudgetTokens) : t.efforts[controls.displayedThinkingLevel] ?? controls.displayedThinkingLevel : t.tierDescription}</p></div>
+            <button class="tool-switch" role="switch" aria-label=${toolPanel.kind === "thinking" ? t.thinking : t.serviceTier}
+              aria-checked=${toolPanel.kind === "thinking" ? controls.displayedThinkingEnabled : controls.openAiServiceTierEnabled}
+              data-checked=${toolPanel.kind === "thinking" ? controls.displayedThinkingEnabled : controls.openAiServiceTierEnabled}
+              disabled=${!settingsEditable || (toolPanel.kind === "thinking" ? !controls.thinkingCanDisable && controls.displayedThinkingEnabled : !capabilityEnabled)}
+              onClick=${() => sync.setting(toolPanel.kind === "thinking" ? "thinkingEnabled" : "openAiServiceTierEnabled",
+                !(toolPanel.kind === "thinking" ? controls.displayedThinkingEnabled : controls.openAiServiceTierEnabled), toolPanel)}></button>
+          </div>
+          ${toolPanel.kind === "thinking" ? html`
+            <div class="tool-setting-body" data-disabled=${!settingsEditable || !controls.displayedThinkingEnabled || controls.displayedThinkingBudgetEnabled || controls.thinkingEfforts.length < 2}>
+              ${icon(ICON_NEUROLOGY, "0 0 960 960")}
+              <div class="tool-setting-title"><strong>${t.thinkingEffort}</strong><span>${t.efforts[controls.thinkingEfforts[slider?.key === "effort" ? slider.index : Math.max(0, controls.thinkingEfforts.indexOf(controls.displayedThinkingLevel))]] ?? controls.displayedThinkingLevel}</span></div>
+              <p>${t.effortDescription}</p>
+              <input type="range" aria-label=${t.thinkingEffort} min="0" max=${Math.max(1, controls.thinkingEfforts.length - 1)} step="1"
+                value=${slider?.key === "effort" ? slider.index : Math.max(0, controls.thinkingEfforts.indexOf(controls.displayedThinkingLevel))}
+                disabled=${!settingsEditable || !controls.displayedThinkingEnabled || controls.displayedThinkingBudgetEnabled || controls.thinkingEfforts.length < 2}
+                onInput=${e => setSlider({ key: "effort", index: Number(e.currentTarget.value) })}
+                onChange=${e => { const value = controls.thinkingEfforts[Number(e.currentTarget.value)]; if (value === controls.displayedThinkingLevel || !sync.setting("thinkingLevel", value, toolPanel)) setSlider(null); }} />
+            </div>
+            ${controls.thinkingSupportsBudget && html`<button class="tool-advanced" aria-expanded=${advancedThinking} onClick=${() => setAdvancedThinking(!advancedThinking)}>
+              ${advancedThinking ? t.hideAdvanced : t.advanced}${icon(ICON_CHEVRON_DOWN)}</button>
+              <div class="tool-budget-section" data-visible=${advancedThinking}>
+                <div><div class="tool-setting-header" data-disabled=${!controls.displayedThinkingEnabled}>
+                  ${icon(ICON_NEUROLOGY, "0 0 960 960")}
+                  <div><strong>${t.useBudget}</strong><p>${t.budgetNote}</p></div><button class="tool-switch" role="switch" aria-label=${t.useBudget}
+                    aria-checked=${controls.displayedThinkingBudgetEnabled} data-checked=${controls.displayedThinkingBudgetEnabled}
+                    disabled=${!settingsEditable || !controls.displayedThinkingEnabled} onClick=${() => sync.setting("thinkingBudgetEnabled", !controls.displayedThinkingBudgetEnabled, toolPanel)}></button></div>
+                ${controls.displayedThinkingBudgetEnabled && html`<div class="tool-setting-body tool-budget-slider" data-disabled=${!controls.displayedThinkingEnabled}>
+                  ${icon(ICON_NEUROLOGY, "0 0 960 960")}
+                  <div class="tool-setting-title"><strong>${t.budget}</strong><span>${t.tokens(slider?.key === "budget" ? controls.thinkingBudgetPresets[slider.index] : controls.displayedThinkingBudgetTokens)}</span></div>
+                  <input type="range" aria-label=${t.budget} min="0" max=${controls.thinkingBudgetPresets.length - 1} step="1"
+                    value=${slider?.key === "budget" ? slider.index : controls.thinkingBudgetPresets.reduce((best, value, i, values) => Math.abs(value - controls.displayedThinkingBudgetTokens) < Math.abs(values[best] - controls.displayedThinkingBudgetTokens) ? i : best, 0)}
+                    disabled=${!settingsEditable || !controls.displayedThinkingEnabled} onInput=${e => setSlider({ key: "budget", index: Number(e.currentTarget.value) })}
+                    onChange=${e => { if (!sync.setting("thinkingBudgetTokens", controls.thinkingBudgetPresets[Number(e.currentTarget.value)], toolPanel)) setSlider(null); }} />
+                </div>`}</div>
+              </div>`}
+          ` : html`<div class="tool-setting-body" data-disabled=${!capabilityEnabled || !controls.openAiServiceTierEnabled}>
+            ${icon(ICON_SPEED)}
+            <div class="tool-setting-title"><strong>${t.serviceTier}</strong><span>${t.tiers[controls.serviceTiers[slider?.key === "tier" ? slider.index : Math.max(0, controls.serviceTiers.indexOf(controls.displayedServiceTier))]]}</span></div>
+            <p>${t.tierDescription}</p><input type="range" aria-label=${t.serviceTier} min="0" max=${Math.max(1, controls.serviceTiers.length - 1)} step="1"
+              value=${slider?.key === "tier" ? slider.index : Math.max(0, controls.serviceTiers.indexOf(controls.displayedServiceTier))}
+              disabled=${!capabilityEnabled || !controls.openAiServiceTierEnabled || controls.serviceTiers.length < 2} onInput=${e => setSlider({ key: "tier", index: Number(e.currentTarget.value) })}
+              onChange=${e => { const value = controls.serviceTiers[Number(e.currentTarget.value)]; if (value === controls.displayedServiceTier || !sync.setting("openAiServiceTier", value, toolPanel)) setSlider(null); }} />
+            ${controls.serviceTiers.includes("ultrafast") && html`<p class="tool-tier-note">${t.tierAccessNote}</p>`}
+          </div>`}
+        </div>
+      </${DetailSheet}>`}
       ${pending && html`<${AttachmentEditor} key=${`${state.connectionId}:${state.composer.seq}:${pending.id}`} attachment=${pending} editable=${editable}
         onPreview=${index => setViewer({ ...sync.attachmentTarget(), items: Array.from({ length: pending.pagePreviewCount }, (_, i) => ({ ...pending, kind: "page", index: i })), index })} />`}
       ${currentViewer && html`<${AttachmentViewer} viewer=${viewer}

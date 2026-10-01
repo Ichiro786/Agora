@@ -8,6 +8,13 @@ import com.newoether.agora.model.ChatConversation
 import com.newoether.agora.model.ChatMessage
 import com.newoether.agora.model.MessageSegment
 import com.newoether.agora.model.Participant
+import com.newoether.agora.model.ModelId
+import com.newoether.agora.model.OpenAiServiceTiers
+import com.newoether.agora.model.ThinkingLevels
+import com.newoether.agora.model.ThinkingResolution
+import com.newoether.agora.data.thinkingCapabilityForSelectedModel
+import com.newoether.agora.data.providerDisplayName
+import com.newoether.agora.util.Constants
 import com.newoether.agora.ui.components.parseLatexSpans
 import com.newoether.agora.util.DebugLog
 import com.newoether.agora.viewmodel.ConversationMessagePayloadHydration
@@ -136,6 +143,7 @@ internal class WebUiSync(
                         coroutineScope {
                             launch {
                                 session.composerState
+                                    .combine(customProviders) { state, _ -> state }
                                     .filter { it.conversationId == target.conversationId && it.seq == target.browserSeq }
                                     .map {
                                         WebSyncEvent.Composer(
@@ -181,7 +189,22 @@ internal class WebUiSync(
                                                 }
                                             },
                                             it.controls?.let { controls ->
+                                                val model = ModelId.parse(it.modelId)
+                                                val capability = thinkingCapabilityForSelectedModel(it.modelId, customProviders.value)
+                                                val thinking = ThinkingResolution.resolve(capability, controls.thinkingEnabled,
+                                                    controls.thinkingLevel, controls.thinkingBudgetEnabled, controls.thinkingBudgetTokens)
                                                 buildJsonObject {
+                                                    put("isGemini", it.modelValid && providerDisplayName(model.providerName, customProviders.value).equals("google", ignoreCase = true))
+                                                    put("thinkingCanDisable", capability.canDisableThinking)
+                                                    put("thinkingSupportsBudget", capability.supportsThinkingBudget)
+                                                    put("thinkingEfforts", JsonArray(capability.supportedEfforts.map(::JsonPrimitive)))
+                                                    put("thinkingBudgetPresets", JsonArray(ThinkingLevels.budgetPresets.map(::JsonPrimitive)))
+                                                    put("displayedThinkingEnabled", thinking.enabled)
+                                                    put("displayedThinkingLevel", thinking.effort ?: capability.nearestEffort(controls.thinkingLevel) ?: controls.thinkingLevel)
+                                                    put("displayedThinkingBudgetEnabled", thinking.budgetTokens != null)
+                                                    put("displayedThinkingBudgetTokens", thinking.budgetTokens ?: controls.thinkingBudgetTokens)
+                                                    put("serviceTiers", JsonArray(OpenAiServiceTiers.availableTiers(model.modelName, model.providerName == Constants.PROVIDER_OPENAI).map(::JsonPrimitive)))
+                                                    put("displayedServiceTier", OpenAiServiceTiers.mappedTier(controls.openAiServiceTierState.tier, model.modelName, model.providerName == Constants.PROVIDER_OPENAI))
                                                     put("codeExecutionEnabled", controls.codeExecutionEnabled)
                                                     put("googleSearchEnabled", controls.googleSearchEnabled)
                                                     put("thinkingEnabled", controls.thinkingEnabled)
@@ -479,6 +502,8 @@ internal data class WebSyncCommand(
     val intervalMs: Long? = null,
     val setting: String? = null,
     val enabled: Boolean? = null,
+    val value: String? = null,
+    val tokens: Int? = null,
 )
 
 @Serializable

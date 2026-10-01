@@ -12,6 +12,9 @@ import com.newoether.agora.ui.chat.EffectiveConversationControls
 import com.newoether.agora.ui.chat.resolveEffectiveConversationControls
 import com.newoether.agora.data.providerDisplayName
 import com.newoether.agora.model.ModelId
+import com.newoether.agora.model.OpenAiServiceTiers
+import com.newoether.agora.model.ThinkingLevels
+import com.newoether.agora.model.ThinkingResolution
 import com.newoether.agora.model.apiModelName
 import com.newoether.agora.viewmodel.CurrentConversationRuntimeFacade
 import com.newoether.agora.viewmodel.QueuedSend
@@ -366,12 +369,23 @@ internal class WebUiChatSession(
         if (closed || command.seq != target.value.browserSeq) return@withLock
         try {
             if (retainedOwner == null) return@withLock
-            val enabled = command.enabled ?: return@withLock
+            val enabled = command.enabled
             val current = effectiveControls(openId.value)
             val model = activeModel.value?.takeIf { it.first == openId.value }?.second.orEmpty()
+            if (command.modelId != null && command.modelId != model) return@withLock
+            val capability = thinkingCapabilityForSelectedModel(model, settings.customProviders.value)
+            val thinking = ThinkingResolution.resolve(capability, current.thinkingEnabled, current.thinkingLevel,
+                current.thinkingBudgetEnabled, current.thinkingBudgetTokens)
+            val modelId = ModelId.parse(model)
+            val tiers = OpenAiServiceTiers.availableTiers(modelId.modelName,
+                officialProvider = modelId.providerName == com.newoether.agora.util.Constants.PROVIDER_OPENAI)
             val allowed = when (command.setting) {
+                "thinkingLevel" -> thinking.enabled && thinking.budgetTokens == null && capability.supportedEfforts.size > 1 && command.value in capability.supportedEfforts
+                "thinkingBudgetEnabled" -> enabled != null && thinking.enabled && capability.supportsThinkingBudget
+                "thinkingBudgetTokens" -> thinking.enabled && thinking.budgetTokens != null && command.tokens in ThinkingLevels.budgetPresets
+                "openAiServiceTier" -> current.openAiServiceTierState.available && current.openAiServiceTierState.enabled && model.isNotBlank() && !current.lowContextModeEnabled && tiers.size > 1 && command.value in tiers
                 "lowContextModeEnabled" -> current.showLowContextMode
-                "thinkingEnabled" -> enabled || thinkingCapabilityForSelectedModel(model, settings.customProviders.value).canDisableThinking
+                "thinkingEnabled" -> enabled == true || capability.canDisableThinking
                 "codeExecutionEnabled", "googleSearchEnabled" -> selectedProvider(openId.value).equals("google", ignoreCase = true) && model.isNotBlank() && !current.lowContextModeEnabled
                 "openAiWebSearchEnabled" -> current.openAiWebSearchAvailable && model.isNotBlank() && !current.lowContextModeEnabled
                 "openAiServiceTierEnabled" -> current.openAiServiceTierState.available && model.isNotBlank() && !current.lowContextModeEnabled
@@ -379,9 +393,14 @@ internal class WebUiChatSession(
                 "shellEnabled" -> current.shellAvailable && !current.lowContextModeEnabled
                 else -> false
             }
-            if (!allowed) return@withLock
+            if (!allowed || (command.setting?.endsWith("Enabled") == true && enabled == null)) return@withLock
             val update: (ConversationSettings) -> ConversationSettings = { previous ->
                 when (command.setting) {
+                    "thinkingLevel" -> previous.copy(thinkingLevel = command.value)
+                    "thinkingBudgetEnabled" -> previous.copy(thinkingBudgetEnabled = enabled,
+                        thinkingBudgetTokens = if (enabled == true && current.thinkingBudgetTokens < 1) ThinkingLevels.DefaultBudgetTokens else previous.thinkingBudgetTokens)
+                    "thinkingBudgetTokens" -> previous.copy(thinkingBudgetTokens = command.tokens)
+                    "openAiServiceTier" -> previous.copy(openAiServiceTier = command.value)
                     "lowContextModeEnabled" -> previous.copy(lowContextModeEnabled = enabled)
                     "thinkingEnabled" -> previous.copy(thinkingEnabled = enabled)
                     "codeExecutionEnabled" -> previous.copy(codeExecutionEnabled = enabled)

@@ -970,6 +970,12 @@ browser session and enter its frozen workspace snapshot. Commands retain the sel
 action acknowledgement; stale and unavailable edits are refused. Settings remain editable during
 submission as on Compose; the captured New Chat workspace stays immutable. Acceptance consumes only
 the matching session-local settings and preserves any later settings edit.
+The tools menu follows Compose row order and visibility. Thinking and Service Tier editors consume
+server-resolved model capabilities, displayed values and accepted options; the browser never copies
+model/provider policy. Stored choices survive model changes. Sliders submit on gesture completion,
+switches apply immediately, and no Save action is shown. Both editors reuse the existing message
+DetailSheet presenter through its title/content parameters, including drag, keyboard, focus and
+App motion behavior. Compact and Advanced remain disabled until their matching command/editor gate.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.

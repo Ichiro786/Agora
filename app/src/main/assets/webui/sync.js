@@ -259,6 +259,15 @@ export const sync = {
     update({ pendingAction: command.actionId });
     return true;
   },
+  setting(setting, value, target = this.attachmentTarget()) {
+    if (!target || !state.connected || !state.composer || state.pendingAction ||
+        target.connectionId !== state.connectionId || target.seq !== openSeq) return false;
+    const command = { type: "setting", setting, seq: target.seq, modelId: state.composer.modelId, actionId: ++nextAction,
+      ...(typeof value === "boolean" ? { enabled: value } : typeof value === "number" ? { tokens: value } : { value }) };
+    if (!send(command)) return false;
+    update({ pendingAction: command.actionId });
+    return true;
+  },
   attachmentUrl(id, kind, index = 0) {
     if (!state.connected || !state.connectionId || !state.composer) return null;
     return `/api/attachments/${encodeURIComponent(state.connectionId)}/${encodeURIComponent(id)}/${kind}/${index}?seq=${openSeq}`;
