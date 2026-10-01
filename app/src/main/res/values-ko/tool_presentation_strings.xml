@@ -67,10 +67,18 @@
     <string name="tool_described_file">%1$s 설명 업데이트함</string>
     <string name="tool_describing_file_default">파일 설명 업데이트 중…</string>
     <string name="tool_described_file_default">파일 설명 업데이트함</string>
-    <string name="tool_questions_queued">대기열에 추가된 질문: %1$d개</string>
-    <string name="tool_questions_answered">답변한 질문: %1$d개</string>
-    <string name="tool_questions_skipped">건너뛴 질문: %1$d개</string>
-    <string name="tool_questions_mixed">답변한 질문: %2$d개 중 %1$d개</string>
+    <plurals name="tool_questions_queued">
+        <item quantity="other">질문 %1$d개를 대기열에 추가함</item>
+    </plurals>
+    <plurals name="tool_questions_answered">
+        <item quantity="other">질문 %1$d개에 답변함</item>
+    </plurals>
+    <plurals name="tool_questions_skipped">
+        <item quantity="other">질문 %1$d개를 건너뜀</item>
+    </plurals>
+    <plurals name="tool_questions_mixed">
+        <item quantity="other">질문 %2$d개 중 %1$d개에 답변함</item>
+    </plurals>
     <string name="tool_questions_asked">질문함</string>
     <string name="tool_loop_already_stopped">루프가 이미 중지됨</string>
     <string name="tool_ask_user_failed">사용자에게 질문하지 못함</string>

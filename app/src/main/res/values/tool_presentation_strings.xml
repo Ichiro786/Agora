@@ -69,10 +69,22 @@
     <string name="tool_described_file">Updated description of %1$s</string>
     <string name="tool_describing_file_default">Updating file description…</string>
     <string name="tool_described_file_default">Updated file description</string>
-    <string name="tool_questions_queued">Queued questions: %1$d</string>
-    <string name="tool_questions_answered">Answered questions: %1$d</string>
-    <string name="tool_questions_skipped">Skipped questions: %1$d</string>
-    <string name="tool_questions_mixed">Answered questions: %1$d of %2$d</string>
+    <plurals name="tool_questions_queued">
+        <item quantity="one">Queued %1$d question</item>
+        <item quantity="other">Queued %1$d questions</item>
+    </plurals>
+    <plurals name="tool_questions_answered">
+        <item quantity="one">Answered %1$d question</item>
+        <item quantity="other">Answered %1$d questions</item>
+    </plurals>
+    <plurals name="tool_questions_skipped">
+        <item quantity="one">Skipped %1$d question</item>
+        <item quantity="other">Skipped %1$d questions</item>
+    </plurals>
+    <plurals name="tool_questions_mixed">
+        <item quantity="one">Answered %1$d of %2$d question</item>
+        <item quantity="other">Answered %1$d of %2$d questions</item>
+    </plurals>
     <string name="tool_questions_asked">Asked questions</string>
     <string name="tool_loop_already_stopped">Loop already stopped</string>
     <string name="tool_ask_user_failed">Failed to ask user</string>

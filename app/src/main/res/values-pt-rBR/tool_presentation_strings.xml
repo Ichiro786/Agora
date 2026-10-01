@@ -19,10 +19,22 @@
     <string name="tool_described_file">Descrição de %1$s atualizada</string>
     <string name="tool_describing_file_default">Atualizando descrição do arquivo…</string>
     <string name="tool_described_file_default">Descrição do arquivo atualizada</string>
-    <string name="tool_questions_queued">Perguntas na fila: %1$d</string>
-    <string name="tool_questions_answered">Perguntas respondidas: %1$d</string>
-    <string name="tool_questions_skipped">Perguntas ignoradas: %1$d</string>
-    <string name="tool_questions_mixed">Perguntas respondidas: %1$d de %2$d</string>
+    <plurals name="tool_questions_queued">
+        <item quantity="one">%1$d pergunta na fila</item>
+        <item quantity="other">%1$d perguntas na fila</item>
+    </plurals>
+    <plurals name="tool_questions_answered">
+        <item quantity="one">%1$d pergunta respondida</item>
+        <item quantity="other">%1$d perguntas respondidas</item>
+    </plurals>
+    <plurals name="tool_questions_skipped">
+        <item quantity="one">%1$d pergunta ignorada</item>
+        <item quantity="other">%1$d perguntas ignoradas</item>
+    </plurals>
+    <plurals name="tool_questions_mixed">
+        <item quantity="one">%1$d de %2$d perguntas respondidas</item>
+        <item quantity="other">%1$d de %2$d perguntas respondidas</item>
+    </plurals>
     <string name="tool_questions_asked">Perguntas feitas</string>
     <string name="tool_loop_already_stopped">Loop já parado</string>
     <string name="tool_ask_user_failed">Falha ao perguntar ao usuário</string>

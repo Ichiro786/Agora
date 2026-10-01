@@ -67,10 +67,30 @@
     <string name="tool_described_file">Описание %1$s обновлено</string>
     <string name="tool_describing_file_default">Обновление описания файла…</string>
     <string name="tool_described_file_default">Описание файла обновлено</string>
-    <string name="tool_questions_queued">Вопросы в очереди: %1$d</string>
-    <string name="tool_questions_answered">Отвеченные вопросы: %1$d</string>
-    <string name="tool_questions_skipped">Пропущенные вопросы: %1$d</string>
-    <string name="tool_questions_mixed">Отвеченные вопросы: %1$d из %2$d</string>
+    <plurals name="tool_questions_queued">
+        <item quantity="one">%1$d вопрос в очереди</item>
+        <item quantity="few">%1$d вопроса в очереди</item>
+        <item quantity="many">%1$d вопросов в очереди</item>
+        <item quantity="other">%1$d вопроса в очереди</item>
+    </plurals>
+    <plurals name="tool_questions_answered">
+        <item quantity="one">Отвечено на %1$d вопрос</item>
+        <item quantity="few">Отвечено на %1$d вопроса</item>
+        <item quantity="many">Отвечено на %1$d вопросов</item>
+        <item quantity="other">Отвечено на %1$d вопроса</item>
+    </plurals>
+    <plurals name="tool_questions_skipped">
+        <item quantity="one">Пропущен %1$d вопрос</item>
+        <item quantity="few">Пропущено %1$d вопроса</item>
+        <item quantity="many">Пропущено %1$d вопросов</item>
+        <item quantity="other">Пропущено %1$d вопроса</item>
+    </plurals>
+    <plurals name="tool_questions_mixed">
+        <item quantity="one">Отвечено на %1$d из %2$d вопроса</item>
+        <item quantity="few">Отвечено на %1$d из %2$d вопросов</item>
+        <item quantity="many">Отвечено на %1$d из %2$d вопросов</item>
+        <item quantity="other">Отвечено на %1$d из %2$d вопроса</item>
+    </plurals>
     <string name="tool_questions_asked">Вопросы заданы</string>
     <string name="tool_loop_already_stopped">Цикл уже остановлен</string>
     <string name="tool_ask_user_failed">Не удалось спросить пользователя</string>

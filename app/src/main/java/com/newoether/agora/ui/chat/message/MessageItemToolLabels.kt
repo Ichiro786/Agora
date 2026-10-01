@@ -424,16 +424,20 @@ private fun Resources.editActionSummary(presentation: ToolPresentation, subject:
     }
 
 private fun Resources.questionOutcomeSummary(presentation: ToolPresentation): String = when (presentation.outcome) {
-    "queued" -> presentation.count?.let { getString(R.string.tool_questions_queued, it) }
+    "queued" -> presentation.count?.let { getQuantityString(R.plurals.tool_questions_queued, it, it) }
         ?: getString(R.string.tool_questions_asked)
-    "answered" -> getString(R.string.tool_questions_answered, 1)
-    "skipped" -> getString(R.string.tool_questions_skipped, 1)
-    "answers" -> when (presentation.answeredCount) {
-        presentation.count -> getString(R.string.tool_questions_answered, presentation.count)
-        0 -> getString(R.string.tool_questions_skipped, presentation.count)
-        else -> getString(R.string.tool_questions_mixed, presentation.answeredCount, presentation.count)
-    }
+    "answered" -> getQuantityString(R.plurals.tool_questions_answered, 1, 1)
+    "skipped" -> getQuantityString(R.plurals.tool_questions_skipped, 1, 1)
+    "answers" -> answerSetSummary(presentation.answeredCount, presentation.count)
     else -> getString(R.string.tool_questions_asked)
+}
+
+// The mixed form agrees with the total question count ("2 of 3 questions").
+private fun Resources.answerSetSummary(answered: Int?, total: Int?): String = when {
+    answered == null || total == null -> getString(R.string.tool_questions_asked)
+    answered == total -> getQuantityString(R.plurals.tool_questions_answered, total, total)
+    answered == 0 -> getQuantityString(R.plurals.tool_questions_skipped, total, total)
+    else -> getQuantityString(R.plurals.tool_questions_mixed, total, answered, total)
 }
 
 private fun Resources.emptySummary(

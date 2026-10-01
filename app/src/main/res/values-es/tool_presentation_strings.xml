@@ -19,10 +19,22 @@
     <string name="tool_described_file">Descripción de %1$s actualizada</string>
     <string name="tool_describing_file_default">Actualizando descripción del archivo…</string>
     <string name="tool_described_file_default">Descripción del archivo actualizada</string>
-    <string name="tool_questions_queued">Preguntas en cola: %1$d</string>
-    <string name="tool_questions_answered">Preguntas respondidas: %1$d</string>
-    <string name="tool_questions_skipped">Preguntas omitidas: %1$d</string>
-    <string name="tool_questions_mixed">Preguntas respondidas: %1$d de %2$d</string>
+    <plurals name="tool_questions_queued">
+        <item quantity="one">%1$d pregunta en cola</item>
+        <item quantity="other">%1$d preguntas en cola</item>
+    </plurals>
+    <plurals name="tool_questions_answered">
+        <item quantity="one">%1$d pregunta respondida</item>
+        <item quantity="other">%1$d preguntas respondidas</item>
+    </plurals>
+    <plurals name="tool_questions_skipped">
+        <item quantity="one">%1$d pregunta omitida</item>
+        <item quantity="other">%1$d preguntas omitidas</item>
+    </plurals>
+    <plurals name="tool_questions_mixed">
+        <item quantity="one">%1$d de %2$d preguntas respondidas</item>
+        <item quantity="other">%1$d de %2$d preguntas respondidas</item>
+    </plurals>
     <string name="tool_questions_asked">Preguntas realizadas</string>
     <string name="tool_loop_already_stopped">El bucle ya estaba detenido</string>
     <string name="tool_ask_user_failed">No se pudo preguntar al usuario</string>

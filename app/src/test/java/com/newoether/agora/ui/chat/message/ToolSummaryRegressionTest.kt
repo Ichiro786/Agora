@@ -146,6 +146,15 @@ class ToolSummaryRegressionTest {
             val localized = app.createConfigurationContext(configuration).resources
             assertEquals(expected, localized.getQuantityString(com.newoether.agora.R.plurals.tool_found_files, count, count))
         }
+        for ((language, expected) in listOf(
+            "zh" to "已回答 2 个问题，共 3 个",
+            "ru" to "Отвечено на 2 из 3 вопросов",
+        )) {
+            val configuration = android.content.res.Configuration(app.resources.configuration)
+            configuration.setLocale(java.util.Locale.forLanguageTag(language))
+            val localized = app.createConfigurationContext(configuration).resources
+            assertEquals(expected, localized.getQuantityString(com.newoether.agora.R.plurals.tool_questions_mixed, 3, 2, 3))
+        }
     }
 
     @Test
@@ -216,10 +225,13 @@ class ToolSummaryRegressionTest {
         val ask = MessageSegment(type = "tool", toolName = "ask_user", toolState = ToolExecutionStates.RUNNING)
         assertEquals("Waiting for answers\u2026", resources.toolSummary(ask))
         for ((result, expected) in listOf(
-            """{"delivery":"queued","questions":2}""" to "Queued questions: 2",
-            """{"answered":true}""" to "Answered questions: 1",
-            """{"answered":false}""" to "Skipped questions: 1",
-            """{"answers":[{"answered":true},{"answered":false}]}""" to "Answered questions: 1 of 2",
+            """{"delivery":"queued","questions":1}""" to "Queued 1 question",
+            """{"delivery":"queued","questions":2}""" to "Queued 2 questions",
+            """{"answered":true}""" to "Answered 1 question",
+            """{"answered":false}""" to "Skipped 1 question",
+            """{"answers":[{"answered":true},{"answered":false}]}""" to "Answered 1 of 2 questions",
+            """{"answers":[{"answered":true},{"answered":true},{"answered":true}]}""" to "Answered 3 questions",
+            """{"answers":[{"answered":true},{"answered":false},{"answered":true}]}""" to "Answered 2 of 3 questions",
         )) assertEquals(expected, resources.toolSummary(ask.copy(toolResult = result, toolState = ToolExecutionStates.SUCCEEDED)))
         assertEquals("Loop already stopped", resources.toolSummary(MessageSegment(type = "tool", toolName = "stop_loop",
             toolResult = """{"status":"already_stopped"}""", toolState = ToolExecutionStates.SUCCEEDED)))
@@ -232,8 +244,9 @@ class ToolSummaryRegressionTest {
             toolState = ToolExecutionStates.SUCCEEDED)
         assertEquals("Waited for shell job ID", resources.toolSummary(wait))
         for ((answers, expected) in listOf(
-            """[{"answered":true},{"answered":true}]""" to "Answered questions: 2",
-            """[{"answered":false},{"answered":false}]""" to "Skipped questions: 2",
+            """[{"answered":true}]""" to "Answered 1 question",
+            """[{"answered":true},{"answered":true}]""" to "Answered 2 questions",
+            """[{"answered":false},{"answered":false}]""" to "Skipped 2 questions",
         )) assertEquals(expected, resources.toolSummary(MessageSegment(type = "tool", toolName = "ask_user",
             toolResult = """{"answers":$answers}""", toolState = ToolExecutionStates.SUCCEEDED)))
         val error = MessageSegment(type = "tool", toolName = "ask_user",

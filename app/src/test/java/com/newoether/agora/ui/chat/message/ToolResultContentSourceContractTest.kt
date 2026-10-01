@@ -263,7 +263,7 @@ class ToolResultContentSourceContractTest {
             val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
                 .parse(File(resourceRoot, "$directory/tool_presentation_strings.xml"))
             val plurals = document.getElementsByTagName("plurals")
-            assertEquals("$directory quantity keys", 14, plurals.length)
+            assertEquals("$directory quantity keys", 18, plurals.length)
             val quantityKeys = mutableSetOf<String>()
             repeat(plurals.length) { index ->
                 val node = plurals.item(index)
@@ -276,8 +276,11 @@ class ToolResultContentSourceContractTest {
                     if (item.nodeName == "item") {
                         if (item.attributes.getNamedItem("quantity").nodeValue == "other") hasOther = true
                         assertEquals("$directory $key quantity placeholders",
-                            if (key == "tool_web_search_done" || key == "tool_conversation_search_done_for")
-                                setOf("%1\$d", "%2\$s") else setOf("%1\$d"), placeholders(item.textContent))
+                            when (key) {
+                                "tool_web_search_done", "tool_conversation_search_done_for" -> setOf("%1\$d", "%2\$s")
+                                "tool_questions_mixed" -> setOf("%1\$d", "%2\$d")
+                                else -> setOf("%1\$d")
+                            }, placeholders(item.textContent))
                     }
                 }
                 assertTrue("$directory $key missing other", hasOther)
@@ -287,6 +290,7 @@ class ToolResultContentSourceContractTest {
                 "tool_conversation_search_done_default", "tool_conversation_search_done_for", "tool_listed_conversations",
                 "tool_shell_list_count", "tool_shell_job_count", "tool_found_files", "tool_searched_file",
                 "tool_listed_task_count", "tool_reading_files_count", "tool_read_files_count",
+                "tool_questions_queued", "tool_questions_answered", "tool_questions_skipped", "tool_questions_mixed",
             ), quantityKeys)
         }
     }

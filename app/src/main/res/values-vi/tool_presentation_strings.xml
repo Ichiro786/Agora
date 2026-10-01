@@ -67,10 +67,18 @@
     <string name="tool_described_file">Đã cập nhật mô tả của %1$s</string>
     <string name="tool_describing_file_default">Đang cập nhật mô tả tệp…</string>
     <string name="tool_described_file_default">Đã cập nhật mô tả tệp</string>
-    <string name="tool_questions_queued">Câu hỏi trong hàng đợi: %1$d</string>
-    <string name="tool_questions_answered">Câu hỏi đã trả lời: %1$d</string>
-    <string name="tool_questions_skipped">Câu hỏi đã bỏ qua: %1$d</string>
-    <string name="tool_questions_mixed">Câu hỏi đã trả lời: %1$d trên %2$d</string>
+    <plurals name="tool_questions_queued">
+        <item quantity="other">Đã xếp hàng %1$d câu hỏi</item>
+    </plurals>
+    <plurals name="tool_questions_answered">
+        <item quantity="other">Đã trả lời %1$d câu hỏi</item>
+    </plurals>
+    <plurals name="tool_questions_skipped">
+        <item quantity="other">Đã bỏ qua %1$d câu hỏi</item>
+    </plurals>
+    <plurals name="tool_questions_mixed">
+        <item quantity="other">Đã trả lời %1$d trên %2$d câu hỏi</item>
+    </plurals>
     <string name="tool_questions_asked">Đã đặt câu hỏi</string>
     <string name="tool_loop_already_stopped">Vòng lặp đã dừng trước đó</string>
     <string name="tool_ask_user_failed">Không thể hỏi người dùng</string>

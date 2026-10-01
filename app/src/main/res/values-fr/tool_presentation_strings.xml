@@ -19,10 +19,22 @@
     <string name="tool_described_file">Description de %1$s mise à jour</string>
     <string name="tool_describing_file_default">Mise à jour de la description du fichier…</string>
     <string name="tool_described_file_default">Description du fichier mise à jour</string>
-    <string name="tool_questions_queued">Questions en attente : %1$d</string>
-    <string name="tool_questions_answered">Questions répondues : %1$d</string>
-    <string name="tool_questions_skipped">Questions ignorées : %1$d</string>
-    <string name="tool_questions_mixed">Questions répondues : %1$d sur %2$d</string>
+    <plurals name="tool_questions_queued">
+        <item quantity="one">%1$d question en attente</item>
+        <item quantity="other">%1$d questions en attente</item>
+    </plurals>
+    <plurals name="tool_questions_answered">
+        <item quantity="one">Réponse à %1$d question</item>
+        <item quantity="other">Réponse à %1$d questions</item>
+    </plurals>
+    <plurals name="tool_questions_skipped">
+        <item quantity="one">%1$d question ignorée</item>
+        <item quantity="other">%1$d questions ignorées</item>
+    </plurals>
+    <plurals name="tool_questions_mixed">
+        <item quantity="one">Réponse à %1$d sur %2$d question</item>
+        <item quantity="other">Réponse à %1$d sur %2$d questions</item>
+    </plurals>
     <string name="tool_questions_asked">Questions posées</string>
     <string name="tool_loop_already_stopped">Boucle déjà arrêtée</string>
     <string name="tool_ask_user_failed">Impossible d’interroger l’utilisateur</string>

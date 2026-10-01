@@ -32,7 +32,7 @@ Known counts use locale-aware Android quantity resources, including singular res
 
 For memory and skill reads, effective `names` takes precedence over `name` exactly as in the provider. A single target shows its name; a batch shows `Reading/Read N files`. A streaming count is reliable only once its names array is complete. Independent `file_read` calls retain separate summaries. Empty file content and an empty conversation page explicitly say that no content/messages were returned, not ordinary completion.
 
-Memory/skill rename summaries show old and new names when known; description edits name the description action. `ask_user` distinguishes waiting for answers, queued questions, answered questions and skipped questions using actual returned facts. A mixed set shows answered count against returned question count without claiming every question was answered. `stop_loop` distinguishes a new stop from an already stopped Loop.
+Memory/skill rename summaries show old and new names when known; description edits name the description action. `ask_user` distinguishes waiting for answers, queued questions, answered questions and skipped questions using actual returned facts. A mixed set shows answered count against returned question count without claiming every question was answered. Question outcomes are natural sentences with quantity grammar (`Answered 1 question`, `Answered 3 questions`, `Answered 2 of 3 questions`, `Skipped 2 questions`, `Queued 2 questions`), never label-colon-count text. `stop_loop` distinguishes a new stop from an already stopped Loop.
 
 ## Localization
 

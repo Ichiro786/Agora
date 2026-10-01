@@ -67,10 +67,18 @@
     <string name="tool_described_file">%1$s の説明を更新した</string>
     <string name="tool_describing_file_default">ファイルの説明を更新中…</string>
     <string name="tool_described_file_default">ファイルの説明を更新した</string>
-    <string name="tool_questions_queued">質問をキューに追加：%1$d 件</string>
-    <string name="tool_questions_answered">回答済みの質問：%1$d 件</string>
-    <string name="tool_questions_skipped">スキップした質問：%1$d 件</string>
-    <string name="tool_questions_mixed">回答済みの質問：%2$d 件中 %1$d 件</string>
+    <plurals name="tool_questions_queued">
+        <item quantity="other">%1$d 件の質問をキューに追加</item>
+    </plurals>
+    <plurals name="tool_questions_answered">
+        <item quantity="other">%1$d 件の質問に回答</item>
+    </plurals>
+    <plurals name="tool_questions_skipped">
+        <item quantity="other">%1$d 件の質問をスキップ</item>
+    </plurals>
+    <plurals name="tool_questions_mixed">
+        <item quantity="other">%2$d 件中 %1$d 件の質問に回答</item>
+    </plurals>
     <string name="tool_questions_asked">質問した</string>
     <string name="tool_loop_already_stopped">ループはすでに停止している</string>
     <string name="tool_ask_user_failed">ユーザーへの質問に失敗した</string>

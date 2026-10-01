@@ -67,10 +67,22 @@
     <string name="tool_described_file">Beschreibung von %1$s aktualisiert</string>
     <string name="tool_describing_file_default">Aktualisiere Dateibeschreibung…</string>
     <string name="tool_described_file_default">Dateibeschreibung aktualisiert</string>
-    <string name="tool_questions_queued">Fragen eingereiht: %1$d</string>
-    <string name="tool_questions_answered">Fragen beantwortet: %1$d</string>
-    <string name="tool_questions_skipped">Fragen übersprungen: %1$d</string>
-    <string name="tool_questions_mixed">Fragen beantwortet: %1$d von %2$d</string>
+    <plurals name="tool_questions_queued">
+        <item quantity="one">%1$d Frage eingereiht</item>
+        <item quantity="other">%1$d Fragen eingereiht</item>
+    </plurals>
+    <plurals name="tool_questions_answered">
+        <item quantity="one">%1$d Frage beantwortet</item>
+        <item quantity="other">%1$d Fragen beantwortet</item>
+    </plurals>
+    <plurals name="tool_questions_skipped">
+        <item quantity="one">%1$d Frage übersprungen</item>
+        <item quantity="other">%1$d Fragen übersprungen</item>
+    </plurals>
+    <plurals name="tool_questions_mixed">
+        <item quantity="one">%1$d von %2$d Fragen beantwortet</item>
+        <item quantity="other">%1$d von %2$d Fragen beantwortet</item>
+    </plurals>
     <string name="tool_questions_asked">Fragen gestellt</string>
     <string name="tool_loop_already_stopped">Schleife bereits gestoppt</string>
     <string name="tool_ask_user_failed">Benutzer konnte nicht gefragt werden</string>

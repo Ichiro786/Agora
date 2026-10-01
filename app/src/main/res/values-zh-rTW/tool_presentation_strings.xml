@@ -67,10 +67,18 @@
     <string name="tool_described_file">已更新 %1$s 的描述</string>
     <string name="tool_describing_file_default">正在更新檔案描述…</string>
     <string name="tool_described_file_default">已更新檔案描述</string>
-    <string name="tool_questions_queued">已排隊提問：%1$d 個</string>
-    <string name="tool_questions_answered">已回答問題：%1$d 個</string>
-    <string name="tool_questions_skipped">已略過問題：%1$d 個</string>
-    <string name="tool_questions_mixed">已回答 %1$d 個問題，共 %2$d 個</string>
+    <plurals name="tool_questions_queued">
+        <item quantity="other">已排隊 %1$d 個問題</item>
+    </plurals>
+    <plurals name="tool_questions_answered">
+        <item quantity="other">已回答 %1$d 個問題</item>
+    </plurals>
+    <plurals name="tool_questions_skipped">
+        <item quantity="other">已略過 %1$d 個問題</item>
+    </plurals>
+    <plurals name="tool_questions_mixed">
+        <item quantity="other">已回答 %1$d 個問題，共 %2$d 個</item>
+    </plurals>
     <string name="tool_questions_asked">已提問</string>
     <string name="tool_loop_already_stopped">循環已處於停止狀態</string>
     <string name="tool_ask_user_failed">詢問使用者失敗</string>

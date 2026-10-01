@@ -67,10 +67,38 @@
     <string name="tool_described_file">تم تحديث وصف %1$s</string>
     <string name="tool_describing_file_default">تحديث وصف الملف…</string>
     <string name="tool_described_file_default">تم تحديث وصف الملف</string>
-    <string name="tool_questions_queued">الأسئلة في قائمة الانتظار: %1$d</string>
-    <string name="tool_questions_answered">الأسئلة المُجاب عنها: %1$d</string>
-    <string name="tool_questions_skipped">الأسئلة المتخطاة: %1$d</string>
-    <string name="tool_questions_mixed">الأسئلة المُجاب عنها: %1$d من %2$d</string>
+    <plurals name="tool_questions_queued">
+        <item quantity="zero">تمت إضافة %1$d من الأسئلة إلى قائمة الانتظار</item>
+        <item quantity="one">تمت إضافة %1$d من الأسئلة إلى قائمة الانتظار</item>
+        <item quantity="two">تمت إضافة %1$d من الأسئلة إلى قائمة الانتظار</item>
+        <item quantity="few">تمت إضافة %1$d من الأسئلة إلى قائمة الانتظار</item>
+        <item quantity="many">تمت إضافة %1$d من الأسئلة إلى قائمة الانتظار</item>
+        <item quantity="other">تمت إضافة %1$d من الأسئلة إلى قائمة الانتظار</item>
+    </plurals>
+    <plurals name="tool_questions_answered">
+        <item quantity="zero">تمت الإجابة عن %1$d من الأسئلة</item>
+        <item quantity="one">تمت الإجابة عن %1$d من الأسئلة</item>
+        <item quantity="two">تمت الإجابة عن %1$d من الأسئلة</item>
+        <item quantity="few">تمت الإجابة عن %1$d من الأسئلة</item>
+        <item quantity="many">تمت الإجابة عن %1$d من الأسئلة</item>
+        <item quantity="other">تمت الإجابة عن %1$d من الأسئلة</item>
+    </plurals>
+    <plurals name="tool_questions_skipped">
+        <item quantity="zero">تم تخطي %1$d من الأسئلة</item>
+        <item quantity="one">تم تخطي %1$d من الأسئلة</item>
+        <item quantity="two">تم تخطي %1$d من الأسئلة</item>
+        <item quantity="few">تم تخطي %1$d من الأسئلة</item>
+        <item quantity="many">تم تخطي %1$d من الأسئلة</item>
+        <item quantity="other">تم تخطي %1$d من الأسئلة</item>
+    </plurals>
+    <plurals name="tool_questions_mixed">
+        <item quantity="zero">تمت الإجابة عن %1$d من أصل %2$d من الأسئلة</item>
+        <item quantity="one">تمت الإجابة عن %1$d من أصل %2$d من الأسئلة</item>
+        <item quantity="two">تمت الإجابة عن %1$d من أصل %2$d من الأسئلة</item>
+        <item quantity="few">تمت الإجابة عن %1$d من أصل %2$d من الأسئلة</item>
+        <item quantity="many">تمت الإجابة عن %1$d من أصل %2$d من الأسئلة</item>
+        <item quantity="other">تمت الإجابة عن %1$d من أصل %2$d من الأسئلة</item>
+    </plurals>
     <string name="tool_questions_asked">تم طرح الأسئلة</string>
     <string name="tool_loop_already_stopped">الحلقة متوقفة بالفعل</string>
     <string name="tool_ask_user_failed">تعذر سؤال المستخدم</string>
