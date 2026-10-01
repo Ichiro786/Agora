@@ -225,6 +225,21 @@ internal class WebUiSync(
                                                     put("contextWindow", controls.contextWindow)
                                                 }
                                             },
+                                            buildJsonObject {
+                                                put("overrides", json.encodeToJsonElement(com.newoether.agora.data.ConversationSettings.serializer(), it.generationParameters.copy(contextWindow = it.generationParameters.contextWindow?.let(com.newoether.agora.model.ContextBudget::normalize))))
+                                                put("defaults", json.encodeToJsonElement(com.newoether.agora.data.ConversationSettings.serializer(), it.generationDefaults.copy(contextWindow = it.generationDefaults.contextWindow?.let(com.newoether.agora.model.ContextBudget::normalize))))
+                                                put("contextPresets", JsonArray(com.newoether.agora.model.ContextBudget.PRESETS.map(::JsonPrimitive)))
+                                                put("contextLabels", JsonArray(com.newoether.agora.model.ContextBudget.PRESETS.map { value -> JsonPrimitive(com.newoether.agora.model.ContextBudget.compactLabel(value)) }))
+                                                put("contextOverrideLabel", it.generationParameters.contextWindow?.let { value -> com.newoether.agora.model.ContextBudget.compactLabel(com.newoether.agora.model.ContextBudget.normalize(value)) })
+                                                put("contextDefaultLabel", com.newoether.agora.model.ContextBudget.compactLabel(com.newoether.agora.model.ContextBudget.normalize(it.generationDefaults.contextWindow)))
+                                                put("maxTokensPresets", JsonArray(com.newoether.agora.ui.chat.advancedMaxTokensPresets.map(::JsonPrimitive)))
+                                            },
+                                            it.compactDefaults?.let { request -> buildJsonObject {
+                                                put("modelId", request.model)
+                                                put("prompt", request.prompt)
+                                                put("retainCount", request.retainLogicalMessages)
+                                                put("compacting", it.compacting)
+                                            } },
                                         )
                                     }.distinctUntilChanged().collect { outbound.send(it) }
                             }
@@ -254,6 +269,7 @@ internal class WebUiSync(
                         "attachment_remove", "attachment_retry", "attachment_pdf", "attachment_video" ->
                             session.attachmentCommand(command)
                         "setting" -> session.settingCommand(command)
+                        "advanced", "compact" -> session.editorCommand(command)
                     }
                 }
             } finally {
@@ -504,6 +520,8 @@ internal data class WebSyncCommand(
     val enabled: Boolean? = null,
     val value: String? = null,
     val tokens: Int? = null,
+    val parameters: com.newoether.agora.data.ConversationSettings? = null,
+    val retainCount: Int? = null,
 )
 
 @Serializable
@@ -563,6 +581,8 @@ internal sealed interface WebSyncEvent {
         val modelId: String, val models: Map<String, String>, val queue: List<JsonObject>,
         val attachments: List<JsonObject> = emptyList(),
         val controls: JsonObject? = null,
+        val advanced: JsonObject? = null,
+        val compact: JsonObject? = null,
     ) : WebSyncEvent
 
     @Serializable @SerialName("snackbar")

@@ -21,18 +21,26 @@ export function Composer({ state, MoreMenu }) {
   const [toolPanel, setToolPanel] = useState(null);
   const [advancedThinking, setAdvancedThinking] = useState(false);
   const [slider, setSlider] = useState(null);
+  const [editor, setEditor] = useState(null);
   const controls = state.composer?.controls;
   const settingsEditable = state.connected && !!controls && !state.pendingAction;
   const capabilityEnabled = settingsEditable && !controls?.lowContextModeEnabled;
   const validPanel = toolPanel && toolPanel.connectionId === state.connectionId && toolPanel.seq === state.composer?.seq &&
     !!controls && (toolPanel.kind === "thinking" || (controls.openAiServiceTierAvailable && state.composer.modelValid));
-  useEffect(() => { setToolsOpen(false); setToolPanel(null); setSlider(null); }, [state.openId, state.connectionId]);
+  useEffect(() => { setToolsOpen(false); setToolPanel(null); setSlider(null); setEditor(null); }, [state.openId, state.connectionId]);
   useEffect(() => { if (!state.pendingAction) setSlider(null); }, [state.pendingAction]);
   useEffect(() => { setSlider(null); }, [state.composer?.modelId]);
   useEffect(() => { if (controls?.displayedThinkingBudgetEnabled) setAdvancedThinking(true); }, [controls?.displayedThinkingBudgetEnabled]);
   function openTool(kind) {
     setToolPanel({ ...sync.attachmentTarget(), kind });
     setAdvancedThinking(!!controls.displayedThinkingBudgetEnabled);
+    setToolsOpen(false);
+  }
+  const validEditor = editor && state.connected && editor.connectionId === state.connectionId && editor.seq === state.composer?.seq && editor.conversationId === state.openId;
+  const compactAvailable = settingsEditable && !!state.openId && state.openStatus === "ready" &&
+    !state.composer.stopping && !!state.composer.compact && !state.composer.compact.compacting;
+  function openEditor(kind) {
+    setEditor({ ...sync.attachmentTarget(), conversationId: state.openId, kind, initial: kind === "advanced" ? state.composer.advanced : state.composer.compact });
     setToolsOpen(false);
   }
   const [addOpen, setAddOpen] = useState(false);
@@ -187,8 +195,8 @@ export function Composer({ state, MoreMenu }) {
           .filter(([available]) => controls?.[available] && (available !== "openAiWebSearchAvailable" || state.composer.modelValid)).map(([, key, label, path]) => html`
           <button class="dropdown-item" role="menuitemcheckbox" aria-checked=${controls[key]} disabled=${!capabilityEnabled} onClick=${() => sync.setting(key, !controls[key])}>
             ${icon(path)}<span class="tool-label">${label}</span><span class="tool-switch" data-checked=${controls[key]}></span></button>`)}
-        <button class="dropdown-item" role="menuitem" disabled>${icon(ICON_COMPRESS)}<span>${t.compact}</span></button>
-        <button class="dropdown-item" role="menuitem" disabled>${icon(ICON_TUNE)}<span>${t.advanced}</span></button>
+        <button class="dropdown-item" role="menuitem" disabled=${!compactAvailable} onClick=${() => openEditor("compact")}>${icon(ICON_COMPRESS)}<span>${t.compact}</span></button>
+        <button class="dropdown-item" role="menuitem" disabled=${!settingsEditable || !state.composer.advanced} onClick=${() => openEditor("advanced")}>${icon(ICON_TUNE)}<span>${t.advanced}</span></button>
       </${MoreMenu}>`}
       ${validPanel && !retainedTools && html`<${DetailSheet} key=${`${toolPanel.connectionId}:${toolPanel.seq}:${toolPanel.kind}`}
         title=${toolPanel.kind === "thinking" ? t.thinking : t.serviceTier} display=${state.display} focusReturn=${toolsButton} onClose=${() => setToolPanel(null)}>
@@ -243,11 +251,81 @@ export function Composer({ state, MoreMenu }) {
           </div>`}
         </div>
       </${DetailSheet}>`}
+      ${validEditor && !retainedTools && html`<${ConversationEditor} key=${`${editor.connectionId}:${editor.seq}:${editor.kind}`}
+        editor=${editor} state=${state} focusReturn=${toolsButton} onClose=${() => setEditor(null)} />`}
       ${pending && html`<${AttachmentEditor} key=${`${state.connectionId}:${state.composer.seq}:${pending.id}`} attachment=${pending} editable=${editable}
         onPreview=${index => setViewer({ ...sync.attachmentTarget(), items: Array.from({ length: pending.pagePreviewCount }, (_, i) => ({ ...pending, kind: "page", index: i })), index })} />`}
       ${currentViewer && html`<${AttachmentViewer} viewer=${viewer}
         onNavigate=${index => setViewer(current => current === viewer ? { ...current, index } : current)}
         onClose=${() => setViewer(current => current === viewer ? null : current)} />`}`;
+}
+
+function ConversationEditor({ editor, state, focusReturn, onClose }) {
+  const dialog = useRef(null);
+  const advanced = editor.kind === "advanced";
+  const info = editor.initial;
+  const fields = ["contextWindow", "temperature", "maxTokens", "topP", "frequencyPenalty", "presencePenalty"];
+  const [draft, setDraft] = useState(() => Object.fromEntries(fields.map(key => [key, info.overrides?.[key] ?? null])));
+  const [model, setModel] = useState(info.modelId || "");
+  const [prompt, setPrompt] = useState(info.prompt || "");
+  const [retain, setRetain] = useState(String(info.retainCount ?? 0));
+  const [error, setError] = useState(null);
+  const busy = !!state.pendingAction;
+  useEffect(() => {
+    const node = dialog.current;
+    node.showModal();
+    return () => { node.close(); focusReturn.current?.focus(); };
+  }, []);
+  useEffect(() => { if (!advanced && state.composer.compact?.compacting) onClose(); }, [state.composer.compact?.compacting]);
+  function close() { if (!busy) onClose(); }
+  function apply() {
+    if (busy) return;
+    if (advanced) {
+      if (sync.editorCommand("advanced", { parameters: draft }, editor)) onClose();
+    } else {
+      const count = retain === "" ? NaN : Number(retain);
+      if (!(model in state.composer.models)) setError(t.compactModelError);
+      else if (!prompt.trim()) setError(t.compactPromptError);
+      else if (!Number.isInteger(count) || count < 0 || count > 2147483647) setError(t.compactRetainError);
+      else if (sync.editorCommand("compact", { modelId: model, text: prompt, retainCount: count }, editor)) onClose();
+    }
+  }
+  return html`<dialog ref=${dialog} class="attachment-editor conversation-editor" aria-label=${advanced ? t.advancedTitle : t.compactTitle}
+    onCancel=${event => { event.preventDefault(); close(); }} onClick=${event => { if (event.target === dialog.current) close(); }}
+    onKeyDown=${event => event.stopPropagation()}>
+    <section><h2>${advanced ? t.advancedTitle : t.compactTitle}</h2>
+    <div class="conversation-editor-body">
+      ${advanced ? fields.map(key => {
+        const presets = key === "contextWindow" ? info.contextPresets : key === "maxTokens" ? info.maxTokensPresets : null;
+        const value = draft[key] ?? state.composer.advanced.defaults[key];
+        const bounds = key === "temperature" ? [0, 2] : key === "topP" ? [0, 1] : [-2, 2];
+        const effective = value ?? (presets ? 4096 : (bounds[0] + bounds[1]) / 2);
+        const index = presets?.reduce((best, item, i) => Math.abs(item - effective) < Math.abs(presets[best] - effective) ? i : best, 0);
+        const contextIndex = info.contextPresets.findIndex(item => item === value);
+        const label = value == null ? t.unspecified : key === "contextWindow" ? contextIndex >= 0 ? info.contextLabels[contextIndex]
+          : draft[key] != null ? info.contextOverrideLabel : state.composer.advanced.contextDefaultLabel
+          : presets ? String(value) : Number(value).toFixed(2);
+        return html`<div class="advanced-param" data-override=${draft[key] != null} key=${key}>
+          <div><label for=${`param-${key}`}>${t.parameters[key]}</label><span>${label}</span>
+            ${draft[key] != null && html`<button type="button" disabled=${busy} aria-label=${`${t.reset} ${t.parameters[key]}`}
+              onClick=${() => setDraft({ ...draft, [key]: null })}>${t.reset}</button>`}</div>
+          <input id=${`param-${key}`} type="range" aria-label=${t.parameters[key]} disabled=${busy}
+            min=${presets ? 0 : bounds[0]} max=${presets ? presets.length - 1 : bounds[1]} step=${presets ? 1 : "any"} value=${presets ? index : effective}
+            onInput=${event => setDraft({ ...draft, [key]: presets ? presets[Math.round(Number(event.currentTarget.value))] : Number(event.currentTarget.value) })} />
+        </div>`;
+      }) : html`<label>${t.compactModel}<select aria-label=${t.compactModel} value=${model} disabled=${busy} onChange=${event => { setModel(event.currentTarget.value); setError(null); }}>
+          ${!(model in state.composer.models) && html`<option value=${model}>${model || t.selectModel}</option>`}
+          ${Object.keys(state.composer.models).sort().map(id => html`<option value=${id}>${state.composer.models[id]}</option>`)}</select></label>
+        <label>${t.compactPrompt}<textarea rows="3" aria-label=${t.compactPrompt} value=${prompt} disabled=${busy}
+          onInput=${event => { setPrompt(event.currentTarget.value); setError(null); }}></textarea></label>
+        <label>${t.compactRetain}<input type="text" inputmode="numeric" aria-label=${t.compactRetain} value=${retain} disabled=${busy}
+          onInput=${event => { setRetain(event.currentTarget.value.replace(/\D/g, "")); setError(null); }} /></label>
+        ${error && html`<p class="conversation-editor-error" role="alert">${error}</p>`}`}
+    </div>
+    <footer>${advanced && html`<button class="reset-all" type="button" disabled=${busy} onClick=${() => setDraft(Object.fromEntries(fields.map(key => [key, null])))}>${t.reset}</button>`}
+      <button type="button" disabled=${busy} onClick=${close}>${t.cancel}</button>
+      <button type="button" disabled=${busy} onClick=${apply}>${advanced ? t.save : t.compact}</button>
+    </footer></section></dialog>`;
 }
 
 function AttachmentTile({ attachment: a, editable, onPreview }) {

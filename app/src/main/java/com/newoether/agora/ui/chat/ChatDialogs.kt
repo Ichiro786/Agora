@@ -306,11 +306,10 @@ internal fun ChatAdvancedSettingsDialog(
         overrides = overrides,
         globalDefaults = defaults,
         onSave = { settings ->
-            viewModel.setConversationSettings(currentId, settings)
-            onDismiss()
-        },
-        onResetToDefaults = {
-            viewModel.setConversationSettings(currentId, null)
+            if (validGenerationParameters(settings)) {
+                viewModel.updateConversationSettings(currentId) { it.withGenerationParameters(settings) }
+                onDismiss()
+            }
         },
         onDismiss = onDismiss
     )

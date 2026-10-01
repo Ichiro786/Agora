@@ -10,6 +10,12 @@ import com.newoether.agora.data.ConversationSettings
 import com.newoether.agora.data.thinkingCapabilityForSelectedModel
 import com.newoether.agora.ui.chat.EffectiveConversationControls
 import com.newoether.agora.ui.chat.resolveEffectiveConversationControls
+import com.newoether.agora.ui.chat.withGenerationParameters
+import com.newoether.agora.ui.chat.validGenerationParameters
+import com.newoether.agora.viewmodel.CompactRequest
+import com.newoether.agora.viewmodel.CompactResult
+import com.newoether.agora.viewmodel.CompactFailureReason
+import com.newoether.agora.model.isContextCompact
 import com.newoether.agora.data.providerDisplayName
 import com.newoether.agora.model.ModelId
 import com.newoether.agora.model.OpenAiServiceTiers
@@ -66,6 +72,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
@@ -102,6 +109,7 @@ internal class WebUiChatSession(
     attachmentProcessor: AttachmentImportProcessor,
     private val scope: CoroutineScope,
     private val uploadDirectory: File,
+    private val compactFailureMessage: (CompactResult.Failed) -> String,
     private val allowLocalSandbox: () -> Boolean = { false },
     sandboxHomeDir: () -> File? = { null },
 ) : ChatClient {
@@ -130,6 +138,10 @@ internal class WebUiChatSession(
         val attachments: List<SelectedAttachment> = emptyList(),
         val pdfProgress: Map<String, Pair<Int, Int>> = emptyMap(),
         val controls: EffectiveConversationControls? = null,
+        val generationParameters: ConversationSettings = ConversationSettings(),
+        val generationDefaults: ConversationSettings = ConversationSettings(),
+        val compactDefaults: CompactRequest? = null,
+        val compacting: Boolean = false,
     )
 
     private val target = MutableStateFlow(OpenTarget(null, browserSeq = 0L, movedByServer = false))
@@ -192,6 +204,9 @@ internal class WebUiChatSession(
         settings.openAiServiceTierEnabled, settings.openAiServiceTier, settings.openAiResponsesApiEnabled,
         settings.webSearchEnabled, settings.shellEnabled, settings.localLowContextModeEnabled, settings.maxContextWindow,
         settings.customProviders,
+        settings.defaultTemperature, settings.defaultMaxTokens, settings.defaultTopP,
+        settings.defaultFrequencyPenalty, settings.defaultPresencePenalty,
+        settings.contextCompactModel, settings.contextCompactPrompt, settings.contextCompactRetainCount,
     )) { Unit }
     private fun selectedProvider(id: String?): String {
         val model = activeModel.value?.takeIf { it.first == id }?.second.orEmpty()
@@ -270,6 +285,8 @@ internal class WebUiChatSession(
             .combine(runtime?.queuedSends ?: flowOf(emptyList())) { _, _ -> Unit }
             .combine(runtime?.generating ?: flowOf(false)) { _, _ -> Unit }
             .combine(runtime?.stopping ?: flowOf(false)) { _, _ ->
+                Unit
+            }.combine(runtime?.streamingMessage?.map { it?.isContextCompact() == true }?.distinctUntilChanged() ?: flowOf(false)) { _, compacting ->
                 ownerMutex.withLock {
                     val selected = target.value
                     if (retainedOwner != owner || owner != (selected.conversationId ?: NEW_CHAT_WORKSPACE_ID)) {
@@ -285,6 +302,14 @@ internal class WebUiChatSession(
                             draft.value.attachments,
                             draft.value.pdfPreviewProgress,
                             effectiveControls(selected.conversationId),
+                            (if (selected.conversationId == null) newChatSettings.value else settings.conversationSettings.value[selected.conversationId]) ?: ConversationSettings(),
+                            ConversationSettings(contextWindow = settings.maxContextWindow.value,
+                                temperature = settings.defaultTemperature.value, maxTokens = settings.defaultMaxTokens.value,
+                                topP = settings.defaultTopP.value, frequencyPenalty = settings.defaultFrequencyPenalty.value,
+                                presencePenalty = settings.defaultPresencePenalty.value),
+                            CompactRequest(settings.contextCompactModel.value ?: activeModel.value?.second.orEmpty(),
+                                settings.contextCompactPrompt.value, settings.contextCompactRetainCount.value),
+                            compacting,
                         )
                     }
                 }
@@ -364,6 +389,39 @@ internal class WebUiChatSession(
 
     fun stop(seq: Long = target.value.browserSeq) {
         if (seq == target.value.browserSeq) generationStop.stop(openId.value, this)
+    }
+    suspend fun editorCommand(command: WebSyncCommand) {
+        val captured = ownerMutex.withLock {
+            if (closed || retainedOwner == null || command.seq != target.value.browserSeq || command.conversationId != openId.value) return@withLock null
+            if (command.type == "advanced") {
+                try {
+                    val draft = command.parameters ?: return@withLock null
+                    if (!validGenerationParameters(draft)) return@withLock null
+                    val id = openId.value
+                    if (id == null) newChatSettings.value = (newChatSettings.value ?: ConversationSettings()).withGenerationParameters(draft)
+                    else settings.updateConversationSettings(id) { it.withGenerationParameters(draft) }
+                } finally { actionId.value = command.actionId }
+                return@withLock null
+            }
+            if (command.type != "compact") return@withLock null
+            val id = openId.value
+            val request = command.retainCount?.let { CompactRequest(command.modelId.orEmpty(), command.text.orEmpty(), it,
+                preserveSystemPrompt = settings.contextCompactPreserveSystemPrompt.value) }
+            if (id == null || request == null || request.model !in validModels.value.orEmpty() || request.prompt.isBlank() ||
+                request.retainLogicalMessages < 0 || registry.getOrCreate(id).stopping.value ||
+                registry.getOrCreate(id).streamingMessage.value?.isContextCompact() == true) {
+                actionId.value = command.actionId
+                return@withLock null
+            }
+            actionId.value = command.actionId
+            id to request
+        } ?: return
+        scope.launch {
+            val result = try { generation.compactManual(captured.first, captured.second) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { CompactResult.Failed(CompactFailureReason.GENERIC) }
+            if (result is CompactResult.Failed) showSnackbar(compactFailureMessage(result))
+        }
     }
     suspend fun settingCommand(command: WebSyncCommand) = ownerMutex.withLock {
         if (closed || command.seq != target.value.browserSeq) return@withLock

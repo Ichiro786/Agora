@@ -35,6 +35,17 @@ class ConversationSettingsWorkspaceTest {
         assertEquals(true, local.googleSearchEnabled)
     }
     @Test
+    fun generationParameterTransformNormalizesLegacyContextAndPreservesCurrentToolValues() {
+        val current = ConversationSettings(thinkingEnabled = false, webSearchEnabled = true, maxTokens = 12345)
+        val changed = current.withGenerationParameters(ConversationSettings(contextWindow = 20, maxTokens = 12345, thinkingEnabled = true))
+        assertEquals(20480, changed.contextWindow)
+        assertEquals(12345, changed.maxTokens)
+        assertEquals(false, changed.thinkingEnabled)
+        assertEquals(true, changed.webSearchEnabled)
+        val reset = changed.withGenerationParameters(ConversationSettings())
+        assertEquals(current.copy(maxTokens = null), reset)
+    }
+    @Test
     fun newChatOwnsSettingsWhilePreviousConversationIdRemainsDuringFade() {
         assertNull(
             conversationSettingsOwnerId(

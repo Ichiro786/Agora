@@ -268,6 +268,14 @@ export const sync = {
     update({ pendingAction: command.actionId });
     return true;
   },
+  editorCommand(type, values, target) {
+    if (!target || !state.connected || !state.composer || state.pendingAction ||
+        target.connectionId !== state.connectionId || target.seq !== openSeq || target.conversationId !== state.openId) return false;
+    const command = { ...values, type, conversationId: target.conversationId, seq: target.seq, actionId: ++nextAction };
+    if (!send(command)) return false;
+    update({ pendingAction: command.actionId });
+    return true;
+  },
   attachmentUrl(id, kind, index = 0) {
     if (!state.connected || !state.connectionId || !state.composer) return null;
     return `/api/attachments/${encodeURIComponent(state.connectionId)}/${encodeURIComponent(id)}/${kind}/${index}?seq=${openSeq}`;

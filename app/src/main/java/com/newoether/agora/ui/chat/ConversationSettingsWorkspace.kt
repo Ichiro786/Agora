@@ -35,6 +35,26 @@ internal fun conversationSettingsOwnerId(
     currentConversationId: String?,
 ): String? = currentConversationId.takeUnless { isNewChatMode }
 
+internal val advancedMaxTokensPresets = intArrayOf(256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072)
+
+/** Applies only the editor's six fields to the current settings, not its opening tool snapshot. */
+internal fun ConversationSettings.withGenerationParameters(draft: ConversationSettings) = copy(
+    contextWindow = draft.contextWindow?.let(ContextBudget::normalize),
+    temperature = draft.temperature,
+    maxTokens = draft.maxTokens,
+    topP = draft.topP,
+    frequencyPenalty = draft.frequencyPenalty,
+    presencePenalty = draft.presencePenalty,
+)
+
+internal fun validGenerationParameters(draft: ConversationSettings): Boolean =
+    (draft.contextWindow == null || draft.contextWindow in ContextBudget.MIN_TOKENS..ContextBudget.MAX_TOKENS) &&
+    (draft.maxTokens == null || draft.maxTokens > 0) &&
+    listOf(draft.temperature to 0f..2f, draft.topP to 0f..1f,
+        draft.frequencyPenalty to -2f..2f, draft.presencePenalty to -2f..2f).all { (value, range) ->
+        value == null || (value.isFinite() && value in range)
+    }
+
 @Composable
 internal fun effectiveConversationControls(
     viewModel: ChatViewModel,

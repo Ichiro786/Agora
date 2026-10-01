@@ -122,6 +122,7 @@ class WebUiSyncTest {
         coEvery { sendQueued(any(), any()) } just Runs
         coEvery { attachmentCommand(any()) } just Runs
         coEvery { settingCommand(any()) } just Runs
+        coEvery { editorCommand(any()) } just Runs
         every { stop(any()) } just Runs
         coEvery { open(any(), any()) } answers {
             this@WebUiSyncTest.openTarget.value =
@@ -154,6 +155,22 @@ class WebUiSyncTest {
         coVerify(exactly = 1) { session.sendQueued(4L, 8L) }
     }
 
+    @Test
+    fun editorCommandsAndProjectionUseTheExistingSessionAndStructuredSettings() = sync { send, received ->
+        send("""{"type":"advanced","seq":7,"actionId":9,"parameters":{"temperature":1.2}}""")
+        send("""{"type":"compact","seq":7,"actionId":10,"modelId":"m","text":"summary","retainCount":0}""")
+        coVerify(exactly = 1) { session.editorCommand(WebSyncCommand("advanced", seq = 7, actionId = 9, parameters = com.newoether.agora.data.ConversationSettings(temperature = 1.2f))) }
+        coVerify(exactly = 1) { session.editorCommand(WebSyncCommand("compact", seq = 7, actionId = 10, modelId = "m", text = "summary", retainCount = 0)) }
+        received()
+        composerState.emit(WebUiChatSession.ComposerState(null, ConversationComposerSubmissionSnapshot(),
+            generationParameters = com.newoether.agora.data.ConversationSettings(temperature = 1.2f),
+            compactDefaults = com.newoether.agora.viewmodel.CompactRequest("m", "summary", 4)))
+        val projected = received().single { it.type == "composer" }
+        assertEquals("1.2", projected["advanced"]!!.jsonObject["overrides"]!!.jsonObject.string("temperature"))
+        assertEquals("4096", projected["advanced"]!!.jsonObject["contextPresets"]!!.jsonArray.first().jsonPrimitive.content)
+        assertEquals("4K", projected["advanced"]!!.jsonObject["contextLabels"]!!.jsonArray.first().jsonPrimitive.content)
+        assertEquals("m", projected["compact"]!!.jsonObject.string("modelId"))
+    }
     @Test
     fun settingsCommandAndEffectiveControlsKeepCanonicalIdentityAndAvailability() = sync { send, received ->
         send("""{"type":"setting","seq":7,"actionId":9,"setting":"webSearchEnabled","enabled":false}""")

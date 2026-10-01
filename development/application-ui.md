@@ -975,7 +975,13 @@ server-resolved model capabilities, displayed values and accepted options; the b
 model/provider policy. Stored choices survive model changes. Sliders submit on gesture completion,
 switches apply immediately, and no Save action is shown. Both editors reuse the existing message
 DetailSheet presenter through its title/content parameters, including drag, keyboard, focus and
-App motion behavior. Compact and Advanced remain disabled until their matching command/editor gate.
+App motion behavior. Advanced uses the explicit-save six-parameter draft/reset contract in
+settings-ui-ux.md and preserves current tool preferences. Its defaults and token presets are server
+projections, not browser provider policy. Manual Compact uses its configured model, prompt and retain
+count in an editor before calling the same MessageGenerationController.compactManual with the
+captured conversation ID and Preserve System Prompt preference. It never changes ordinary model or
+generation preferences. New Chat cannot Compact; Stop and canonical failure handling remain shared.
+Both editors discard on cancellation, dismiss on selection/disconnect, and never replay commands.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.

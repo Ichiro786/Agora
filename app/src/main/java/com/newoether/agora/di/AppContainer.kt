@@ -404,6 +404,7 @@ class AppContainer(
                     attachmentProcessor = com.newoether.agora.viewmodel.AttachmentImportProcessor(application),
                     scope = scope,
                     uploadDirectory = appContext.filesDir,
+                    compactFailureMessage = { com.newoether.agora.viewmodel.compactFailureMessage(appContext, it) },
                     allowLocalSandbox = { sandboxManagerFactory?.isAvailable() == true && settingsRepository.sandboxEnabled.value },
                     sandboxHomeDir = { sandboxManagerFactory?.takeIf { it.isAvailable() }?.let { java.io.File(appContext.filesDir, "sandbox-home") } },
                 )

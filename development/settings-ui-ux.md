@@ -92,6 +92,13 @@ layout, states, density, or interaction design has been approved.
 
 ## Structure and spacing
 
+Advanced generation uses an explicit-save editor. Reset, including the bottom Reset action, clears
+only the six generation-parameter draft values (context window, temperature, max tokens, top P,
+frequency penalty and presence penalty). It never persists or clears tool preferences. Save commits
+those six values; Cancel, Back and outside dismissal discard the editor draft. Saving preserves the
+current unrelated conversation settings rather than restoring their opening snapshot. The phone
+and WebUI share this contract.
+
 - Use the shared settings page scaffold and `SettingsItem` for standard rows.
 - Use `SettingsAddItem` for add actions. Its layout is fixed: 56 dp minimum
   height, 18 dp add icon, 8 dp icon-to-label gap, `labelLarge`, centered

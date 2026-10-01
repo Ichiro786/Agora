@@ -464,6 +464,8 @@ class ChatViewModel(
     )
     fun setConversationSettings(convId: String?, value: ConversationSettings?) =
         conversationWorkspaces.setConversationSettings(convId ?: NEW_CHAT_WORKSPACE_ID, value)
+    internal fun updateConversationSettings(convId: String?, update: (ConversationSettings) -> ConversationSettings) =
+        conversationWorkspaces.updateConversationSettings(convId ?: NEW_CHAT_WORKSPACE_ID, update)
     private val contextProjector by lazy {
         ConversationContextProjector(
             conversations = convRepo,

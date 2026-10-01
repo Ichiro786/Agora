@@ -85,6 +85,7 @@ class WebUiChatSessionTest {
         every { generating } returns MutableStateFlow(false)
         every { stopping } returns MutableStateFlow(false)
         every { queuedSends } returns MutableStateFlow(emptyList())
+        every { streamingMessage } returns MutableStateFlow(null)
         every { discardQueuedSend(any()) } just Runs
     }
     private val registry = mockk<ConversationStateRegistry> {
@@ -112,6 +113,14 @@ class WebUiChatSessionTest {
         every { shellEnabled } returns MutableStateFlow(true)
         every { localLowContextModeEnabled } returns MutableStateFlow(false)
         every { maxContextWindow } returns MutableStateFlow(32768)
+        every { defaultTemperature } returns MutableStateFlow(null)
+        every { defaultMaxTokens } returns MutableStateFlow(null)
+        every { defaultTopP } returns MutableStateFlow(null)
+        every { defaultFrequencyPenalty } returns MutableStateFlow(null)
+        every { defaultPresencePenalty } returns MutableStateFlow(null)
+        every { contextCompactModel } returns MutableStateFlow(null)
+        every { contextCompactPrompt } returns MutableStateFlow("summary")
+        every { contextCompactRetainCount } returns MutableStateFlow(4)
         coEvery { awaitInitialLoad() } just Runs
     }
 
@@ -181,6 +190,7 @@ class WebUiChatSessionTest {
         ),
         scope = scope,
         uploadDirectory = uploadDirectory,
+        compactFailureMessage = { it.reason.name },
     ) }
 
     @After
