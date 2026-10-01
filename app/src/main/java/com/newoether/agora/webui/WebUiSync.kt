@@ -180,6 +180,28 @@ internal class WebUiSync(
                                                     }
                                                 }
                                             },
+                                            it.controls?.let { controls ->
+                                                buildJsonObject {
+                                                    put("codeExecutionEnabled", controls.codeExecutionEnabled)
+                                                    put("googleSearchEnabled", controls.googleSearchEnabled)
+                                                    put("thinkingEnabled", controls.thinkingEnabled)
+                                                    put("thinkingLevel", controls.thinkingLevel)
+                                                    put("thinkingBudgetEnabled", controls.thinkingBudgetEnabled)
+                                                    put("thinkingBudgetTokens", controls.thinkingBudgetTokens)
+                                                    put("openAiWebSearchAvailable", controls.openAiWebSearchAvailable)
+                                                    put("openAiWebSearchEnabled", controls.openAiWebSearchEnabled)
+                                                    put("openAiServiceTierAvailable", controls.openAiServiceTierState.available)
+                                                    put("openAiServiceTierEnabled", controls.openAiServiceTierState.enabled)
+                                                    put("openAiServiceTier", controls.openAiServiceTierState.tier)
+                                                    put("webSearchAvailable", controls.webSearchAvailable)
+                                                    put("webSearchEnabled", controls.webSearchEnabled)
+                                                    put("shellAvailable", controls.shellAvailable)
+                                                    put("shellEnabled", controls.shellEnabled)
+                                                    put("showLowContextMode", controls.showLowContextMode)
+                                                    put("lowContextModeEnabled", controls.lowContextModeEnabled)
+                                                    put("contextWindow", controls.contextWindow)
+                                                }
+                                            },
                                         )
                                     }.distinctUntilChanged().collect { outbound.send(it) }
                             }
@@ -208,6 +230,7 @@ internal class WebUiSync(
                         COMMAND_SEND_QUEUED -> session.sendQueued(command.seq, command.actionId)
                         "attachment_remove", "attachment_retry", "attachment_pdf", "attachment_video" ->
                             session.attachmentCommand(command)
+                        "setting" -> session.settingCommand(command)
                     }
                 }
             } finally {
@@ -454,6 +477,8 @@ internal data class WebSyncCommand(
     val pages: List<Int> = emptyList(),
     val frameCount: Int? = null,
     val intervalMs: Long? = null,
+    val setting: String? = null,
+    val enabled: Boolean? = null,
 )
 
 @Serializable
@@ -512,6 +537,7 @@ internal sealed interface WebSyncEvent {
         val modelValid: Boolean, val generating: Boolean, val stopping: Boolean,
         val modelId: String, val models: Map<String, String>, val queue: List<JsonObject>,
         val attachments: List<JsonObject> = emptyList(),
+        val controls: JsonObject? = null,
     ) : WebSyncEvent
 
     @Serializable @SerialName("snackbar")

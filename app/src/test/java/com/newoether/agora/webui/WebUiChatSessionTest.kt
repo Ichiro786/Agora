@@ -62,6 +62,8 @@ import kotlinx.coroutines.Job
 import com.newoether.agora.util.AttachmentFiles
 import com.newoether.agora.util.FileValidator
 import com.newoether.agora.model.AttachmentStorage
+import com.newoether.agora.data.ConversationSettings
+import com.newoether.agora.data.local.ChatEntity
 
 class WebUiChatSessionTest {
     @get:Rule val temporary = TemporaryFolder()
@@ -96,6 +98,20 @@ class WebUiChatSessionTest {
         every { modelAliases } returns MutableStateFlow(emptyMap())
         every { modelProviderNames } returns MutableStateFlow(emptyMap())
         every { customProviders } returns MutableStateFlow(emptyList())
+        every { conversationSettings } returns MutableStateFlow(emptyMap())
+        every { codeExecutionEnabled } returns MutableStateFlow(false)
+        every { googleSearchEnabled } returns MutableStateFlow(false)
+        every { thinkingEnabled } returns MutableStateFlow(true)
+        every { thinkingLevel } returns MutableStateFlow("medium")
+        every { thinkingBudgetEnabled } returns MutableStateFlow(false)
+        every { thinkingBudgetTokens } returns MutableStateFlow(4096)
+        every { openAiServiceTierEnabled } returns MutableStateFlow(false)
+        every { openAiServiceTier } returns MutableStateFlow("auto")
+        every { openAiResponsesApiEnabled } returns MutableStateFlow(false)
+        every { webSearchEnabled } returns MutableStateFlow(true)
+        every { shellEnabled } returns MutableStateFlow(true)
+        every { localLowContextModeEnabled } returns MutableStateFlow(false)
+        every { maxContextWindow } returns MutableStateFlow(32768)
         coEvery { awaitInitialLoad() } just Runs
     }
 
@@ -482,6 +498,119 @@ class WebUiChatSessionTest {
         session.selectModel("invalid", seq = 2L, commandId = 3L)
         session.selectModel("conversation-model", seq = 1L, commandId = 4L)
         coVerify(exactly = 1) { dao.updateConversationModel(any(), any(), any()) }
+    }
+    @Test
+    fun sessionLocalSettingsCaptureBeforeTapAndRemainIndependentFromPhoneAndOtherOwners() = runBlocking {
+        session.start()
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.modelValid && it.controls != null } }
+        session.settingCommand(WebSyncCommand("setting", setting = "webSearchEnabled", enabled = false, actionId = 1))
+        val disabled = withTimeout(TIMEOUT_MS) { session.composerState.first { it.actionId == 1L } }
+        assertFalse(disabled.controls!!.webSearchEnabled)
+        session.send("freeze settings")
+        withTimeout(TIMEOUT_MS) { while (captures.isEmpty()) kotlinx.coroutines.delay(10) }
+        assertEquals(false, captures.single().workspace!!.conversationSettings!!.webSearchEnabled)
+        session.settingCommand(WebSyncCommand("setting", setting = "webSearchEnabled", enabled = true, actionId = 2))
+        assertEquals(false, captures.single().workspace!!.conversationSettings!!.webSearchEnabled)
+        verify(exactly = 0) { settings.updateConversationSettings(any(), any()) }
+        coVerify(exactly = 0) { conversations.upsertNewChatPersist(any()) }
+        session.open("a", 1)
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.conversationId == "a" && it.controls != null } }
+        assertTrue(session.composerState.first().controls!!.webSearchEnabled)
+        session.open(null, 2)
+        val local = withTimeout(TIMEOUT_MS) { session.composerState.first { it.seq == 2L && it.controls != null } }
+        assertTrue(local.controls!!.webSearchEnabled)
+    }
+    @Test
+    fun sharedSettingsTransformPreservesConcurrentFieldsAndRejectsUnavailableOrStaleEdits() = runBlocking {
+        val shared = MutableStateFlow(mapOf("a" to ConversationSettings(temperature = 0.7f, shellEnabled = true)))
+        every { settings.conversationSettings } returns shared
+        every { settings.updateConversationSettings("a", any()) } answers {
+            shared.value = shared.value + ("a" to secondArg<(ConversationSettings) -> ConversationSettings>().invoke(shared.value.getValue("a")))
+        }
+        session.start()
+        session.open("a", 1)
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.modelValid && it.seq == 1L && it.controls != null } }
+        session.settingCommand(WebSyncCommand("setting", seq = 1, setting = "webSearchEnabled", enabled = false, actionId = 1))
+        assertEquals(0.7f, shared.value.getValue("a").temperature)
+        assertEquals(true, shared.value.getValue("a").shellEnabled)
+        assertEquals(false, shared.value.getValue("a").webSearchEnabled)
+        session.settingCommand(WebSyncCommand("setting", seq = 0, setting = "shellEnabled", enabled = false))
+        session.settingCommand(WebSyncCommand("setting", seq = 1, setting = "openAiWebSearchEnabled", enabled = true, actionId = 2))
+        session.settingCommand(WebSyncCommand("setting", seq = 1, setting = "unknown", enabled = true, actionId = 3))
+        verify(exactly = 1) { settings.updateConversationSettings(any(), any()) }
+        val acknowledged = withTimeout(TIMEOUT_MS) { session.composerState.first { it.actionId == 3L } }
+        assertFalse(acknowledged.controls!!.openAiWebSearchAvailable)
+        session.close()
+        session.settingCommand(WebSyncCommand("setting", seq = 1, setting = "shellEnabled", enabled = false))
+        verify(exactly = 1) { settings.updateConversationSettings(any(), any()) }
+    }
+    @Test
+    fun customResponsesAvailabilityUsesItsIdentityAndTracksProtocolChanges() = runBlocking {
+        val providerId = "custom-provider-12345678-1234-4234-8234-123456789abc"
+        val model = "$providerId:unlisted"
+        val custom = MutableStateFlow(listOf(com.newoether.agora.data.CustomProviderConfig(
+            name = "Relay", id = providerId, responsesApiEnabled = true)))
+        every { settings.selectedModel } returns MutableStateFlow(model)
+        every { settings.enabledModels } returns MutableStateFlow(setOf(model))
+        every { settings.customProviders } returns custom
+        session.start()
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.modelValid && it.controls?.openAiWebSearchAvailable == true } }
+        session.settingCommand(WebSyncCommand("setting", setting = "openAiWebSearchEnabled", enabled = false, actionId = 1))
+        assertFalse(session.composerState.first().controls!!.openAiWebSearchEnabled)
+        custom.value = listOf(custom.value.single().copy(protocol = com.newoether.agora.data.CustomEndpointProtocol.ANTHROPIC))
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.controls?.openAiWebSearchAvailable == false } }
+        session.settingCommand(WebSyncCommand("setting", setting = "openAiWebSearchEnabled", enabled = true, actionId = 2))
+        assertFalse(session.composerState.first().controls!!.openAiWebSearchEnabled)
+    }
+    @Test
+    fun localLowContextModeUsesTheGlobalAvailabilityGateAndKeepsOtherSettings() = runBlocking {
+        val model = "${com.newoether.agora.util.Constants.PROVIDER_LOCAL}:test"
+        every { settings.selectedModel } returns MutableStateFlow(model)
+        every { settings.enabledModels } returns MutableStateFlow(setOf(model))
+        val lowContext = MutableStateFlow(false)
+        every { settings.localLowContextModeEnabled } returns lowContext
+        session.start()
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.modelValid && it.controls?.showLowContextMode == true } }
+        lowContext.value = true
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.controls?.lowContextModeEnabled == true } }
+        session.settingCommand(WebSyncCommand("setting", setting = "webSearchEnabled", enabled = false, actionId = 1))
+        assertTrue(session.composerState.first().controls!!.webSearchEnabled)
+        session.settingCommand(WebSyncCommand("setting", setting = "lowContextModeEnabled", enabled = false, actionId = 2))
+        val changed = withTimeout(TIMEOUT_MS) { session.composerState.first { it.actionId == 2L } }
+        assertFalse(changed.controls!!.lowContextModeEnabled)
+        session.settingCommand(WebSyncCommand("setting", setting = "webSearchEnabled", enabled = false, actionId = 3))
+        assertFalse(session.composerState.first().controls!!.webSearchEnabled)
+        verify(exactly = 0) { settings.updateConversationSettings(any(), any()) }
+    }
+    @Test
+    fun newChatAcceptanceConsumesOnlyMatchingSettingsAndPreservesPostTapEdits() = runBlocking {
+        val entered = CompletableDeferred<Unit>()
+        val accept = CompletableDeferred<Unit>()
+        coEvery { generation.prepareForegroundSend(any(), any(), any()) } answers {
+            val target = firstArg<ForegroundSendTarget>()
+            ForegroundSendAdmission(target, testGenerationAdmissionSnapshot(target.conversationId, target.runId),
+                ChatEntity(id = target.conversationId, title = "New"), target.newChatWorkspace!!.conversationSettings)
+        }
+        coEvery { generation.sendMessage(any(), any(), any(), any(), any()) } coAnswers {
+            entered.complete(Unit)
+            accept.await()
+            SendAcceptance.Direct("accepted", "created").also { arg<suspend (SendAcceptance) -> Unit>(3).invoke(it) }
+        }
+        session.start()
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.modelValid && it.controls != null } }
+        session.settingCommand(WebSyncCommand("setting", setting = "webSearchEnabled", enabled = false))
+        session.send("first")
+        withTimeout(TIMEOUT_MS) { entered.await() }
+        session.settingCommand(WebSyncCommand("setting", setting = "shellEnabled", enabled = false, actionId = 2))
+        accept.complete(Unit)
+        val settled = withTimeout(TIMEOUT_MS) { session.composerState.first { it.snapshot.acceptedVersion == 1L } }
+        assertFalse(settled.controls!!.shellEnabled)
+        assertFalse(settled.controls.webSearchEnabled)
+        assertNull(captures.single().workspace!!.conversationSettings!!.shellEnabled)
+        session.send("second")
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.snapshot.acceptedVersion == 2L } }
+        assertTrue(session.composerState.first().controls!!.webSearchEnabled)
+        assertTrue(session.composerState.first().controls!!.shellEnabled)
     }
     @Test
     fun queueCommandsUseTheCanonicalOwnerAndRejectStaleSelections() = runBlocking {

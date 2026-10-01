@@ -118,6 +118,7 @@ class WebUiSyncTest {
         coEvery { removeQueued(any(), any()) } just Runs
         coEvery { sendQueued(any(), any()) } just Runs
         coEvery { attachmentCommand(any()) } just Runs
+        coEvery { settingCommand(any()) } just Runs
         every { stop(any()) } just Runs
         coEvery { open(any(), any()) } answers {
             this@WebUiSyncTest.openTarget.value =
@@ -150,6 +151,24 @@ class WebUiSyncTest {
         coVerify(exactly = 1) { session.sendQueued(4L, 8L) }
     }
 
+    @Test
+    fun settingsCommandAndEffectiveControlsKeepCanonicalIdentityAndAvailability() = sync { send, received ->
+        send("""{"type":"setting","seq":7,"actionId":9,"setting":"webSearchEnabled","enabled":false}""")
+        coVerify(exactly = 1) { session.settingCommand(WebSyncCommand("setting", seq = 7, actionId = 9, setting = "webSearchEnabled", enabled = false)) }
+        received()
+        val global = com.newoether.agora.data.ConversationSettings(contextWindow = 32768, codeExecutionEnabled = false,
+            googleSearchEnabled = false, thinkingEnabled = true, thinkingLevel = "medium", thinkingBudgetEnabled = false,
+            thinkingBudgetTokens = 4096, openAiServiceTierEnabled = true, openAiServiceTier = "priority",
+            webSearchEnabled = true, shellEnabled = false, lowContextModeEnabled = true)
+        val controls = com.newoether.agora.ui.chat.resolveEffectiveConversationControls(null, null, global, com.newoether.agora.util.Constants.PROVIDER_OPENAI, true, emptyList())
+        composerState.emit(WebUiChatSession.ComposerState(null, ConversationComposerSubmissionSnapshot(), controls = controls))
+        val projected = received().single { it.type == "composer" }["controls"]!!.jsonObject
+        assertEquals("true", projected.string("openAiWebSearchAvailable"))
+        assertEquals("fast", projected.string("openAiServiceTier"))
+        assertEquals("false", projected.string("showLowContextMode"))
+        assertEquals("false", projected.string("shellAvailable"))
+        assertEquals("32768", projected.string("contextWindow"))
+    }
     @Test
     fun attachmentCommandsKeepTheExactIdSelectionAndConfiguration() = sync { send, _ ->
         for (type in listOf("attachment_remove", "attachment_retry", "attachment_pdf", "attachment_video")) {

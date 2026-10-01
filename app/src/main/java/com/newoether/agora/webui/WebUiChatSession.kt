@@ -6,6 +6,10 @@ import com.newoether.agora.data.repository.ConversationSettingsTransferCoordinat
 import com.newoether.agora.data.repository.SettingsRepository
 import com.newoether.agora.data.repository.updateConversationModel
 import com.newoether.agora.data.modelDisplayName
+import com.newoether.agora.data.ConversationSettings
+import com.newoether.agora.data.thinkingCapabilityForSelectedModel
+import com.newoether.agora.ui.chat.EffectiveConversationControls
+import com.newoether.agora.ui.chat.resolveEffectiveConversationControls
 import com.newoether.agora.data.providerDisplayName
 import com.newoether.agora.model.ModelId
 import com.newoether.agora.model.apiModelName
@@ -122,6 +126,7 @@ internal class WebUiChatSession(
         val queue: List<QueuedSend> = emptyList(),
         val attachments: List<SelectedAttachment> = emptyList(),
         val pdfProgress: Map<String, Pair<Int, Int>> = emptyMap(),
+        val controls: EffectiveConversationControls? = null,
     )
 
     private val target = MutableStateFlow(OpenTarget(null, browserSeq = 0L, movedByServer = false))
@@ -158,6 +163,7 @@ internal class WebUiChatSession(
 
     /** Model chosen on this browser's New Chat page; null follows the default model. */
     private val newChatModelId = MutableStateFlow<String?>(null)
+    private val newChatSettings = MutableStateFlow<ConversationSettings?>(null)
     private val validModels = settings.validChatModels(scope)
     private val runtimeFacade = CurrentConversationRuntimeFacade(openId, registry, scope)
     private val modelLabels = combine(
@@ -177,6 +183,31 @@ internal class WebUiChatSession(
             id to if (valid == null) "" else resolveValidModel(referenced, fallback, valid)
         }
     }.stateIn(scope, SharingStarted.Eagerly, null)
+    private val controlChanges = combine(listOf(
+        settings.conversationSettings, newChatSettings, settings.codeExecutionEnabled, settings.googleSearchEnabled,
+        settings.thinkingEnabled, settings.thinkingLevel, settings.thinkingBudgetEnabled, settings.thinkingBudgetTokens,
+        settings.openAiServiceTierEnabled, settings.openAiServiceTier, settings.openAiResponsesApiEnabled,
+        settings.webSearchEnabled, settings.shellEnabled, settings.localLowContextModeEnabled, settings.maxContextWindow,
+        settings.customProviders,
+    )) { Unit }
+    private fun selectedProvider(id: String?): String {
+        val model = activeModel.value?.takeIf { it.first == id }?.second.orEmpty()
+        val reference = ModelId.parse(model).providerName
+        return providerDisplayName(reference, settings.customProviders.value)
+    }
+    private fun effectiveControls(id: String?): EffectiveConversationControls = resolveEffectiveConversationControls(
+        id, if (id == null) newChatSettings.value else settings.conversationSettings.value[id],
+        ConversationSettings(
+            contextWindow = settings.maxContextWindow.value, codeExecutionEnabled = settings.codeExecutionEnabled.value,
+            googleSearchEnabled = settings.googleSearchEnabled.value, thinkingEnabled = settings.thinkingEnabled.value,
+            thinkingLevel = settings.thinkingLevel.value, thinkingBudgetEnabled = settings.thinkingBudgetEnabled.value,
+            thinkingBudgetTokens = settings.thinkingBudgetTokens.value, webSearchEnabled = settings.webSearchEnabled.value,
+            shellEnabled = settings.shellEnabled.value, lowContextModeEnabled = settings.localLowContextModeEnabled.value,
+            openAiServiceTierEnabled = settings.openAiServiceTierEnabled.value, openAiServiceTier = settings.openAiServiceTier.value,
+        ),
+        selectedProvider(id),
+        settings.openAiResponsesApiEnabled.value, settings.customProviders.value,
+    )
 
     private val submission = ConversationComposerSubmissionController(
         scope = scope,
@@ -195,7 +226,7 @@ internal class WebUiChatSession(
                         persisted = null,
                         modelId = newChatModelId.value,
                         systemPromptId = null,
-                        conversationSettings = null,
+                        conversationSettings = newChatSettings.value,
                         sessionLocal = true,
                     )
                 },
@@ -205,7 +236,12 @@ internal class WebUiChatSession(
             generation.prepareForegroundSend(sendTarget, composer, this@WebUiChatSession)
         },
         send = { admission, text, attachments, onAccepted ->
-            generation.sendMessage(admission, text, attachments, onAccepted, this@WebUiChatSession)
+            generation.sendMessage(admission, text, attachments, { accepted ->
+                if (admission.target.wasNewChat) ownerMutex.withLock {
+                    if (newChatSettings.value == admission.newConversationSettings) newChatSettings.value = null
+                }
+                onAccepted(accepted)
+            }, this@WebUiChatSession)
         },
         // The in-memory draft store cannot fail to clear, so no retry surface is needed.
     )
@@ -227,6 +263,7 @@ internal class WebUiChatSession(
         val runtime = owner.takeUnless { it == NEW_CHAT_WORKSPACE_ID }?.let(registry::getOrCreate)
         combine(draft, state, editRevision, actionId, activeModel) { _, _, _, _, _ -> Unit }
             .combine(modelLabels) { _, _ -> Unit }
+            .combine(controlChanges) { _, _ -> Unit }
             .combine(runtime?.queuedSends ?: flowOf(emptyList())) { _, _ -> Unit }
             .combine(runtime?.generating ?: flowOf(false)) { _, _ -> Unit }
             .combine(runtime?.stopping ?: flowOf(false)) { _, _ ->
@@ -244,6 +281,7 @@ internal class WebUiChatSession(
                             modelLabels.value, runtime?.queuedSends?.value.orEmpty().sortedBy(QueuedSend::createdAt),
                             draft.value.attachments,
                             draft.value.pdfPreviewProgress,
+                            effectiveControls(selected.conversationId),
                         )
                     }
                 }
@@ -252,6 +290,7 @@ internal class WebUiChatSession(
 
     /** Attaches to the runtime and admits the initial New Chat composer. */
     suspend fun start() {
+        settings.awaitInitialLoad()
         clients.attach(this)
         ui.start()
         ownerMutex.withLock { retainOwnerLocked(NEW_CHAT_WORKSPACE_ID) }
@@ -322,6 +361,42 @@ internal class WebUiChatSession(
 
     fun stop(seq: Long = target.value.browserSeq) {
         if (seq == target.value.browserSeq) generationStop.stop(openId.value, this)
+    }
+    suspend fun settingCommand(command: WebSyncCommand) = ownerMutex.withLock {
+        if (closed || command.seq != target.value.browserSeq) return@withLock
+        try {
+            if (retainedOwner == null) return@withLock
+            val enabled = command.enabled ?: return@withLock
+            val current = effectiveControls(openId.value)
+            val model = activeModel.value?.takeIf { it.first == openId.value }?.second.orEmpty()
+            val allowed = when (command.setting) {
+                "lowContextModeEnabled" -> current.showLowContextMode
+                "thinkingEnabled" -> enabled || thinkingCapabilityForSelectedModel(model, settings.customProviders.value).canDisableThinking
+                "codeExecutionEnabled", "googleSearchEnabled" -> selectedProvider(openId.value).equals("google", ignoreCase = true) && model.isNotBlank() && !current.lowContextModeEnabled
+                "openAiWebSearchEnabled" -> current.openAiWebSearchAvailable && model.isNotBlank() && !current.lowContextModeEnabled
+                "openAiServiceTierEnabled" -> current.openAiServiceTierState.available && model.isNotBlank() && !current.lowContextModeEnabled
+                "webSearchEnabled" -> current.webSearchAvailable && !current.lowContextModeEnabled
+                "shellEnabled" -> current.shellAvailable && !current.lowContextModeEnabled
+                else -> false
+            }
+            if (!allowed) return@withLock
+            val update: (ConversationSettings) -> ConversationSettings = { previous ->
+                when (command.setting) {
+                    "lowContextModeEnabled" -> previous.copy(lowContextModeEnabled = enabled)
+                    "thinkingEnabled" -> previous.copy(thinkingEnabled = enabled)
+                    "codeExecutionEnabled" -> previous.copy(codeExecutionEnabled = enabled)
+                    "googleSearchEnabled" -> previous.copy(googleSearchEnabled = enabled)
+                    "openAiWebSearchEnabled" -> previous.copy(openAiWebSearchEnabled = enabled)
+                    "openAiServiceTierEnabled" -> previous.copy(openAiServiceTierEnabled = enabled)
+                    "webSearchEnabled" -> previous.copy(webSearchEnabled = enabled)
+                    "shellEnabled" -> previous.copy(shellEnabled = enabled)
+                    else -> previous
+                }
+            }
+            val id = openId.value
+            if (id == null) newChatSettings.value = update(newChatSettings.value ?: ConversationSettings())
+            else settings.updateConversationSettings(id, update)
+        } finally { actionId.value = command.actionId }
     }
 
     suspend fun attachmentCommand(command: WebSyncCommand) = ownerMutex.withLock {

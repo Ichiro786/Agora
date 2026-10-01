@@ -61,38 +61,64 @@ internal fun effectiveConversationControls(
     val globalShell by viewModel.settings.shellEnabled.collectAsState()
     val maxContextWindow by viewModel.settings.maxContextWindow.collectAsState()
     val selectedProviderName = viewModel.getProviderForModel(selectedModel)
+    val globalTierEnabled by viewModel.settings.openAiServiceTierEnabled.collectAsState()
+    val globalTier by viewModel.settings.openAiServiceTier.collectAsState()
+    return resolveEffectiveConversationControls(
+        settingsOwnerId, conversationOverride,
+        ConversationSettings(
+            contextWindow = maxContextWindow, codeExecutionEnabled = globalCodeExecution,
+            googleSearchEnabled = globalGoogleSearch, thinkingEnabled = globalThinkingEnabled,
+            thinkingLevel = globalThinkingLevel, thinkingBudgetEnabled = globalThinkingBudgetEnabled,
+            thinkingBudgetTokens = globalThinkingBudgetTokens, webSearchEnabled = globalWebSearch,
+            shellEnabled = globalShell, lowContextModeEnabled = globalLocalLowContextModeEnabled,
+            openAiServiceTierEnabled = globalTierEnabled, openAiServiceTier = globalTier,
+        ),
+        selectedProviderName, openAiResponsesApiEnabled, customProviders,
+    )
+}
+
+/** Pure projection shared by Compose and a connection-local WebUI composer. */
+internal fun resolveEffectiveConversationControls(
+    settingsOwnerId: String?,
+    conversationOverride: ConversationSettings?,
+    global: ConversationSettings,
+    selectedProviderName: String,
+    openAiResponsesApiEnabled: Boolean,
+    customProviders: List<CustomProviderConfig>,
+): EffectiveConversationControls {
     val isEmbeddedLocalModel = selectedProviderName == Constants.PROVIDER_LOCAL
 
     return EffectiveConversationControls(
         settingsOwnerId = settingsOwnerId,
-        codeExecutionEnabled = conversationOverride?.codeExecutionEnabled ?: globalCodeExecution,
-        googleSearchEnabled = conversationOverride?.googleSearchEnabled ?: globalGoogleSearch,
-        thinkingEnabled = conversationOverride?.thinkingEnabled ?: globalThinkingEnabled,
-        thinkingLevel = conversationOverride?.thinkingLevel ?: globalThinkingLevel,
+        codeExecutionEnabled = conversationOverride?.codeExecutionEnabled ?: requireNotNull(global.codeExecutionEnabled),
+        googleSearchEnabled = conversationOverride?.googleSearchEnabled ?: requireNotNull(global.googleSearchEnabled),
+        thinkingEnabled = conversationOverride?.thinkingEnabled ?: requireNotNull(global.thinkingEnabled),
+        thinkingLevel = conversationOverride?.thinkingLevel ?: requireNotNull(global.thinkingLevel),
         thinkingBudgetEnabled =
-            conversationOverride?.thinkingBudgetEnabled ?: globalThinkingBudgetEnabled,
+            conversationOverride?.thinkingBudgetEnabled ?: requireNotNull(global.thinkingBudgetEnabled),
         thinkingBudgetTokens =
-            conversationOverride?.thinkingBudgetTokens ?: globalThinkingBudgetTokens,
+            conversationOverride?.thinkingBudgetTokens ?: requireNotNull(global.thinkingBudgetTokens),
         openAiWebSearchAvailable = resolveOpenAiNativeSearchAvailability(
             selectedProviderName,
             openAiResponsesApiEnabled,
             customProviders,
         ),
         openAiWebSearchEnabled = conversationOverride?.openAiWebSearchEnabled ?: true,
-        openAiServiceTierState = openAiConversationServiceTierState(
-            viewModel,
+        openAiServiceTierState = resolveOpenAiConversationServiceTier(
+            requireNotNull(global.openAiServiceTierEnabled),
+            requireNotNull(global.openAiServiceTier),
             conversationOverride,
             selectedProviderName,
             openAiResponsesApiEnabled,
             customProviders,
         ),
-        webSearchAvailable = globalWebSearch,
-        webSearchEnabled = globalWebSearch && (conversationOverride?.webSearchEnabled ?: true),
-        shellAvailable = globalShell,
-        shellEnabled = globalShell && (conversationOverride?.shellEnabled ?: true),
+        webSearchAvailable = requireNotNull(global.webSearchEnabled),
+        webSearchEnabled = requireNotNull(global.webSearchEnabled) && (conversationOverride?.webSearchEnabled ?: true),
+        shellAvailable = requireNotNull(global.shellEnabled),
+        shellEnabled = requireNotNull(global.shellEnabled) && (conversationOverride?.shellEnabled ?: true),
         showLowContextMode = isEmbeddedLocalModel,
         lowContextModeEnabled = isEmbeddedLocalModel &&
-            (conversationOverride?.lowContextModeEnabled ?: globalLocalLowContextModeEnabled),
-        contextWindow = ContextBudget.normalize(conversationOverride?.contextWindow ?: maxContextWindow),
+            (conversationOverride?.lowContextModeEnabled ?: requireNotNull(global.lowContextModeEnabled)),
+        contextWindow = ContextBudget.normalize(conversationOverride?.contextWindow ?: requireNotNull(global.contextWindow)),
     )
 }

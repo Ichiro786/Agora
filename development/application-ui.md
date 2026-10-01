@@ -963,6 +963,13 @@ The same preview stream supports one HTTP byte range for native video playback a
 responses preserve authentication, file pinning, recorded-size bounds and revocation cancellation;
 they do not buffer a complete file or introduce another download endpoint.
 Composer presentation lives in composer.js; shell.js remains the chat frame and popup presenter.
+Effective tool controls use the same pure Compose projection of global preferences, provider
+availability and per-conversation overrides. Existing-conversation edits transform the canonical
+SettingsRepository value instead of replacing unrelated fields; New Chat overrides remain in the
+browser session and enter its frozen workspace snapshot. Commands retain the selected sequence and
+action acknowledgement; stale and unavailable edits are refused. Settings remain editable during
+submission as on Compose; the captured New Chat workspace stays immutable. Acceptance consumes only
+the matching session-local settings and preserves any later settings edit.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.
