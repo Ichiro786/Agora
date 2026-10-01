@@ -19,7 +19,8 @@ internal class ChatOverlaySourceContractTest : UiSourceContractFixture() {
         assertTrue(remote.contains("bottomBarHeight = barHeight"))
         assertTrue(remote.contains("showBreakdown = false"))
         assertFalse(remote.contains("Modifier.size(48.dp)"))
-        assertTrue(cover.contains("awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }"))
+        assertTrue(cover.contains("while (true) awaitPointerEvent()"))
+        assertFalse(cover.contains("consume()"))
         assertTrue(cover.indexOf(".pointerInput(Unit)") < cover.indexOf(".padding(top = topBarHeight"))
     }
     @Test

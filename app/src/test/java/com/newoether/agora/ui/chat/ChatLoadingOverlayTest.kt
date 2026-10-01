@@ -74,6 +74,30 @@ class ChatLoadingOverlayTest {
         }
     }
 
+    @Test fun coverLetsAncestorDrawerSwipeThroughButStillBlocksCoveredContent() {
+        var drawerTravel = 0f
+        var contentTravel = 0f
+        var clicks = 0
+        compose.setContent {
+            MaterialTheme {
+                // The ancestor draggable stands in for the navigation drawer's open gesture.
+                Box(Modifier.size(300.dp, 600.dp).testTag("body")
+                    .draggable(rememberDraggableState { drawerTravel += it }, Orientation.Horizontal)) {
+                    Box(Modifier.fillMaxSize()
+                        .combinedClickable(onClick = { clicks++ })
+                        .draggable(rememberDraggableState { contentTravel += it }, Orientation.Horizontal))
+                    ChatSwitchingOverlay(true, false, 64.dp, 100.dp)
+                }
+            }
+        }
+        compose.onNodeWithTag("body").performTouchInput { click(); swipeRight() }
+        compose.runOnIdle {
+            assertEquals(0, clicks)
+            assertEquals(0f, contentTravel)
+            assertTrue(drawerTravel > 0f)
+        }
+    }
+
     @Test fun circleCentersBetweenLiveTopAndComposerBoundsAndNewChatHasNoCover() {
         var bottom by mutableStateOf(100.dp)
         var newChat by mutableStateOf(false)

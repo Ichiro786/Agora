@@ -38,7 +38,7 @@ class DrawerSearchLoadingSourceContractTest {
         val searchBar = source("ui/chat/search/DrawerSearchBar.kt")
         val searchResultItem = source("ui/chat/search/ChatSearchResultItem.kt")
 
-        assertTrue(dao.contains("SELECT id, title, systemPromptId, modelId, taskId, origin, graduated, hasUnreadGeneration, selectedBranchesJson FROM conversations"))
+        assertTrue(dao.contains("SELECT id, title, systemPromptId, modelId, taskId, origin, graduated, hasUnreadGeneration, isPinned, selectedBranchesJson FROM conversations"))
         assertTrue(dao.contains("fun getAllConversations(): Flow<List<ChatConversation>>"))
         assertFalse(dao.contains("SELECT * FROM conversations WHERE taskId IS NULL ORDER BY lastUpdated DESC"))
         assertTrue(repository.contains("fun getAllConversations(): Flow<List<ChatConversation>> = chatDao.getAllConversations()"))
@@ -62,7 +62,8 @@ class DrawerSearchLoadingSourceContractTest {
         assertTrue(drawer.contains("state = searchListState"))
         assertTrue(drawer.split("LazyColumn(").size - 1 == 2)
         assertTrue(drawer.contains("key = { \"search:\${it.key}\" }"))
-        assertTrue(drawer.contains("key = { \"conversation:\${it.id}\" }"))
+        assertTrue(drawer.contains("key = { it },"))
+        assertTrue(drawer.contains("add(\"conversation:\${it.id}\")"))
         assertTrue(drawer.split("fadeInSpec = null").size - 1 == 1)
         assertTrue(drawer.split("fadeOutSpec = tween(180)").size - 1 == 1)
         val normalizedDrawer = drawer.replace("\r\n", "\n")
@@ -81,13 +82,13 @@ class DrawerSearchLoadingSourceContractTest {
         assertTrue(numericReorderAnchorBlock.contains("!search.isActive"))
         assertTrue(
             numericReorderAnchorBlock.contains(
-                "conversationListState.layoutInfo.totalItemsCount == conversations.size",
+                "conversationListState.layoutInfo.totalItemsCount == conversationKeys.size",
             ),
         )
         assertTrue(numericReorderAnchorBlock.contains("indexedConversationId != firstVisibleConversationId"))
         assertTrue(
             numericReorderAnchorBlock.contains(
-                "conversations.any { it.id == firstVisibleConversationId }",
+                "firstVisibleConversationId in conversationKeys",
             ),
         )
         assertTrue(numericReorderAnchorBlock.contains("firstVisibleIndex,"))

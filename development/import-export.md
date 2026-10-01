@@ -26,6 +26,11 @@ the exact development boundary. Current explicit user requirements override olde
 Adding a DataStore key does not make it portable. A setting enters an archive only after this
 contract, export, restore, Replace reset, and focused compatibility tests are updated together.
 
+Conversation `isPinned` is portable conversation metadata, not a Settings field. Native conversation
+export and import preserve it; archives without the field default to false. Pin/Unpin advances the
+conversation's `dataChangedAt` watermark atomically, so incremental backups cannot reuse a stale pin
+value. Pinning does not change `lastUpdated`, the message graph, drafts or device-local unread state.
+
 ## 2. Archive envelope and categories
 
 The native format is a ZIP containing `manifest.json`. The manifest records

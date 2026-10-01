@@ -35,6 +35,12 @@ internal class ConversationLifecycleController(
         }
     }
 
+    fun setPinned(conversationId: String, pinned: Boolean) {
+        scope.launch(ioDispatcher) {
+            conversations.setConversationPinned(conversationId, pinned)
+        }
+    }
+
     fun delete(
         origin: ChatClient,
         conversationId: String,

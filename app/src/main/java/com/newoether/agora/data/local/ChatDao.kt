@@ -31,7 +31,7 @@ interface ChatDao :
     ChatMediaReferencesDao,
     NewChatPersistDao {
     // Task executions always remain in their owning Task's History.
-    @Query("SELECT id, title, systemPromptId, modelId, taskId, origin, graduated, hasUnreadGeneration, selectedBranchesJson FROM conversations WHERE taskId IS NULL ORDER BY lastUpdated DESC")
+    @Query("SELECT id, title, systemPromptId, modelId, taskId, origin, graduated, hasUnreadGeneration, isPinned, selectedBranchesJson FROM conversations WHERE taskId IS NULL ORDER BY lastUpdated DESC")
     fun getAllConversations(): Flow<List<ChatConversation>>
 
     @Query("SELECT * FROM conversations WHERE taskId = :taskId ORDER BY lastUpdated DESC")
@@ -132,6 +132,15 @@ interface ChatDao :
 
     @Query("UPDATE conversations SET title = :title, dataChangedAt = :at WHERE id = :conversationId")
     suspend fun updateConversationTitle(conversationId: String, title: String, at: Long): Int
+
+    @Query(
+        """
+        UPDATE conversations
+        SET isPinned = :pinned, dataChangedAt = MAX(dataChangedAt + 1, :at)
+        WHERE id = :conversationId AND taskId IS NULL AND isPinned != :pinned
+        """
+    )
+    suspend fun setConversationPinned(conversationId: String, pinned: Boolean, at: Long): Int
 
     @Query(
         """

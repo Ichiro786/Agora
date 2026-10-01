@@ -170,6 +170,23 @@ class NativeConversationGraphImportContractTest {
     }
 
     @Test
+    fun pinStateRestoresFromArchiveAndDefaultsToUnpinned() = runTest {
+        val pinnedOne = """{"id":"c1","title":"One","lastUpdated":11,"isPinned":true}"""
+        val source = FakeEntries(
+            mapOf(
+                NativeBackupFormat.CONVERSATIONS_ENTRY to
+                    """{"conversations":[$pinnedOne,$convTwo],"runs":[],"messages":[],""" +
+                        """"loops":[],"tasks":[]}""",
+            ),
+        )
+        val headers = headersFor(source, version = 4, strategy = ImportStrategy.REPLACE)
+        assertEquals(
+            mapOf("c1" to true, "c2" to false),
+            headers.conversations.associate { it.id to it.isPinned },
+        )
+    }
+
+    @Test
     fun mergeHeadersIncludeExistingConversations() = runTest {
         val chatDao = mockk<ChatDao>()
         coEvery { chatDao.getAllConversationIds() } returns listOf("old-conv")

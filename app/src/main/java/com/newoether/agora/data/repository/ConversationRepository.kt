@@ -153,6 +153,9 @@ class ConversationRepository(
     suspend fun updateConversationTitle(id: String, title: String): Boolean =
         chatDao.updateConversationTitle(id, title, System.currentTimeMillis()) == 1
 
+    suspend fun setConversationPinned(id: String, pinned: Boolean): Boolean =
+        chatDao.setConversationPinned(id, pinned, System.currentTimeMillis()) == 1
+
     suspend fun setConversationUnreadGeneration(
         id: String,
         unread: Boolean,

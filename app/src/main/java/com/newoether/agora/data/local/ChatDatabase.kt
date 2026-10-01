@@ -50,7 +50,7 @@ abstract class ChatDatabase : RoomDatabase() {
     abstract fun semanticIndexDao(): SemanticIndexDao
 
     companion object {
-        const val CURRENT_VERSION = 35
+        const val CURRENT_VERSION = 36
         const val DB_NAME = "agora_db"
 
         val ALL_MIGRATIONS = listOf(
@@ -198,6 +198,11 @@ abstract class ChatDatabase : RoomDatabase() {
             MIGRATION_32_33,
             MIGRATION_33_34,
             MIGRATION_34_35,
+            object : Migration(35, 36) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE conversations ADD COLUMN isPinned INTEGER NOT NULL DEFAULT 0")
+                }
+            },
         )
 
         fun inspectCompatibility(context: Context): DatabaseCompatibility {

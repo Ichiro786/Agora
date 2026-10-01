@@ -126,6 +126,7 @@ data class ChatEntity(
     val selectedRunBranchesJson: String? = null,
     /** True after a completed model generation until this conversation becomes the open target. */
     val hasUnreadGeneration: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val isPinned: Boolean = false,
 )
 
 /** A saved automation: a prompt + schedule that fans out a fresh conversation on each run. */

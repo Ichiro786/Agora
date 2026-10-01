@@ -593,6 +593,9 @@ class ChatViewModel(
     fun renameConversation(id: String, newTitle: String) =
         chatRuntime.conversationLifecycle.rename(id, newTitle)
 
+    fun setConversationPinned(id: String, pinned: Boolean) =
+        chatRuntime.conversationLifecycle.setPinned(id, pinned)
+
     fun generateTitle(conversationId: String) =
         generationController.generateTitle(conversationId, phoneClient)
 

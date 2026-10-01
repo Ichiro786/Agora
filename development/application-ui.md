@@ -48,7 +48,8 @@ validation, persistence, or completion semantics.
 Ordinary ChatApp and Android Remote chat circular loading covers must block touch input to covered
 content throughout their visible enter, loading and exit lifetime. Taps, long presses and drags must
 not activate or scroll the content beneath them; a painted background alone is not an input barrier.
-The cover consumes gestures that start while it is present. Immediate cancellation of gestures
+The cover is the topmost hit target for gestures that start while it is present, but it does not
+consume them, so ancestor gestures such as the navigation drawer swipe still work. Immediate cancellation of gestures
 already held before the cover appears is not required. Do not dispatch window-wide cancellation
 or introduce a global input owner for this cover.
 The existing content-area cover owns this exclusion, without a Remote-wide or separate interception
@@ -279,6 +280,20 @@ The conversation drawer observes only the conversation fields required by naviga
 Conversation search exposes a separate in-flight state from the moment a nonblank query is accepted through debounce and the existing literal/semantic query. Its circular indicator fades in and out in the search field, does not alter query debounce or ranking, and cancellation, clearing, or failure cannot leave a stuck indicator. The retained prior result may remain visible while a new query is pending.
 
 The drawer's first-list state is not a second conversation authority or a new search architecture; Room remains the durable source and the existing search methods remain authoritative.
+
+Drawer long press offers a push-pin `Pin` action, replaced by `Unpin` for a pinned conversation.
+Below the existing search, navigation and New Chat controls, the same scrolling list shows a `Pinned`
+heading and pinned rows before ordinary conversations. Empty Pinned is hidden; ordinary rows have a
+`Conversations` heading only when both groups exist. Rows occur once and retain recent-updated-first
+order within each group, stable identity, selection, indicators, menus and motion. Search is unchanged.
+Room conversation `isPinned` is default false, survives restart and travels with native backups.
+Its atomic narrow write advances `dataChangedAt`, not `lastUpdated`, drafts, graph, Run or unread state.
+The canonical drawer's numeric anchors and measured counts include section headings. New Chat first
+Send still waits for the first recent-updated conversation and scrolls the same list to absolute top,
+including Pinned when present. Pin (not Unpin) uses the same feedback scroll to absolute top once the
+list shows the row pinned, skipped during search and abandoned after 2 s if the write never lands.
+Section headings align with the 16 dp row text inset. Pinned has 8 dp
+top space; Conversations has 12 dp to separate it from the last pinned row.
 
 The conversation and search-result lists share one edge-fade state rule. The top edge is treated as reached while item `0` is first visible and its scroll offset is at most `2 dp`. The bottom edge is treated as reached for an empty list, or while the final visible item's end is no more than `2 dp` beyond the viewport end. The corresponding fade remains hidden inside that tolerance and appears only after content crosses it. This tolerance changes state judgment only; it does not add or modify list content padding, outer Drawer padding, list geometry, or programmatic scroll targets.
 

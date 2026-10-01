@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -191,11 +190,11 @@ internal fun ChatSwitchingOverlay(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
+                // Being the topmost hit target keeps touches away from the covered sibling content.
+                // Events are not consumed, so ancestor gestures such as the drawer swipe still work.
                 .pointerInput(Unit) {
                     awaitPointerEventScope {
-                        while (true) {
-                            awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
-                        }
+                        while (true) awaitPointerEvent()
                     }
                 }
                 .padding(top = topBarHeight, bottom = bottomBarHeight),
