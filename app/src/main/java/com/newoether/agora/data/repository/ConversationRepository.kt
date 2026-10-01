@@ -44,7 +44,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class ConversationRepository(
-    private val chatDao: ChatDao,
+    internal val chatDao: ChatDao,
     /** Non-null in production; null is an explicit DAO-isolated unit-test seam. */
     private val database: ChatDatabase?,
     private val scheduleMaintenance: () -> Unit = { MaintenanceDebtWorker.schedule() },
@@ -157,16 +157,6 @@ class ConversationRepository(
         id: String,
         unread: Boolean,
     ): Boolean = chatDao.setConversationUnreadGeneration(id, unread) == 1
-
-    suspend fun replaceConfiguredModelReferences(
-        oldModelId: String,
-        newModelId: String?,
-    ) = chatDao.replaceConfiguredModelReferences(oldModelId, newModelId)
-
-    suspend fun renameConfiguredProviderModelReferences(
-        oldProvider: String,
-        newProvider: String,
-    ) = chatDao.renameConfiguredProviderModelReferences(oldProvider, newProvider)
 
     suspend fun updateConversationTitleIfUnchanged(
         id: String,

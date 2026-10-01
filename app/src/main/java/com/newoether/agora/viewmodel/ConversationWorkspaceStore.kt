@@ -1,4 +1,5 @@
 package com.newoether.agora.viewmodel
+import com.newoether.agora.data.repository.updateConversationModel
 
 import com.newoether.agora.data.ConversationSettings
 import com.newoether.agora.data.local.NewChatPersistEntity
@@ -170,7 +171,9 @@ internal class ConversationWorkspaceStore(
         if (ownerId == NEW_CHAT_WORKSPACE_ID) {
             enqueueNewChatUpdate { it.copy(modelId = modelId) }
         } else {
-            updateConversation(ownerId) { it.copy(modelId = modelId) }
+            scope.launch(ioDispatcher) {
+                conversationMutationMutex.withLock { conversations.updateConversationModel(ownerId, modelId) }
+            }
         }
     }
 

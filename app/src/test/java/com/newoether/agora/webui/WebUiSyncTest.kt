@@ -107,6 +107,9 @@ class WebUiSyncTest {
         coEvery { send(any(), any(), any()) } just Runs
         coEvery { edit(any(), any(), any()) } just Runs
         coEvery { cancelWaiting(any(), any()) } just Runs
+        coEvery { selectModel(any(), any(), any()) } just Runs
+        coEvery { removeQueued(any(), any()) } just Runs
+        coEvery { sendQueued(any(), any()) } just Runs
         every { stop(any()) } just Runs
         coEvery { open(any(), any()) } answers {
             this@WebUiSyncTest.openTarget.value =
@@ -128,6 +131,15 @@ class WebUiSyncTest {
         send("""{"type":"cancel_waiting","seq":7,"actionId":9}""")
         coVerify(exactly = 1) { session.edit("later edit", 3L, 7L) }
         coVerify(exactly = 1) { session.cancelWaiting(7L, 9L) }
+    }
+    @Test
+    fun modelAndQueueCommandsKeepTheirExactTargetIdentity() = sync { send, _ ->
+        send("""{"type":"model","modelId":"provider:model","seq":4,"actionId":7}""")
+        send("""{"type":"remove_queued","queuedId":"queue-id","seq":4}""")
+        send("""{"type":"send_queued","seq":4,"actionId":8}""")
+        coVerify(exactly = 1) { session.selectModel("provider:model", 4L, 7L) }
+        coVerify(exactly = 1) { session.removeQueued("queue-id", 4L) }
+        coVerify(exactly = 1) { session.sendQueued(4L, 8L) }
     }
 
     @Test

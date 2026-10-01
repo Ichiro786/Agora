@@ -85,6 +85,8 @@ interface ChatDao :
 
     @Upsert
     suspend fun upsertConversation(conversation: ChatEntity)
+    @Query("UPDATE conversations SET modelId = :modelId, dataChangedAt = MAX(dataChangedAt + 1, :at) WHERE id = :conversationId")
+    suspend fun updateConversationModel(conversationId: String, modelId: String?, at: Long): Int
 
     /**
      * Marks exported conversation data as changed. The value always moves forward, so an

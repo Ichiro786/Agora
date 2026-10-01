@@ -927,6 +927,13 @@ the input and asks the reader to check the conversation before sending again.
 Runtime accepted-input scroll requests carry the exact open sequence and committed message ID.
 The existing MessageList bottom-follow owner consumes them only when that message is on the ready
 path; queue admission alone does not move the reader. User input releases bottom following as before.
+The model picker uses the phone's valid-model catalog, provider/API-name order, aliases and provider
+name visibility. Existing conversations share one field-specific Room model write with the phone;
+it cannot replace drafts, branch selections or other conversation fields. Browser New Chat model
+selection remains session-local. Ordered model commands settle before the next browser Send tap.
+Queue rows mirror ComposerStatusColumn/QueuedMessageRow: chronological text, attachment count and
+exact-ID removal. An idle empty composer sends its remaining queue through the existing runtime
+drain; an empty composer during generation still stops. No separate queue execution path is added.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.

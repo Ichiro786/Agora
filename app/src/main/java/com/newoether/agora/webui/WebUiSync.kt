@@ -43,6 +43,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * Chat state mirror and command entry for one WebUI connection.
@@ -115,6 +118,13 @@ internal class WebUiSync(
                                             it.conversationId, it.snapshot.phase.name, it.snapshot.acceptedVersion,
                                             it.seq, it.text, it.editRevision, it.actionId, it.modelValid,
                                             it.generating, it.stopping,
+                                            it.modelId, it.models, it.queue.map { queued ->
+                                                buildJsonObject {
+                                                    put("id", queued.id)
+                                                    put("text", queued.text)
+                                                    put("attachmentCount", queued.attachments.size)
+                                                }
+                                            },
                                         )
                                     }.distinctUntilChanged().collect { outbound.send(it) }
                             }
@@ -138,6 +148,9 @@ internal class WebUiSync(
                         COMMAND_SEND -> session.send(command.text.orEmpty(), command.seq, command.actionId)
                         COMMAND_CANCEL_WAITING -> session.cancelWaiting(command.seq, command.actionId)
                         COMMAND_STOP -> session.stop(command.seq)
+                        COMMAND_MODEL -> session.selectModel(command.modelId.orEmpty(), command.seq, command.actionId)
+                        COMMAND_REMOVE_QUEUED -> session.removeQueued(command.queuedId.orEmpty(), command.seq)
+                        COMMAND_SEND_QUEUED -> session.sendQueued(command.seq, command.actionId)
                     }
                 }
             } finally {
@@ -272,6 +285,9 @@ internal class WebUiSync(
         const val COMMAND_STOP = "stop"
         const val COMMAND_DRAFT = "draft"
         const val COMMAND_CANCEL_WAITING = "cancel_waiting"
+        const val COMMAND_MODEL = "model"
+        const val COMMAND_REMOVE_QUEUED = "remove_queued"
+        const val COMMAND_SEND_QUEUED = "send_queued"
 
         /** Upper bound on rows one browser may subscribe to at a time. */
         const val MAX_WATCHED = 48
@@ -368,6 +384,8 @@ internal data class WebSyncCommand(
     val text: String? = null,
     val revision: Long = 0L,
     val actionId: Long = 0L,
+    val modelId: String? = null,
+    val queuedId: String? = null,
 )
 
 @Serializable
@@ -422,6 +440,7 @@ internal sealed interface WebSyncEvent {
         val conversationId: String?, val phase: String, val acceptedVersion: Long,
         val seq: Long, val text: String, val editRevision: Long, val actionId: Long,
         val modelValid: Boolean, val generating: Boolean, val stopping: Boolean,
+        val modelId: String, val models: Map<String, String>, val queue: List<JsonObject>,
     ) : WebSyncEvent
 
     @Serializable @SerialName("snackbar")
