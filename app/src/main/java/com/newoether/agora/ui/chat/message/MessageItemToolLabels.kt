@@ -148,6 +148,9 @@ internal fun Resources.toolSummary(segment: MessageSegment): String {
 }
 
 internal fun Resources.toolSummary(presentation: ToolPresentation): String {
+    if (presentation.state == ToolPresentationState.FAILED) {
+        toolFailureReasonSummary(presentation.errorMessage)?.let { return it }
+    }
     if (presentation.kind == ToolKind.SHELL_EXECUTE) {
         return this.shellToolSummary(presentation)
     }
@@ -355,12 +358,24 @@ internal fun Resources.shellToolSummary(presentation: ToolPresentation): String 
     }
 
 private fun Resources.shellFailureSummary(status: ShellPresentationStatus.Failed): String {
-    val detail = status.message?.takeIf { it.isNotBlank() }?.take(160)
+    val detail = toolFailureReasonSummary(status.message)
     return when {
-        detail != null -> getString(R.string.tool_shell_failed_with_reason, detail)
-        status.code != null -> getString(R.string.tool_shell_returned_exit_code, status.code)
+        detail != null -> detail
         else -> getString(R.string.tool_shell_failed)
     }
+}
+
+internal fun toolFailureReasonSummary(message: String?): String? {
+    var reason = message?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    reason = reason.replace(Regex("^Error executing tool '[^']+':\\s*", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("^Error:\\s*", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("\\s+"), " ").trim().removeSuffix(".")
+    if (reason.isBlank() || reason.equals("error", ignoreCase = true)) return null
+    val firstWord = reason.substringBefore(' ')
+    val naturalWord = firstWord.all { it.isLetter() } &&
+        firstWord.drop(1).none { it.isUpperCase() }
+    if (naturalWord) reason = reason.replaceFirstChar { it.uppercaseChar() }
+    return if (reason.length > 160) reason.take(159) + "\u2026" else reason
 }
 
 internal fun Resources.shellExecutionSummary(presentation: ToolPresentation): String =
@@ -576,7 +591,7 @@ private fun Resources.failedSummary(
     presentation: ToolPresentation,
     subject: String?,
 ): String {
-    val reason = presentation.errorMessage?.takeIf { it.isNotBlank() }?.take(160)
+    val reason = toolFailureReasonSummary(presentation.errorMessage)
     val target = subject?.takeIf { it.isNotBlank() }
     return when (presentation.kind) {
         ToolKind.MEMORY_READ, ToolKind.SKILL_READ, ToolKind.CONVERSATION_READ, ToolKind.FILE_READ ->

@@ -152,14 +152,20 @@ class MemoryToolProvider(
         name: String,
         arguments: String,
         ctx: GenerationContext,
-    ): String = withContext(Dispatchers.IO) {
+    ): String = executeOneShotResult(name, arguments, ctx).text
+
+    override suspend fun executeOneShotResult(
+        name: String,
+        arguments: String,
+        ctx: GenerationContext,
+    ): ToolExecutionResult = withContext(Dispatchers.IO) {
         val argsStr = arguments.ifBlank { "{}" }
         val args =
             Json.decodeFromString<Map<String, kotlinx.serialization.json.JsonElement>>(argsStr)
         fun arg(key: String): String =
             (args[key] as? JsonPrimitive)?.content ?: ""
 
-        when (name) {
+        ToolExecutionResult(when (name) {
             "list_memory_files" -> {
                 val files = memoryManager.listFiles()
                 if (files.isEmpty()) {
@@ -197,7 +203,10 @@ class MemoryToolProvider(
                 } else if (singleName.isNotEmpty()) {
                     memoryManager.readFile(singleName)
                 } else {
-                    "Error: No file name provided. Use 'name' for a single file or 'names' for multiple files."
+                    return@withContext ToolExecutionResult(
+                        "Error: No file name provided. Use 'name' for a single file or 'names' for multiple files.",
+                        isError = true,
+                    )
                 }
             }
 
@@ -217,7 +226,9 @@ class MemoryToolProvider(
                     "patch" -> {
                         val oldString = arg("old_string")
                         if (oldString.isEmpty()) {
-                            "Error: patch requires a non-empty old_string."
+                            return@withContext ToolExecutionResult(
+                                "Error: patch requires a non-empty old_string.", isError = true,
+                            )
                         } else {
                             memoryManager.editFile(
                                 name = fileName,
@@ -229,7 +240,9 @@ class MemoryToolProvider(
                     "rename" -> {
                         val newName = arg("new_name").takeIf(String::isNotBlank)
                         if (newName == null) {
-                            "Error: rename requires a non-blank new_name."
+                            return@withContext ToolExecutionResult(
+                                "Error: rename requires a non-blank new_name.", isError = true,
+                            )
                         } else {
                             memoryManager.editFile(
                                 name = fileName,
@@ -241,7 +254,9 @@ class MemoryToolProvider(
                         name = fileName,
                         description = arg("description"),
                     )
-                    else -> "Error: operation must be replace, patch, rename, or describe."
+                    else -> return@withContext ToolExecutionResult(
+                        "Error: operation must be replace, patch, rename, or describe.", isError = true,
+                    )
                 }
             }
 
@@ -252,14 +267,16 @@ class MemoryToolProvider(
                 val oldStr = arg("old_string").ifBlank { null }
                 val newStr = arg("new_string").ifBlank { null }
                 if (mode == "patch" && oldStr == null) {
-                    "Error: 'old_string' is required for patch mode."
+                    return@withContext ToolExecutionResult(
+                        "Error: 'old_string' is required for patch mode.", isError = true,
+                    )
                 } else {
                     memoryManager.updateActiveMemory(arg("content"), mode, oldStr, newStr)
                 }
             }
 
-            else -> "Unknown tool: $name"
-        }
+            else -> return@withContext ToolExecutionResult("Unknown tool: $name", isError = true)
+        })
     }
 
     override fun handles(name: String): Boolean = name in setOf(

@@ -103,7 +103,7 @@ class ToolDetailPresentationTest {
     }
 
     @Test @Config(qualifiers = "zh") fun composeFailureAndStopKeepLocalizedTerminalTextOnly() {
-        val current = mutableStateOf(segment("mcp_test", "legacy", ToolExecutionStates.FAILED).copy(toolResultText = "hidden result"))
+        val current = mutableStateOf(segment("mcp_test", "", ToolExecutionStates.FAILED))
         compose.setContent { MaterialTheme { ToolDetailContent(current.value) { _, _ -> } } }
         compose.onNodeWithText(resources.getString(R.string.tool_call_failed)).assertExists()
         compose.onNodeWithText("hidden result").assertDoesNotExist()

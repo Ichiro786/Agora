@@ -6,6 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.toList
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -268,6 +269,19 @@ class MemoryToolProviderTest {
             ),
         )
         verify { memoryManager.updateActiveMemory("placeholder", "patch", "foo", "bar") }
+    }
+
+    @Test
+    fun successfulErrorPrefixedReadAndValidationFailureHaveExplicitMetadata() = runTest {
+        every { memoryManager.readFile("notes.md") } returns "Error: documented example"
+        val success = provider.executeEvents("read_memory_file", """{"name":"notes.md"}""", enabled)
+            .toList().single() as ToolExecutionEvent.Completed
+        assertFalse(success.result.isError)
+        assertEquals("Error: documented example", success.result.text)
+        val failure = provider.executeEvents("read_memory_file", "{}", enabled)
+            .toList().single() as ToolExecutionEvent.Completed
+        assertTrue(failure.result.isError)
+        assertTrue(failure.result.text.contains("No file name"))
     }
 
     @Test

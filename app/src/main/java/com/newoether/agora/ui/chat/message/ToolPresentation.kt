@@ -98,7 +98,9 @@ internal object ToolPresentationResolver {
         val toolName = segment.toolName.orEmpty()
         val kind = kindFor(toolName)
         val resultElement = parseElement(
-            segment.toolStructuredResult ?: segment.toolResult,
+            segment.toolStructuredResult ?: segment.toolResult.takeUnless {
+                kind == ToolKind.MEMORY_READ || kind == ToolKind.SKILL_READ || kind == ToolKind.MCP
+            },
         )
         val resultEnvelope = resultElement as? JsonObject
         val resultObject = effectiveResultObject(kind, resultEnvelope)
@@ -119,7 +121,7 @@ internal object ToolPresentationResolver {
         val count = semanticCount(kind, resultObject)
             ?: tolerantSemanticCount(kind, segment.toolStructuredResult ?: segment.toolResult)
         // Failure semantics are authoritative. A Conch error envelope, an explicit `failed` flag, a
-        // plain "Error ..." tool result, or a FAILED wire state must never render as an empty or
+        // FAILED wire state must never render as an empty or
         // completed card just because the payload has no readable content field. The one exception
         // is a provider-declared empty result (`no_results`), which is an explicit success even when
         // the protocol row carries a terminal FAILED state.
@@ -127,11 +129,9 @@ internal object ToolPresentationResolver {
         val failureCode = errorCode?.takeIf { it.isNotBlank() && !declaredEmpty }
         val failedFlag = resultObject.boolean("failed") == true ||
             resultEnvelope.boolean("failed") == true
-        val textFailure = segment.toolResult
-            ?.takeIf { it.startsWith("Error", ignoreCase = true) }
         val wireFailure = explicitState == ToolPresentationState.FAILED
         val failed = !declaredEmpty &&
-            (failureCode != null || failedFlag || textFailure != null || wireFailure)
+            (failureCode != null || failedFlag || wireFailure)
         val semanticEmpty = !failed && isSemanticEmpty(
             kind = kind,
             rawResult = segment.toolResult.orEmpty(),
@@ -146,8 +146,12 @@ internal object ToolPresentationResolver {
                 (resultObject.string("message") ?: resultEnvelope.string("message"))
                     ?.takeIf { it.isNotBlank() }
                     ?: code.replace('_', ' ')
-            } ?: textFailure ?: (resultObject.string("message") ?: resultEnvelope.string("message"))
+            } ?: (resultObject.string("message") ?: resultEnvelope.string("message"))
                 ?.takeIf { it.isNotBlank() }
+                ?: (segment.toolResultText ?: segment.toolResult)
+                    ?.takeIf {
+                        resultElement !is JsonObject && it.isNotBlank() && parseElement(it) == null
+                    }
         }
         val state = when {
             segment.toolResult == null -> explicitState ?: run {

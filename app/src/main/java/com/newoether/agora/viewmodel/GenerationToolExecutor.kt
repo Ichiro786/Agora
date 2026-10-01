@@ -269,15 +269,21 @@ internal fun appendBoundedToolOutput(
     else combined.takeLast(maxChars)
 }
 
-internal fun finalToolState(result: String): String {
-    if (result.isEmpty()) return ToolExecutionStates.EMPTY
+internal fun finalToolState(result: ToolExecutionResult, toolName: String): String {
+    val protocol = result.structuredContent ?: result.text.takeUnless {
+        toolName == "read_memory_file" || toolName == "read_skill_file" || toolName.startsWith("mcp_")
+    }
     val resultObject = runCatching {
-        Json.parseToJsonElement(result).jsonObject
+        Json.parseToJsonElement(protocol.orEmpty()).jsonObject
     }.getOrNull()
     val errorCode = (resultObject?.get("error") as? JsonPrimitive)?.content
     if (errorCode == "no_results") return ToolExecutionStates.EMPTY
-    if (result.startsWith("Error", ignoreCase = true) || errorCode != null) {
+    val failedFlag = (resultObject?.get("failed") as? JsonPrimitive)?.content == "true"
+    if (result.isError || failedFlag || !errorCode.isNullOrBlank()) {
         return ToolExecutionStates.FAILED
+    }
+    if (result.text.isEmpty() && result.structuredContent == null && result.images.isEmpty()) {
+        return ToolExecutionStates.EMPTY
     }
     val isBackground = (resultObject?.get("background") as? JsonPrimitive)
         ?.content

@@ -20,7 +20,9 @@ An exit code is a command result, not a tool failure. A completed shell call wit
 
 Display names use title case and contain no lifecycle state. Active summaries use sentence case, present-progressive wording, and a Unicode ellipsis. Completed summaries use sentence case and past tense with no terminal period. Empty summaries explicitly state that no result exists and never masquerade as ordinary completion.
 
-Failed summaries describe the attempted action before the subject, for example `Failed to read <path>`. A reliable server reason may be shown for shell, MCP, or unknown tools where no safe localized action summary exists. Stopped summaries use past tense. Background summaries state only that the job is running in the background and do not include its ID.
+Failed summaries show a concrete error reason directly whenever one is available. Remove generic `Error:` and tool-execution wrapper prefixes from the summary, capitalize the initial natural-language word, and preserve paths, identifiers and the original result/detail text. For example, `Error: command timeout` becomes `Command timeout`. Only failures without a concrete reason use a localized attempted-action fallback such as `Failed to read <path>`.
+
+Execution failure is declared by provider error metadata or a structured protocol error, never by the spelling of successful text. Memory and skill file bodies are arbitrary content, including bodies beginning with `Error` or containing JSON error fields. Stopped summaries use past tense. Background summaries state only that the job is running in the background and do not include its ID.
 
 Reliable subjects and counts are shown. An unavailable count is not zero and must use a count-free default. Paths, commands, file names, IDs explicitly required by an action, and user input preserve their original case. Summary text describes lifecycle only. Result content and compact detail status must not replace it.
 

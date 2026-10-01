@@ -29,7 +29,7 @@ class WebUiToolDetailTest {
             val shell = MessageSegment(type = "tool", toolName = "execute_shell_command", toolResult = "{\"exit_code\":2,\"output\":\"out\"}")
             val shared = resources.toolDetailPresentation(shell).body as ToolDetailBody.Shell
             assertEquals(WebToolBody.Shell(shared.status, shared.device, shared.error, shared.output), resources.webToolDetail(shell).body)
-            val failed = shell.copy(toolName = "mcp_test", toolState = ToolExecutionStates.FAILED, toolResultText = "not visible")
+            val failed = shell.copy(toolName = "mcp_test", toolState = ToolExecutionStates.FAILED)
             assertEquals(WebToolBody.Failed(resources.getString(R.string.tool_call_failed), null), resources.webToolDetail(failed).body)
         }
     }

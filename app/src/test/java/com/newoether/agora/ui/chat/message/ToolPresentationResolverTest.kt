@@ -647,13 +647,14 @@ class ToolPresentationResolverTest {
     }
 
     @Test
-    fun plainTextToolFailureFailsEvenForContentLessToolKinds() {
+    fun declaredPlainTextToolFailureFailsEvenForContentLessToolKinds() {
         val presentation = ToolPresentationResolver.resolve(
             MessageSegment(
                 type = "tool",
                 toolName = "file_read",
                 toolArgs = """{"path":"/tmp/x.txt"}""",
                 toolResult = "Error: unexpected end of stream",
+                toolState = ToolExecutionStates.FAILED,
             ),
         )
 
