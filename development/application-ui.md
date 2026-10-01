@@ -904,6 +904,17 @@ viewport anchors, scrim and blur, list/detail back and close, Escape, focus retu
 Motion snap. It stays on the selected message while a streaming frame hands off to its durable
 payload, preserving detail scroll and focus; switching conversations or removing the selected
 message dismisses it. The sheet keeps the selected message watched even when its row is off screen.
+WebUI chat actions (owner decisions, 2026-10-01). Each signed-in sync session is one `ChatClient`
+of the process-scoped `ChatRuntime`; browser Send, Stop, New Chat, queue, model and tool actions go
+through the same runtime owners as the phone and do not require the app to be in the foreground.
+The browser composer draft and the browser New Chat workspace (system prompt and tool toggles
+before the first send) belong to that browser session only and never overwrite the phone's
+persisted draft or New Chat workspace. An existing conversation's model and settings are shared:
+changing them in the browser changes that conversation for the phone too. New Chat creates the
+conversation on its first send, the phone's selected conversation stays independent, and Stop may
+stop a generation the phone started. Sending during a generation queues as on the phone. The top
+gradient blur may be a visual approximation; strict pixel parity with `GradientBlur.kt` is not
+required.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.

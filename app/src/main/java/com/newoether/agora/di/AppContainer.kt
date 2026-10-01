@@ -383,6 +383,20 @@ class AppContainer(
                 appContext = appContext,
             ),
             customProviders = settingsRepository.customProviders,
+            openChatSession = { scope ->
+                com.newoether.agora.webui.WebUiChatSession(
+                    generation = chatRuntime.messageGeneration,
+                    generationStop = chatRuntime.generationStop,
+                    clients = chatRuntime.clients,
+                    conversations = conversationRepository,
+                    registry = conversationStateRegistry,
+                    executionCoordinator = conversationExecutionCoordinator,
+                    settings = settingsRepository,
+                    transfers = conversationSettingsTransfers,
+                    attachmentProcessor = com.newoether.agora.viewmodel.AttachmentImportProcessor(application),
+                    scope = scope,
+                )
+            },
             display = kotlinx.coroutines.flow.combine(
                 settingsRepository.appLanguage,
                 settingsRepository.toolCallDisplayMode,

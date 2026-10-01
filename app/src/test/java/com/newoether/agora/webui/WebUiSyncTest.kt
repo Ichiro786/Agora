@@ -9,7 +9,10 @@ import com.newoether.agora.model.MessageStatus
 import com.newoether.agora.model.Participant
 import com.newoether.agora.model.ThinkingSegmentDisplayModes
 import com.newoether.agora.model.ToolCallDisplayModes
+import com.newoether.agora.viewmodel.ComposerSubmissionPhase
+import com.newoether.agora.viewmodel.ConversationComposerSubmissionSnapshot
 import com.newoether.agora.viewmodel.ConversationGenerationSnapshot
+import kotlinx.coroutines.flow.MutableSharedFlow
 import com.newoether.agora.viewmodel.ConversationGenerationState
 import com.newoether.agora.viewmodel.ConversationMessagePayloadHydration
 import com.newoether.agora.viewmodel.ConversationStateRegistry
@@ -89,6 +92,80 @@ class WebUiSyncTest {
             autoWrapCodeBlocks = false,
         ),
     )
+
+    private val openTarget = MutableStateFlow(WebUiChatSession.OpenTarget(null, browserSeq = 0L, movedByServer = false))
+    private val snackbars = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    private val composerState = MutableSharedFlow<WebUiChatSession.ComposerState>(extraBufferCapacity = 4)
+    private val session = mockk<WebUiChatSession> {
+        every { openTarget } returns this@WebUiSyncTest.openTarget
+        every { snackbars } returns this@WebUiSyncTest.snackbars
+        every { composerState } returns this@WebUiSyncTest.composerState
+        coEvery { start() } just Runs
+        coEvery { close() } just Runs
+        coEvery { send(any()) } just Runs
+        every { stop() } just Runs
+        coEvery { open(any(), any()) } answers {
+            this@WebUiSyncTest.openTarget.value =
+                WebUiChatSession.OpenTarget(firstArg(), secondArg(), movedByServer = false)
+        }
+    }
+
+    @Test
+    fun sendAndStopCommandsGoToTheConnectionSession() = sync { send, _ ->
+        send("""{"type":"send","text":"hello"}""")
+        send("""{"type":"stop"}""")
+        coVerify(exactly = 1) { session.start() }
+        coVerify(exactly = 1) { session.send("hello") }
+        verify(exactly = 1) { session.stop() }
+    }
+
+    @Test
+    fun aRuntimeMoveIsAnnouncedBeforeTheMovedConversationsEvents() = sync { send, received ->
+        send("""{"type":"open","conversationId":null,"seq":4}""")
+        received()
+        openTarget.value = WebUiChatSession.OpenTarget("a", browserSeq = 4L, movedByServer = true)
+        val events = received()
+        val opened = events.indexOfFirst { it.type == "opened" }
+        assertEquals("a", events[opened].string("conversationId"))
+        assertEquals("4", events[opened].string("seq"))
+        assertTrue(opened < events.indexOfFirst { it.type == "path" })
+    }
+
+    @Test
+    fun browserOpensAreNotEchoedAsMoves() = sync { send, received ->
+        send("""{"type":"open","conversationId":"a","seq":1}""")
+        val events = received()
+        assertTrue(events.none { it.type == "opened" })
+        assertEquals(listOf("root", "m1"), events.single { it.type == "path" }.ids())
+    }
+
+    @Test
+    fun snackbarsAndComposerPhasesAreForwarded() = sync { _, received ->
+        received()
+        snackbars.emit("No model selected")
+        composerState.emit(
+            WebUiChatSession.ComposerState(
+                conversationId = null,
+                snapshot = ConversationComposerSubmissionSnapshot(
+                    phase = ComposerSubmissionPhase.WAITING,
+                    acceptedVersion = 2L,
+                ),
+            ),
+        )
+        val events = received()
+        assertEquals("No model selected", events.single { it.type == "snackbar" }.string("message"))
+        val composer = events.single { it.type == "composer" }
+        assertEquals("WAITING", composer.string("phase"))
+        assertEquals("2", composer.string("acceptedVersion"))
+    }
+
+    @Test
+    fun closingTheConnectionClosesItsSession() = runTest {
+        val incoming = Channel<String>(Channel.UNLIMITED)
+        incoming.close()
+        webUiSync(StandardTestDispatcher(testScheduler)).serve(incoming) { }
+        coVerify(exactly = 1) { session.close() }
+    }
 
     @Test
     fun listThenOpenSendsTheSavedBranchAfterRecovery() = sync { send, received ->
@@ -199,16 +276,7 @@ class WebUiSyncTest {
     private fun sync(
         block: suspend TestScope.(send: suspend (String) -> Unit, received: () -> List<JsonObject>) -> Unit,
     ) = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val sync = WebUiSync(
-            conversations = conversations,
-            registry = registry,
-            executionCoordinator = ConversationExecutionCoordinator(),
-            hydration = hydration,
-            customProviders = MutableStateFlow(emptyList()),
-            display = display,
-            projectionDispatcher = dispatcher,
-        )
+        val sync = webUiSync(StandardTestDispatcher(testScheduler))
         val incoming = Channel<String>(Channel.UNLIMITED)
         val sent = Channel<String>(Channel.UNLIMITED)
         backgroundScope.launch { sync.serve(incoming) { sent.send(it) } }
@@ -223,6 +291,17 @@ class WebUiSyncTest {
             },
         )
     }
+
+    private fun webUiSync(dispatcher: kotlinx.coroutines.CoroutineDispatcher) = WebUiSync(
+        conversations = conversations,
+        registry = registry,
+        executionCoordinator = ConversationExecutionCoordinator(),
+        hydration = hydration,
+        customProviders = MutableStateFlow(emptyList()),
+        display = display,
+        openChatSession = { session },
+        projectionDispatcher = dispatcher,
+    )
 
     private val JsonObject.type: String get() = string("type")
 

@@ -21,7 +21,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -31,6 +30,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -44,9 +44,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * Read-only mirror of the chat state for one WebUI connection.
+ * Chat state mirror and command entry for one WebUI connection.
  *
- * Each connection chooses its own conversation; nothing here changes what the phone shows. The
+ * Each connection chooses its own conversation through its [WebUiChatSession]; nothing here
+ * changes what the phone shows. Send and Stop go to that session's runtime client. The
  * data follows the app's own loading rules: the list uses the drawer's narrow projection, opening
  * a conversation runs the same runtime recovery the app runs, the open conversation sends only
  * its selected-branch topology, and a message body is read only while the browser watches that
@@ -60,6 +61,8 @@ internal class WebUiSync(
     private val hydration: ConversationMessagePayloadHydration,
     private val customProviders: StateFlow<List<CustomProviderConfig>>,
     private val display: Flow<WebDisplayContext>,
+    /** Builds the [WebUiChatSession] of one connection inside that connection's scope. */
+    private val openChatSession: (CoroutineScope) -> WebUiChatSession,
     private val projectionDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     /**
@@ -90,23 +93,44 @@ internal class WebUiSync(
                     .collect { outbound.send(it) }
             }
             val watched = MutableStateFlow<Set<String>>(emptySet())
-            var open: Job? = null
-            for (text in incoming) {
-                val command = runCatching {
-                    json.decodeFromString(WebSyncCommand.serializer(), text)
-                }.getOrNull() ?: continue
-                when (command.type) {
-                    COMMAND_OPEN -> {
-                        open?.cancelAndJoin()
-                        watched.value = emptySet()
-                        open = command.conversationId?.let { id ->
-                            launch {
-                                openConversation(id, list.map { it.first }, watched, displayContext, outbound)
-                            }
+            val session = openChatSession(this)
+            try {
+                session.start()
+                launch { session.snackbars.collect { outbound.send(WebSyncEvent.Snackbar(it)) } }
+                launch {
+                    session.composerState
+                        .map { WebSyncEvent.Composer(it.conversationId, it.snapshot.phase.name, it.snapshot.acceptedVersion) }
+                        .distinctUntilChanged()
+                        .collect { outbound.send(it) }
+                }
+                // The session decides what is open; a runtime move (New Chat send, deletion) is
+                // announced before any event of the new target so the browser can follow it.
+                launch {
+                    session.openTarget.collectLatest { target ->
+                        if (target.movedByServer) {
+                            outbound.send(WebSyncEvent.Opened(target.conversationId, target.browserSeq))
+                        }
+                        target.conversationId?.let { id ->
+                            openConversation(id, list.map { it.first }, watched, displayContext, outbound)
                         }
                     }
-                    COMMAND_WATCH -> watched.value = command.messageIds.take(MAX_WATCHED).toSet()
                 }
+                for (text in incoming) {
+                    val command = runCatching {
+                        json.decodeFromString(WebSyncCommand.serializer(), text)
+                    }.getOrNull() ?: continue
+                    when (command.type) {
+                        COMMAND_OPEN -> {
+                            watched.value = emptySet()
+                            session.open(command.conversationId, command.seq)
+                        }
+                        COMMAND_WATCH -> watched.value = command.messageIds.take(MAX_WATCHED).toSet()
+                        COMMAND_SEND -> session.send(command.text.orEmpty())
+                        COMMAND_STOP -> session.stop()
+                    }
+                }
+            } finally {
+                session.close()
             }
             coroutineContext.cancelChildren()
         }
@@ -233,6 +257,8 @@ internal class WebUiSync(
         private const val TAG = "WebUiSync"
         const val COMMAND_OPEN = "open"
         const val COMMAND_WATCH = "watch"
+        const val COMMAND_SEND = "send"
+        const val COMMAND_STOP = "stop"
 
         /** Upper bound on rows one browser may subscribe to at a time. */
         const val MAX_WATCHED = 48
@@ -324,6 +350,9 @@ internal data class WebSyncCommand(
     val type: String,
     val conversationId: String? = null,
     val messageIds: List<String> = emptyList(),
+    /** The browser's open-request sequence, echoed in [WebSyncEvent.Opened]. */
+    val seq: Long = 0L,
+    val text: String? = null,
 )
 
 @Serializable
@@ -364,6 +393,20 @@ internal sealed interface WebSyncEvent {
 
     @Serializable @SerialName("load_failed")
     data class LoadFailed(val conversationId: String) : WebSyncEvent
+
+    /**
+     * The runtime moved this connection to [conversationId] (null is New Chat), for example after
+     * a New Chat send. [seq] is the browser open request it supersedes; a newer request wins.
+     */
+    @Serializable @SerialName("opened")
+    data class Opened(val conversationId: String?, val seq: Long) : WebSyncEvent
+
+    /** Submission phase of the composer the browser shows; [acceptedVersion] grows per accepted send. */
+    @Serializable @SerialName("composer")
+    data class Composer(val conversationId: String?, val phase: String, val acceptedVersion: Long) : WebSyncEvent
+
+    @Serializable @SerialName("snackbar")
+    data class Snackbar(val message: String) : WebSyncEvent
 }
 
 @Serializable

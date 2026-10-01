@@ -38,6 +38,11 @@ internal data class NewChatWorkspaceSnapshot(
     val modelId: String?,
     val systemPromptId: String?,
     val conversationSettings: ConversationSettings?,
+    /**
+     * True for a WebUI session's in-memory New Chat workspace. Its send must not touch the
+     * phone's persisted New Chat singleton, so admission carries no persist snapshot for it.
+     */
+    val sessionLocal: Boolean = false,
     private val pendingPersisted: CompletableDeferred<NewChatPersistEntity?>? = null,
 ) {
     suspend fun awaitCaptured(): NewChatWorkspaceSnapshot =

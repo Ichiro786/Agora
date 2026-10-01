@@ -161,7 +161,7 @@ class GenerationRequestBuilder(
             generationSnapshot = generationSnapshot,
             newConversation = conversationSnapshot.takeIf { target.wasNewChat },
             newConversationSettings = workspace?.conversationSettings,
-            newChatPersistSnapshot = if (target.wasNewChat) {
+            newChatPersistSnapshot = if (target.wasNewChat && workspace?.sessionLocal != true) {
                 (workspace?.persisted ?: NewChatPersistEntity()).copy(
                     draftText = composer.text,
                     draftAttachments = composer.attachments
