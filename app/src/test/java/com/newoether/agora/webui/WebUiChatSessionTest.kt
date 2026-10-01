@@ -65,7 +65,10 @@ import com.newoether.agora.model.AttachmentStorage
 
 class WebUiChatSessionTest {
     @get:Rule val temporary = TemporaryFolder()
-    private val uploadDirectory by lazy { temporary.newFolder("uploads") }
+    private val uploadDirectory by lazy { temporary.newFolder("private") }
+    private var imageOutput: String? = null
+    private var imageAttempts = 0
+    private val videoConfigs = CopyOnWriteArrayList<com.newoether.agora.viewmodel.VideoSliceConfig>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val conversations = mockk<ConversationRepository>(relaxed = true) {
@@ -135,9 +138,31 @@ class WebUiChatSessionTest {
         executionCoordinator = ConversationExecutionCoordinator(),
         settings = settings,
         transfers = mockk<ConversationSettingsTransferCoordinator>(relaxed = true),
-        attachmentProcessor = AttachmentImportProcessor(mockk<Application> {
-            every { filesDir } returns temporary.newFolder("private")
-        }),
+        attachmentProcessor = AttachmentImportProcessor(
+            mockk<Application> { every { filesDir } returns uploadDirectory },
+            normalizeImage = { _, owner ->
+                imageAttempts++
+                imageOutput?.also { AttachmentFiles.retainLivePath(requireNotNull(owner), it) }
+            },
+            measurePixels = { null },
+            readPdfPageCount = { 3 },
+            renderAllPdfPages = { _, _, progress, owner ->
+                (0..2).map { index ->
+                    File(uploadDirectory, "page-$index.jpg").also { file ->
+                        AttachmentFiles.retainLivePath(requireNotNull(owner), file.absolutePath)
+                        file.writeText("page $index")
+                    }.absolutePath.also { progress?.invoke(index + 1, 3) }
+                }
+            },
+            renderPdf = { _, pages, owner -> pages.orEmpty().sorted().map { index ->
+                File(uploadDirectory, "selected-$index.jpg").also {
+                    AttachmentFiles.retainLivePath(requireNotNull(owner), it.absolutePath)
+                    it.writeText("selected $index")
+                }.absolutePath
+            } },
+            readVideoDurationMs = { 15_000L },
+            extractVideoFrames = { _, config, _ -> videoConfigs += config; emptyList() },
+        ),
         scope = scope,
         uploadDirectory = uploadDirectory,
     ) }
@@ -228,6 +253,110 @@ class WebUiChatSessionTest {
         assertNull(inspect("application/octet-stream"))
         assertEquals(AttachmentStorage.LOCAL_SANDBOX_PENDING, inspect(null, sandbox = true)!!.storage)
         assertEquals("image", inspect(null, forced = "image")!!.type)
+    }
+
+    @Test
+    fun exactAttachmentCommandsRejectStaleIdsAndRetryThroughTheImporter() = runBlocking {
+        session.start()
+        session.upload(0, "photo.png", "image/png", null, 1, ByteReadChannel(byteArrayOf(1)))
+        val failed = withTimeout(TIMEOUT_MS) { session.composerState.first { it.attachments.singleOrNull()?.importState == AttachmentImportState.FAILED } }.attachments.single()
+        imageOutput = File(uploadDirectory, "img_ready.jpg").apply { writeText("raster") }.absolutePath
+        session.attachmentCommand(WebSyncCommand("attachment_retry", seq = 1, attachmentId = failed.localId))
+        session.attachmentCommand(WebSyncCommand("attachment_retry", attachmentId = "missing"))
+        assertEquals(1, imageAttempts)
+        session.attachmentCommand(WebSyncCommand("attachment_retry", attachmentId = failed.localId, actionId = 5))
+        val ready = withTimeout(TIMEOUT_MS) { session.composerState.first { it.attachments.singleOrNull()?.importState == AttachmentImportState.READY } }
+        assertEquals(failed.localId, ready.attachments.single().localId)
+        assertEquals(2, imageAttempts)
+        assertEquals(5L, ready.actionId)
+        assertTrue(session.previewAttachment(0, failed.localId, "source", 0) { file, mime ->
+            assertEquals("raster", file.readText())
+            assertEquals("image/jpeg", mime)
+        })
+        File(imageOutput!!).delete()
+        assertFalse(session.previewAttachment(0, failed.localId, "source", 0) { _, _ -> error("Missing artifact") })
+        session.attachmentCommand(WebSyncCommand("attachment_remove", seq = 1, attachmentId = failed.localId))
+        assertEquals(1, session.composerState.first().attachments.size)
+        session.attachmentCommand(WebSyncCommand("attachment_remove", attachmentId = failed.localId, actionId = 6))
+        assertTrue(session.composerState.first { it.actionId == 6L }.attachments.isEmpty())
+        assertFalse(session.previewAttachment(0, failed.localId, "source", 0) { _, _ -> error("Removed attachment") })
+    }
+
+    @Test
+    fun pdfAndVideoConfigurationUseExactProcessingMembershipAndValidateInputs() = runBlocking {
+        session.start()
+        session.upload(0, "doc.pdf", "application/pdf", null, 1, ByteReadChannel(byteArrayOf(1)))
+        val pdf = withTimeout(TIMEOUT_MS) { session.composerState.first { it.attachments.singleOrNull()?.preRenderedPaths?.size == 3 } }.attachments.single()
+        assertTrue(session.previewAttachment(0, pdf.localId, "page", 2) { file, _ -> assertEquals("page 2", file.readText()) })
+        assertFalse(session.previewAttachment(0, pdf.localId, "page", 3) { _, _ -> error("Out of range") })
+        for (pages in listOf(emptyList(), listOf(-1), listOf(3))) {
+            session.attachmentCommand(WebSyncCommand("attachment_pdf", attachmentId = pdf.localId, pages = pages))
+            assertNull(session.composerState.first().attachments.single().selectedPages)
+        }
+        session.attachmentCommand(WebSyncCommand("attachment_pdf", attachmentId = pdf.localId, pages = listOf(2, 0, 2)))
+        val configured = withTimeout(TIMEOUT_MS) { session.composerState.first { it.attachments.singleOrNull()?.importState == AttachmentImportState.READY } }.attachments.single()
+        assertEquals(setOf(0, 1), configured.selectedPages)
+        assertEquals(listOf("selected 0", "selected 2"), configured.preRenderedPaths!!.map { File(it).readText() })
+        session.attachmentCommand(WebSyncCommand("attachment_pdf", attachmentId = pdf.localId, pages = listOf(1)))
+        assertEquals(configured, session.composerState.first().attachments.single())
+        session.upload(0, "clip.mp4", "video/mp4", "video", 1, ByteReadChannel(byteArrayOf(1)))
+        val video = withTimeout(TIMEOUT_MS) { session.composerState.first { it.attachments.lastOrNull()?.videoDurationMs == 15_000L } }.attachments.last()
+        assertTrue(session.previewAttachment(0, video.localId, "source", 0) { _, mime -> assertEquals("video/mp4", mime) })
+        for ((frames, interval) in listOf(1 to 1000L, 3 to -1L, 3 to Long.MAX_VALUE)) {
+            session.attachmentCommand(WebSyncCommand("attachment_video", attachmentId = video.localId, frameCount = frames, intervalMs = interval))
+            assertNull(session.composerState.first().attachments.last().frameCount)
+        }
+        session.attachmentCommand(WebSyncCommand("attachment_video", attachmentId = video.localId, frameCount = 3, intervalMs = 5000))
+        withTimeout(TIMEOUT_MS) { while (videoConfigs.isEmpty()) kotlinx.coroutines.delay(10) }
+        assertEquals(3, videoConfigs.single().frameCount)
+        assertEquals(5_000_000L, videoConfigs.single().intervalMicros)
+    }
+
+    @Test
+    fun previewPinsTheExactArtifactAcrossRemovalAndPropagatesStreamFailures() = runBlocking {
+        session.start()
+        imageOutput = File(uploadDirectory, "img_pin.jpg").apply { writeText("raster") }.absolutePath
+        session.upload(0, "photo.png", "image/png", null, 1, ByteReadChannel(byteArrayOf(1)))
+        val attachment = withTimeout(TIMEOUT_MS) { session.composerState.first { it.attachments.singleOrNull()?.importState == AttachmentImportState.READY } }.attachments.single()
+        for ((seq, kind, index) in listOf(Triple(1L, "source", 0), Triple(0L, "frame", 0), Triple(0L, "source", 1))) {
+            assertFalse(session.previewAttachment(seq, attachment.localId, kind, index) { _, _ -> error("Invalid preview") })
+        }
+        assertTrue(runCatching {
+            session.previewAttachment(0, attachment.localId, "source", 0) { _, _ -> throw java.io.IOException("Broken stream") }
+        }.exceptionOrNull() is java.io.IOException)
+        val entered = CompletableDeferred<Unit>()
+        val finish = CompletableDeferred<Unit>()
+        val preview = async { session.previewAttachment(0, attachment.localId, "source", 0) { file, _ ->
+            entered.complete(Unit)
+            finish.await()
+            assertEquals("raster", file.readText())
+        } }
+        withTimeout(TIMEOUT_MS) { entered.await() }
+        session.attachmentCommand(WebSyncCommand("attachment_remove", attachmentId = attachment.localId))
+        assertFalse(AttachmentFiles.deleteIfUnowned(File(imageOutput!!)))
+        finish.complete(Unit)
+        assertTrue(preview.await())
+        assertTrue(AttachmentFiles.deleteIfUnowned(File(imageOutput!!)))
+    }
+
+    @Test
+    fun previewRejectsPrivateRootEscapeAndDisconnectCancelsAnAdmittedStream() = runBlocking {
+        session.start()
+        imageOutput = temporary.newFile("outside.jpg").apply { writeText("outside") }.absolutePath
+        session.upload(0, "photo.png", "image/png", null, 1, ByteReadChannel(byteArrayOf(1)))
+        var attachment = withTimeout(TIMEOUT_MS) { session.composerState.first { it.attachments.singleOrNull()?.importState == AttachmentImportState.READY } }.attachments.single()
+        assertFalse(session.previewAttachment(0, attachment.localId, "source", 0) { _, _ -> error("Escaped root") })
+        session.attachmentCommand(WebSyncCommand("attachment_remove", attachmentId = attachment.localId))
+        imageOutput = File(uploadDirectory, "img_cancel.jpg").apply { writeText("raster") }.absolutePath
+        session.upload(0, "photo.png", "image/png", null, 1, ByteReadChannel(byteArrayOf(1)))
+        attachment = withTimeout(TIMEOUT_MS) { session.composerState.first { it.attachments.singleOrNull()?.importState == AttachmentImportState.READY } }.attachments.single()
+        val entered = CompletableDeferred<Unit>()
+        val preview = async { session.previewAttachment(0, attachment.localId, "source", 0) { _, _ -> entered.complete(Unit); kotlinx.coroutines.awaitCancellation() } }
+        withTimeout(TIMEOUT_MS) { entered.await() }
+        scope.coroutineContext[Job]!!.cancelAndJoin()
+        assertTrue(runCatching { preview.await() }.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+        session.close()
+        assertTrue(AttachmentFiles.deleteIfUnowned(File(imageOutput!!)))
     }
 
     @Test
@@ -399,15 +528,19 @@ class WebUiChatSessionTest {
         session.start()
         session.open("a", seq = 1L)
         withTimeout(TIMEOUT_MS) { session.composerState.first { it.modelValid } }
+        session.upload(1, "notes.txt", "text/plain", null, 5, ByteReadChannel("hello".toByteArray()))
+        val file = withTimeout(TIMEOUT_MS) { session.composerState.first { it.attachments.singleOrNull()?.importState == AttachmentImportState.READY } }.attachments.single()
         session.edit("tap text", revision = 1L, seq = 1L)
         session.send("tap text", seq = 1L, commandId = 2L)
         withTimeout(TIMEOUT_MS) { entered.await() }
+        session.attachmentCommand(WebSyncCommand("attachment_remove", seq = 1, attachmentId = file.localId, actionId = 3))
+        assertEquals(listOf(file.localId), session.composerState.first().attachments.map { it.localId })
         session.edit("later edit", revision = 2L, seq = 1L)
         accept.complete(Unit)
         val settled = withTimeout(TIMEOUT_MS) { session.composerState.first { it.snapshot.acceptedVersion == 1L } }
         assertEquals("later edit", settled.text)
         assertEquals(2L, settled.editRevision)
-        assertEquals(2L, settled.actionId)
+        assertEquals(3L, settled.actionId)
         coVerify(exactly = 1) { generation.sendMessage(any(), "tap text", any(), any(), session) }
     }
 

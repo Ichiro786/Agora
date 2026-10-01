@@ -366,6 +366,9 @@ class AppContainer(
             ),
             syncSession = { login, incoming, send -> webUiSync.serve(login, incoming, send) },
             upload = { login, id, seq, name, mime, type, size, input -> webUiSync.upload(login, id, seq, name, mime, type, size, input) },
+            previewAttachment = { login, connection, seq, id, kind, index, consume ->
+                webUiSync.previewAttachment(login, connection, seq, id, kind, index, consume)
+            },
             toolImages = com.newoether.agora.webui.WebUiToolImages(
                 directory = java.io.File(appContext.filesDir, "tool-media"),
                 loadMessage = { conversationId, messageId ->

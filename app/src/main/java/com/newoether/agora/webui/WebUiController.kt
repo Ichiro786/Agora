@@ -77,6 +77,7 @@ internal class WebUiController(
     /** Serves one `/api/sync` connection; [WebUiSync.serve] in production. */
     syncSession: suspend (String, ReceiveChannel<String>, suspend (String) -> Unit) -> Unit,
     upload: suspend (String, String, Long, String, String?, String?, Long?, io.ktor.utils.io.ByteReadChannel) -> io.ktor.http.HttpStatusCode,
+    previewAttachment: suspend (String, String, Long, String, String, Int, suspend (java.io.File, String) -> Unit) -> Boolean,
     private val hasher: WebUiPasswordHasher = WebUiPasswordHasher(),
     toolImages: WebUiToolImages? = null,
 ) {
@@ -91,6 +92,7 @@ internal class WebUiController(
         readAsset = ::readAsset,
         syncSession = syncSession,
         upload = upload,
+        previewAttachment = previewAttachment,
         themeCss = { theme?.toCss().orEmpty() },
         readAppFont = ::readAppFont,
         readMonoFont = ::readMonoFont,

@@ -44,6 +44,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -78,6 +80,14 @@ internal class WebUiSync(
         val session = connections[connectionId]?.takeIf { it.first == login }?.second
             ?: return io.ktor.http.HttpStatusCode.NotFound
         return session.upload(seq, name, mime, forcedType, size, input)
+    }
+
+    suspend fun previewAttachment(
+        login: String, connectionId: String, seq: Long, id: String, kind: String, index: Int,
+        consume: suspend (java.io.File, String) -> Unit,
+    ): Boolean {
+        val session = connections[connectionId]?.takeIf { it.first == login }?.second ?: return false
+        return session.previewAttachment(seq, id, kind, index, consume)
     }
     /**
      * Serves one connection until [incoming] closes. Commands arrive as JSON text; every event
@@ -139,6 +149,37 @@ internal class WebUiSync(
                                                     put("attachmentCount", queued.attachments.size)
                                                 }
                                             },
+                                            it.attachments.map { attachment ->
+                                                buildJsonObject {
+                                                    put("id", attachment.localId)
+                                                    put("type", attachment.type)
+                                                    put("name", attachment.fileName)
+                                                    put("state", attachment.importState.name)
+                                                    put("storage", attachment.storage.name)
+                                                    put("unavailable", attachment.unavailable)
+                                                    put("pageCount", attachment.pageCount)
+                                                    put("durationMs", attachment.videoDurationMs)
+                                                    put("frameCount", attachment.frameCount)
+                                                    put("intervalMs", attachment.sliceIntervalMs)
+                                                    put("staged", attachment.localPath != null)
+                                                    if (attachment.type == "file" && attachment.importState == com.newoether.agora.model.AttachmentImportState.READY &&
+                                                        attachment.storage == com.newoether.agora.model.AttachmentStorage.APP_PRIVATE && !attachment.unavailable) {
+                                                        put("text", attachment.preparedText)
+                                                    }
+                                                    attachment.selectedPages?.let { pages ->
+                                                        put("selectedPages", JsonArray(pages.sorted().map(::JsonPrimitive)))
+                                                    }
+                                                    put("pagePreviewCount", attachment.preRenderedPaths?.size ?: 0)
+                                                    put("framePreviewCount", attachment.processedFrames?.size ?: 0)
+                                                    attachment.videoDurationMs?.let { duration ->
+                                                        put("defaultFrameCount", com.newoether.agora.ui.chat.VideoSliceDefaults.defaultFrameCount(duration))
+                                                    }
+                                                    it.pdfProgress[attachment.localId]?.let { (done, total) ->
+                                                        put("previewDone", done)
+                                                        put("previewTotal", total)
+                                                    }
+                                                }
+                                            },
                                         )
                                     }.distinctUntilChanged().collect { outbound.send(it) }
                             }
@@ -165,6 +206,8 @@ internal class WebUiSync(
                         COMMAND_MODEL -> session.selectModel(command.modelId.orEmpty(), command.seq, command.actionId)
                         COMMAND_REMOVE_QUEUED -> session.removeQueued(command.queuedId.orEmpty(), command.seq)
                         COMMAND_SEND_QUEUED -> session.sendQueued(command.seq, command.actionId)
+                        "attachment_remove", "attachment_retry", "attachment_pdf", "attachment_video" ->
+                            session.attachmentCommand(command)
                     }
                 }
             } finally {
@@ -407,6 +450,10 @@ internal data class WebSyncCommand(
     val actionId: Long = 0L,
     val modelId: String? = null,
     val queuedId: String? = null,
+    val attachmentId: String? = null,
+    val pages: List<Int> = emptyList(),
+    val frameCount: Int? = null,
+    val intervalMs: Long? = null,
 )
 
 @Serializable
@@ -464,6 +511,7 @@ internal sealed interface WebSyncEvent {
         val seq: Long, val text: String, val editRevision: Long, val actionId: Long,
         val modelValid: Boolean, val generating: Boolean, val stopping: Boolean,
         val modelId: String, val models: Map<String, String>, val queue: List<JsonObject>,
+        val attachments: List<JsonObject> = emptyList(),
     ) : WebSyncEvent
 
     @Serializable @SerialName("snackbar")

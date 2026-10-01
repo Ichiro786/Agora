@@ -121,6 +121,7 @@ internal class WebUiChatSession(
         val models: Map<String, String> = emptyMap(),
         val queue: List<QueuedSend> = emptyList(),
         val attachments: List<SelectedAttachment> = emptyList(),
+        val pdfProgress: Map<String, Pair<Int, Int>> = emptyMap(),
     )
 
     private val target = MutableStateFlow(OpenTarget(null, browserSeq = 0L, movedByServer = false))
@@ -242,6 +243,7 @@ internal class WebUiChatSession(
                             activeModel.value?.takeIf { it.first == selected.conversationId }?.second.orEmpty(),
                             modelLabels.value, runtime?.queuedSends?.value.orEmpty().sortedBy(QueuedSend::createdAt),
                             draft.value.attachments,
+                            draft.value.pdfPreviewProgress,
                         )
                     }
                 }
@@ -320,6 +322,84 @@ internal class WebUiChatSession(
 
     fun stop(seq: Long = target.value.browserSeq) {
         if (seq == target.value.browserSeq) generationStop.stop(openId.value, this)
+    }
+
+    suspend fun attachmentCommand(command: WebSyncCommand) = ownerMutex.withLock {
+        if (closed || command.seq != target.value.browserSeq) return@withLock
+        try {
+            val owner = retainedOwner ?: return@withLock
+            if (submission.isFrozen(owner)) return@withLock
+            val id = command.attachmentId ?: return@withLock
+            val attachment = composers.state(owner).value.attachments.firstOrNull { it.localId == id }
+                ?: return@withLock
+            when (command.type) {
+                "attachment_remove" -> composers.remove(owner, id)
+                "attachment_retry" -> composers.retry(owner, id)
+                "attachment_pdf" -> {
+                    val pages = command.pages.toSet()
+                    if (attachment.type == "pdf" && attachment.importState == com.newoether.agora.model.AttachmentImportState.PROCESSING &&
+                        attachment.selectedPages == null && pages.isNotEmpty() && pages.all { it in 0 until (attachment.pageCount ?: 0) }) {
+                        composers.configurePdf(owner, id, pages)
+                    }
+                }
+                "attachment_video" -> {
+                    val frames = command.frameCount
+                    val interval = command.intervalMs
+                    if (attachment.type == "video" && attachment.importState == com.newoether.agora.model.AttachmentImportState.PROCESSING &&
+                        attachment.frameCount == null && frames != null && frames >= 2 && interval != null && interval in 0..Long.MAX_VALUE / 1000) {
+                        composers.configureVideo(owner, id, frames, interval)
+                    }
+                }
+            }
+        } finally {
+            actionId.value = command.actionId
+        }
+    }
+
+    /** Preview pins a canonical artifact for the response; neither HTTP nor the browser chooses a path. */
+    suspend fun previewAttachment(
+        seq: Long, id: String, kind: String, index: Int,
+        consume: suspend (File, String) -> Unit,
+    ): Boolean {
+        val work = scope.async {
+            val previewOwner = Any()
+            try {
+                val selected = ownerMutex.withLock {
+                    if (closed || seq != target.value.browserSeq || index < 0) return@withLock null
+                    val owner = retainedOwner ?: return@withLock null
+                    val attachment = composers.state(owner).value.attachments.firstOrNull { it.localId == id }
+                        ?.takeIf { !it.unavailable && it.storage == com.newoether.agora.model.AttachmentStorage.APP_PRIVATE }
+                        ?: return@withLock null
+                    val artifact = when (kind) {
+                        "page" -> attachment.takeIf { it.type == "pdf" }?.preRenderedPaths?.getOrNull(index)?.let { it to "image/jpeg" }
+                        "frame" -> attachment.takeIf { it.type == "video" }?.processedFrames?.getOrNull(index)?.let { it to "image/jpeg" }
+                        "source" -> if (index != 0) null else attachment.localPath?.let { path ->
+                            when (attachment.type) {
+                                "image" -> if (attachment.importState == com.newoether.agora.model.AttachmentImportState.READY) path to "image/jpeg" else null
+                                "video" -> attachment.mimeType?.takeIf { VIDEO_MIME.matches(it) }?.let { path to it }
+                                else -> null
+                            }
+                        }
+                        else -> null
+                    }
+                    artifact?.also { AttachmentFiles.retainLivePath(previewOwner, it.first) }
+                } ?: return@async false
+                withContext(Dispatchers.IO) {
+                    val file = try {
+                        val root = uploadDirectory.toPath().toRealPath()
+                        val path = File(selected.first).toPath().toRealPath()
+                        path.takeIf { it.startsWith(root) && it != root && it.toFile().isFile }?.toFile()
+                    } catch (_: java.io.IOException) {
+                        null
+                    } ?: return@withContext false
+                    consume(file, selected.second)
+                    true
+                }
+            } finally {
+                AttachmentFiles.releaseLivePaths(previewOwner)
+            }
+        }
+        return try { work.await() } finally { withContext(NonCancellable) { work.cancelAndJoin() } }
     }
 
     /** Pins the original Composer; HTTP work is cancelled with this connection, not the later selection. */
@@ -505,6 +585,7 @@ internal class WebUiChatSession(
 
     private companion object {
         const val SNACKBAR_BUFFER = 8
+        val VIDEO_MIME = Regex("video/[A-Za-z0-9.+-]+")
     }
 }
 

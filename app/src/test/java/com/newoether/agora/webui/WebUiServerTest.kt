@@ -7,6 +7,7 @@ import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.async
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -336,6 +337,68 @@ class WebUiServerTest {
         }
     }
 
+    @Test
+    fun attachmentPreviewAuthenticatesThenStreamsTheExactArtifactWithoutCaching() {
+        val file = temporary.newFile("preview.jpg").apply { writeText("raster") }
+        var calls = 0
+        webUi(previewAttachment = { _, connection, seq, id, kind, index, consume ->
+            calls++
+            assertEquals("tab", connection)
+            assertEquals(7L, seq)
+            assertEquals("pick", id)
+            assertEquals("source", kind)
+            assertEquals(0, index)
+            consume(file, "image/jpeg")
+            true
+        }) { auth ->
+            val path = "/api/attachments/tab/pick/source/0?seq=7"
+            assertEquals(HttpStatusCode.Forbidden, client.get(path).status)
+            val token = sessionToken()
+            suspend fun request(url: String, origin: String? = null) = client.get(url) {
+                header(HttpHeaders.Cookie, "${WebUiServer.SESSION_COOKIE}=$token")
+                header(HttpHeaders.Host, "localhost")
+                origin?.let { header(HttpHeaders.Origin, it) }
+            }
+            assertEquals(HttpStatusCode.Forbidden, request(path, "http://foreign.example").status)
+            for (invalid in listOf("source/bad?seq=7", "source/-1?seq=7", "source/0?seq=-1", "source/0", "other/0?seq=7")) {
+                assertEquals(HttpStatusCode.NotFound, request("/api/attachments/tab/pick/$invalid").status)
+            }
+            assertEquals(0, calls)
+            val response = request(path, "http://localhost")
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals("raster", response.bodyAsText())
+            assertEquals("image/jpeg", response.headers[HttpHeaders.ContentType])
+            assertEquals("6", response.headers[HttpHeaders.ContentLength])
+            assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+            assertEquals(1, calls)
+            auth.logout(token)
+            assertEquals(HttpStatusCode.Forbidden, request(path).status)
+            assertEquals(1, calls)
+        }
+    }
+
+    @Test
+    fun revocationCancelsTheAdmittedPreviewAndSettlesItsOwner() {
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val settled = kotlinx.coroutines.CompletableDeferred<Unit>()
+        webUi(previewAttachment = { _, _, _, _, _, _, _ ->
+            entered.complete(Unit)
+            try { kotlinx.coroutines.awaitCancellation() } finally { settled.complete(Unit) }
+        }) { auth ->
+            val token = sessionToken()
+            kotlinx.coroutines.coroutineScope {
+                val request = async {
+                    runCatching { client.get("/api/attachments/tab/pick/source/0?seq=7") {
+                        header(HttpHeaders.Cookie, "${WebUiServer.SESSION_COOKIE}=$token")
+                    } }
+                }
+                kotlinx.coroutines.withTimeout(5000) { entered.await() }
+                auth.logout(token)
+                kotlinx.coroutines.withTimeout(5000) { settled.await(); request.await() }
+            }
+        }
+    }
+
     private fun imageMessage(file: File, size: Long) = ChatMessage(
         id = "m", text = "", participant = Participant.MODEL, status = MessageStatus.SUCCESS,
         segments = listOf(MessageSegment(type = "tool", toolName = "view_image", toolResult = "{}",
@@ -349,6 +412,8 @@ class WebUiServerTest {
         toolImages: WebUiToolImages? = null,
         upload: suspend (String, String, Long, String, String?, String?, Long?, io.ktor.utils.io.ByteReadChannel) -> HttpStatusCode =
             { _, _, _, _, _, _, _, _ -> HttpStatusCode.NotFound },
+        previewAttachment: suspend (String, String, Long, String, String, Int, suspend (File, String) -> Unit) -> Boolean =
+            { _, _, _, _, _, _, _ -> false },
         block: suspend ApplicationTestBuilder.(WebUiAuth) -> Unit,
     ) {
         val auth = WebUiAuth(passwordHash = { hash }, hasher = hasher, clock = { 0L })
@@ -359,6 +424,7 @@ class WebUiServerTest {
             clock = { 0L },
             toolImages = toolImages,
             upload = upload,
+            previewAttachment = previewAttachment,
         )
         testApplication {
             application { server.install(this) }

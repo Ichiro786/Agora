@@ -953,6 +953,13 @@ removes its lookup and reclaims abandoned session attachments through the existi
 cleanup. Queued or sent attachments keep their canonical ownership. Reconnect never replays uploads.
 Session-local draft retention uses the shared AttachmentFiles lifecycle in section23; it never
 persists a browser draft into the phone's Room draft merely to protect files.
+The browser attachment menu follows Camera, Photos, Videos and Files. Camera delegates to a native
+file input with capture; the browser decides whether to open the camera directly. Attachment status,
+retry/removal, PDF page selection and video slicing use the same Composer owners as Compose.
+Preview requests identify the authenticated live connection, captured selection sequence, attachment
+ID and artifact index, never a browser-supplied private file path. Files outside app-private storage,
+Local Sandbox assets, stale selections, unavailable attachments and revoked sessions are refused.
+Composer presentation lives in composer.js; shell.js remains the chat frame and popup presenter.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.

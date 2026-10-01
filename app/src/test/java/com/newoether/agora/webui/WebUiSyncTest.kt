@@ -47,6 +47,9 @@ import org.junit.Test
 import io.ktor.http.HttpStatusCode
 import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.cancelAndJoin
+import com.newoether.agora.model.SelectedAttachment
+import com.newoether.agora.model.AttachmentImportState
+import org.junit.Assert.assertFalse
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WebUiSyncTest {
@@ -114,6 +117,7 @@ class WebUiSyncTest {
         coEvery { selectModel(any(), any(), any()) } just Runs
         coEvery { removeQueued(any(), any()) } just Runs
         coEvery { sendQueued(any(), any()) } just Runs
+        coEvery { attachmentCommand(any()) } just Runs
         every { stop(any()) } just Runs
         coEvery { open(any(), any()) } answers {
             this@WebUiSyncTest.openTarget.value =
@@ -144,6 +148,46 @@ class WebUiSyncTest {
         coVerify(exactly = 1) { session.selectModel("provider:model", 4L, 7L) }
         coVerify(exactly = 1) { session.removeQueued("queue-id", 4L) }
         coVerify(exactly = 1) { session.sendQueued(4L, 8L) }
+    }
+
+    @Test
+    fun attachmentCommandsKeepTheExactIdSelectionAndConfiguration() = sync { send, _ ->
+        for (type in listOf("attachment_remove", "attachment_retry", "attachment_pdf", "attachment_video")) {
+            send("""{"type":"$type","seq":7,"attachmentId":"pick","actionId":9,"pages":[0,2],"frameCount":3,"intervalMs":5000}""")
+            coVerify(exactly = 1) { session.attachmentCommand(WebSyncCommand(type, seq = 7, actionId = 9, attachmentId = "pick", pages = listOf(0, 2), frameCount = 3, intervalMs = 5000)) }
+        }
+    }
+
+    @Test
+    fun attachmentProjectionIncludesStatusAndProgressButNoPrivatePaths() = sync { _, received ->
+        received()
+        composerState.emit(WebUiChatSession.ComposerState(null, ConversationComposerSubmissionSnapshot(),
+            attachments = listOf(SelectedAttachment(localId = "pdf", uri = "private-uri", type = "pdf", localPath = "private-source",
+                importState = AttachmentImportState.PROCESSING, pageCount = 3, preRenderedPaths = listOf("private-page")),
+                SelectedAttachment(uri = "private-video", type = "video", videoDurationMs = 15_000)),
+            pdfProgress = mapOf("pdf" to (1 to 3))))
+        val event = received().single { it.type == "composer" }
+        val pdf = event["attachments"]!!.jsonArray.first().jsonObject
+        assertEquals("pdf", pdf.string("id"))
+        assertEquals("PROCESSING", pdf.string("state"))
+        assertEquals("1", pdf.string("previewDone"))
+        assertEquals("3", pdf.string("previewTotal"))
+        assertEquals("1", pdf.string("pagePreviewCount"))
+        assertEquals("5", event["attachments"]!!.jsonArray.last().jsonObject.string("defaultFrameCount"))
+        assertFalse(event.toString().contains("private-"))
+    }
+
+    @Test
+    fun fileProjectionUsesOnlyCanonicalPreparedTextAndNeverSandboxOrUnavailableContent() = sync { _, received ->
+        received()
+        val file = SelectedAttachment(uri = "private-uri", type = "file", preparedText = "prepared text")
+        composerState.emit(WebUiChatSession.ComposerState(null, ConversationComposerSubmissionSnapshot(), attachments = listOf(
+            file, file.copy(unavailable = true, preparedText = "secret-unavailable"),
+            file.copy(storage = com.newoether.agora.model.AttachmentStorage.LOCAL_SANDBOX_RUNTIME, preparedText = "secret-sandbox"))))
+        val event = received().single { it.type == "composer" }
+        assertEquals("prepared text", event["attachments"]!!.jsonArray.first().jsonObject.string("text"))
+        assertFalse(event.toString().contains("secret-"))
+        assertFalse(event.toString().contains("private-"))
     }
 
     @Test
@@ -213,8 +257,15 @@ class WebUiSyncTest {
         assertEquals(HttpStatusCode.NotFound, sync.upload("login", "other-connection", 2, "f.txt", "text/plain", null, 1, bytes))
         assertEquals(HttpStatusCode.Accepted, sync.upload("login", id, 2, "f.txt", "text/plain", null, 1, bytes))
         coVerify(exactly = 1) { session.upload(2, "f.txt", "text/plain", null, 1, bytes) }
+        coEvery { session.previewAttachment(any(), any(), any(), any(), any()) } returns true
+        val consume: suspend (java.io.File, String) -> Unit = { _, _ -> }
+        assertFalse(sync.previewAttachment("other-login", id, 2, "pick", "source", 0, consume))
+        assertFalse(sync.previewAttachment("login", "other-connection", 2, "pick", "source", 0, consume))
+        assertTrue(sync.previewAttachment("login", id, 2, "pick", "source", 0, consume))
+        coVerify(exactly = 1) { session.previewAttachment(2, "pick", "source", 0, consume) }
         job.cancelAndJoin()
         assertEquals(HttpStatusCode.NotFound, sync.upload("login", id, 2, "f.txt", "text/plain", null, 1, bytes))
+        assertFalse(sync.previewAttachment("login", id, 2, "pick", "source", 0, consume))
     }
     @Test
     fun acceptedScrollRequestsKeepTheMessageAndBrowserTarget() = sync { _, received ->
