@@ -75,7 +75,8 @@ internal class WebUiController(
     scope: CoroutineScope,
     private val certificates: WebUiCertificateStore,
     /** Serves one `/api/sync` connection; [WebUiSync.serve] in production. */
-    syncSession: suspend (ReceiveChannel<String>, suspend (String) -> Unit) -> Unit,
+    syncSession: suspend (String, ReceiveChannel<String>, suspend (String) -> Unit) -> Unit,
+    upload: suspend (String, String, Long, String, String?, String?, Long?, io.ktor.utils.io.ByteReadChannel) -> io.ktor.http.HttpStatusCode,
     private val hasher: WebUiPasswordHasher = WebUiPasswordHasher(),
     toolImages: WebUiToolImages? = null,
 ) {
@@ -89,6 +90,7 @@ internal class WebUiController(
         auth = auth,
         readAsset = ::readAsset,
         syncSession = syncSession,
+        upload = upload,
         themeCss = { theme?.toCss().orEmpty() },
         readAppFont = ::readAppFont,
         readMonoFont = ::readMonoFont,

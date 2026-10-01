@@ -360,7 +360,8 @@ class AppContainer(
                 unseal = com.newoether.agora.util.SecretCrypto::decrypt,
                 addresses = WebUiController::interfaceAddresses,
             ),
-            syncSession = { incoming, send -> webUiSync.serve(incoming, send) },
+            syncSession = { login, incoming, send -> webUiSync.serve(login, incoming, send) },
+            upload = { login, id, seq, name, mime, type, size, input -> webUiSync.upload(login, id, seq, name, mime, type, size, input) },
             toolImages = com.newoether.agora.webui.WebUiToolImages(
                 directory = java.io.File(appContext.filesDir, "tool-media"),
                 loadMessage = { conversationId, messageId ->
@@ -395,6 +396,9 @@ class AppContainer(
                     transfers = conversationSettingsTransfers,
                     attachmentProcessor = com.newoether.agora.viewmodel.AttachmentImportProcessor(application),
                     scope = scope,
+                    uploadDirectory = appContext.filesDir,
+                    allowLocalSandbox = { sandboxManagerFactory?.isAvailable() == true && settingsRepository.sandboxEnabled.value },
+                    sandboxHomeDir = { sandboxManagerFactory?.takeIf { it.isAvailable() }?.let { java.io.File(appContext.filesDir, "sandbox-home") } },
                 )
             },
             display = kotlinx.coroutines.flow.combine(

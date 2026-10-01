@@ -46,8 +46,26 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
+import android.app.Application
+import com.newoether.agora.viewmodel.AttachmentImportProcessor
+import com.newoether.agora.model.AttachmentImportState
+import io.ktor.http.HttpStatusCode
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.ByteChannel
+import io.ktor.utils.io.writeFully
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.Job
+import com.newoether.agora.util.AttachmentFiles
+import com.newoether.agora.util.FileValidator
+import com.newoether.agora.model.AttachmentStorage
 
 class WebUiChatSessionTest {
+    @get:Rule val temporary = TemporaryFolder()
+    private val uploadDirectory by lazy { temporary.newFolder("uploads") }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val conversations = mockk<ConversationRepository>(relaxed = true) {
@@ -107,7 +125,7 @@ class WebUiChatSessionTest {
     private val generationStop = mockk<GenerationStopAdapter>(relaxed = true)
     private val clients = ChatClients()
 
-    private val session = WebUiChatSession(
+    private val session by lazy { WebUiChatSession(
         generation = generation,
         generationStop = generationStop,
         clients = clients,
@@ -116,13 +134,94 @@ class WebUiChatSessionTest {
         executionCoordinator = ConversationExecutionCoordinator(),
         settings = settings,
         transfers = mockk<ConversationSettingsTransferCoordinator>(relaxed = true),
-        attachmentProcessor = mockk(relaxed = true),
+        attachmentProcessor = AttachmentImportProcessor(mockk<Application> {
+            every { filesDir } returns temporary.newFolder("private")
+        }),
         scope = scope,
-    )
+        uploadDirectory = uploadDirectory,
+    ) }
 
     @After
     fun tearDown() {
         scope.cancel()
+    }
+    @Test
+    fun uploadUsesTheCanonicalFileImporterAndSendFreezesItsMembership() = runBlocking {
+        session.start()
+        awaitModel()
+        assertEquals(HttpStatusCode.Accepted, session.upload(0, "notes.txt", "text/plain", null, 5, ByteReadChannel("hello".toByteArray())))
+        val composer = withTimeout(TIMEOUT_MS) {
+            session.composerState.first { it.attachments.singleOrNull()?.importState == AttachmentImportState.READY }
+        }
+        val attachment = composer.attachments.single()
+        assertEquals("hello", attachment.preparedText)
+        assertTrue(File(attachment.localPath!!).isFile)
+        assertEquals("notes.txt", attachment.fileName)
+        session.send("with file")
+        withTimeout(TIMEOUT_MS) { while (prepared.isEmpty()) kotlinx.coroutines.delay(10) }
+        assertEquals(listOf(attachment.localId), prepared.single().attachments.map { it.localId })
+        coVerify(exactly = 0) { conversations.updateDraft(any(), any(), any(), any()) }
+        scope.coroutineContext[Job]!!.cancelAndJoin()
+        session.close()
+        coVerify { conversations.deleteUnreferencedDraftAttachmentFiles(match { files -> files.any { it.localPath == attachment.localPath } }) }
+    }
+    @Test
+    fun aSelectedOwnerSwitchCannotRedirectAnAdmittedUpload() = runBlocking {
+        session.start()
+        session.open("a", 1)
+        val input = ByteChannel(autoFlush = true)
+        val result = async { session.upload(1, "notes.txt", "text/plain", null, 5, input) }
+        withTimeout(TIMEOUT_MS) { while (uploadDirectory.listFiles().orEmpty().isEmpty()) kotlinx.coroutines.delay(10) }
+        session.open(null, 2)
+        input.writeFully("hello".toByteArray())
+        input.close()
+        assertEquals(HttpStatusCode.Accepted, result.await())
+        assertTrue(session.composerState.first { it.seq == 2L }.attachments.isEmpty())
+        session.open("a", 3)
+        val original = withTimeout(TIMEOUT_MS) {
+            session.composerState.first { it.seq == 3L && it.attachments.singleOrNull()?.importState == AttachmentImportState.READY }
+        }
+        assertEquals("hello", original.attachments.single().preparedText)
+        assertEquals(HttpStatusCode.Conflict, session.upload(1, "late.txt", "text/plain", null, 1, ByteReadChannel(byteArrayOf(1))))
+    }
+    @Test
+    fun cancelledAndTruncatedTransportDeletesItsTemporarySource() = runBlocking {
+        session.start()
+        val pending = async { session.upload(0, "notes.txt", "text/plain", null, null, ByteChannel(autoFlush = true)) }
+        withTimeout(TIMEOUT_MS) { while (uploadDirectory.listFiles().orEmpty().isEmpty()) kotlinx.coroutines.delay(10) }
+        pending.cancelAndJoin()
+        assertTrue(uploadDirectory.listFiles().orEmpty().isEmpty())
+        assertEquals(HttpStatusCode.BadRequest, session.upload(0, "short.txt", "text/plain", null, 3, ByteReadChannel(byteArrayOf(1))))
+        assertTrue(uploadDirectory.listFiles().orEmpty().isEmpty())
+        assertTrue(session.composerState.first().attachments.isEmpty())
+        session.endUploads()
+        assertEquals(HttpStatusCode.Conflict, session.upload(0, "late.txt", "text/plain", null, null, ByteReadChannel(byteArrayOf(1))))
+    }
+    @Test
+    fun streamedSizeLimitDoesNotTrustTheMissingSizeHint() = runBlocking {
+        session.start()
+        val channel = ByteChannel(autoFlush = true)
+        val writer = launch {
+            val chunk = ByteArray(64 * 1024)
+            repeat((AttachmentFiles.MAX_ATTACHMENT_BYTES / chunk.size).toInt() + 1) { channel.writeFully(chunk) }
+            channel.close()
+        }
+        assertEquals(HttpStatusCode.PayloadTooLarge, session.upload(0, "large.txt", "text/plain", null, null, channel))
+        writer.cancelAndJoin()
+        assertTrue(uploadDirectory.listFiles().orEmpty().isEmpty())
+        assertTrue(session.composerState.first().attachments.isEmpty())
+    }
+    @Test
+    fun sharedIngressPreservesForcedMediaAndSandboxAdmission() {
+        fun inspect(mime: String?, forced: String? = null, sandbox: Boolean = false) =
+            FileValidator.inspectAttachment("source", "file", mime, 3, forced, sandbox)
+        assertEquals("image", inspect("image/png")!!.type)
+        assertEquals("video", inspect("video/mp4")!!.type)
+        assertEquals("pdf", inspect("application/pdf")!!.type)
+        assertEquals("file", inspect("application/json")!!.type)
+        assertNull(inspect("application/octet-stream"))
+        assertEquals(AttachmentStorage.LOCAL_SANDBOX_PENDING, inspect(null, sandbox = true)!!.storage)
+        assertEquals("image", inspect(null, forced = "image")!!.type)
     }
 
     @Test

@@ -934,6 +934,14 @@ selection remains session-local. Ordered model commands settle before the next b
 Queue rows mirror ComposerStatusColumn/QueuedMessageRow: chronological text, attachment count and
 exact-ID removal. An idle empty composer sends its remaining queue through the existing runtime
 drain; an empty composer during generation still stops. No separate queue execution path is added.
+Browser attachment transport uses an authenticated same-origin octet-stream POST, never base64 sync
+frames. A random connection ID binds each request to the exact signed-in sync connection and its
+Composer owner at admission; the login cookie alone never selects a tab. Selecting another chat
+cannot retarget an admitted upload. The 100 MiB limit applies to actual streamed bytes as well as
+the size hint. Incomplete transport files are deleted; accepted sources enter the shared MIME
+classification, staging and Composer processing owners. Connection close settles its children,
+removes its lookup and reclaims abandoned session attachments through the existing reference-aware
+cleanup. Queued or sent attachments keep their canonical ownership. Reconnect never replays uploads.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.

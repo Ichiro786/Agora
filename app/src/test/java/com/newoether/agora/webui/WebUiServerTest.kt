@@ -16,6 +16,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.utils.io.readFully
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import org.junit.Assert.assertEquals
@@ -167,7 +168,7 @@ class WebUiServerTest {
     @Test
     fun syncRefusesTheUpgradeWithoutASessionOrFromAnotherOrigin() {
         var served = 0
-        webUi(syncSession = { _, _ -> served++ }) { _ ->
+        webUi(syncSession = { _, _, _ -> served++ }) { _ ->
             val sockets = createClient { install(ClientWebSockets) }
             val anonymous = runCatching { sockets.webSocket("/api/sync") {} }
             assertTrue(anonymous.isFailure)
@@ -193,7 +194,7 @@ class WebUiServerTest {
 
     @Test
     fun syncServesTextFramesAndClosesWhenTheSessionEnds() = webUi(
-        syncSession = { incoming, send -> for (text in incoming) send("echo:$text") },
+        syncSession = { _, incoming, send -> for (text in incoming) send("echo:$text") },
     ) { auth ->
         val token = sessionToken()
         val sockets = createClient { install(ClientWebSockets) }
@@ -210,6 +211,61 @@ class WebUiServerTest {
     private suspend fun ApplicationTestBuilder.sessionToken(): String =
         login("pw").headers.getAll(HttpHeaders.SetCookie)!!.single()
             .substringAfter('=').substringBefore(';')
+    @Test
+    fun uploadsRefuseUnauthenticatedCrossSiteAndSimpleContentTypesBeforeIngress() {
+        var calls = 0
+        webUi(upload = { _, _, _, _, _, _, _, _ -> calls++; HttpStatusCode.Accepted }) { _ ->
+            val token = sessionToken()
+            suspend fun request(cookie: Boolean, origin: String?, type: ContentType) =
+                client.post("/api/attachments/tab?seq=2&name=f.txt&mime=text/plain") {
+                    if (cookie) header(HttpHeaders.Cookie, "${WebUiServer.SESSION_COOKIE}=$token")
+                    if (origin != null) header(HttpHeaders.Origin, origin)
+                    contentType(type)
+                    setBody(byteArrayOf(1))
+                }
+            assertEquals(HttpStatusCode.Forbidden, request(false, null, ContentType.Application.OctetStream).status)
+            assertEquals(HttpStatusCode.Forbidden, request(true, "https://foreign.example", ContentType.Application.OctetStream).status)
+            assertEquals(HttpStatusCode.UnsupportedMediaType, request(true, "http://localhost", ContentType.Text.Plain).status)
+            assertEquals(HttpStatusCode.UnsupportedMediaType, request(true, "http://localhost", ContentType.MultiPart.FormData).status)
+            assertEquals(0, calls)
+            assertEquals(HttpStatusCode.Accepted, request(true, "http://localhost", ContentType.Application.OctetStream).status)
+            assertEquals(1, calls)
+        }
+    }
+    @Test
+    fun uploadForwardsAuthenticatedConnectionMetadataAndStreamsBytes() {
+        var calls = 0
+        webUi(upload = { login, id, seq, name, mime, type, size, input ->
+            assertTrue(login.isNotBlank())
+            assertEquals("tab", id)
+            assertEquals(7L, seq)
+            assertEquals("notes.txt", name)
+            assertEquals("text/plain", mime)
+            assertEquals(null, type)
+            assertEquals(5L, size)
+            val bytes = ByteArray(5)
+            input.readFully(bytes)
+            assertEquals("hello", bytes.toString(Charsets.UTF_8))
+            calls++
+            HttpStatusCode.Accepted
+        }) { _ ->
+            val token = sessionToken()
+            suspend fun request(query: String, size: Long? = null) = client.post("/api/attachments/tab?$query") {
+                header(HttpHeaders.Cookie, "${WebUiServer.SESSION_COOKIE}=$token")
+                contentType(ContentType.Application.OctetStream)
+                if (size != null) header(HttpHeaders.ContentLength, size.toString())
+                setBody("hello".toByteArray())
+            }
+            assertEquals(HttpStatusCode.BadRequest, request("seq=bad&name=notes.txt").status)
+            assertEquals(HttpStatusCode.BadRequest, request("seq=7&name=notes.txt&type=pdf").status)
+            assertEquals(HttpStatusCode.PayloadTooLarge, request("seq=7&name=notes.txt", 104857601).status)
+            assertEquals(0, calls)
+            val accepted = request("seq=7&name=notes.txt&mime=text/plain")
+            assertEquals(HttpStatusCode.Accepted, accepted.status)
+            assertEquals("no-store", accepted.headers[HttpHeaders.CacheControl])
+            assertEquals(1, calls)
+        }
+    }
 
     @Test
     fun toolImagesRequireTheSessionAndOriginBeforeLoadingAnyMessage() {
@@ -283,8 +339,10 @@ class WebUiServerTest {
 
     private fun webUi(
         hash: String? = hasher.hash("pw"),
-        syncSession: suspend (ReceiveChannel<String>, suspend (String) -> Unit) -> Unit = { _, _ -> },
+        syncSession: suspend (String, ReceiveChannel<String>, suspend (String) -> Unit) -> Unit = { _, _, _ -> },
         toolImages: WebUiToolImages? = null,
+        upload: suspend (String, String, Long, String, String?, String?, Long?, io.ktor.utils.io.ByteReadChannel) -> HttpStatusCode =
+            { _, _, _, _, _, _, _, _ -> HttpStatusCode.NotFound },
         block: suspend ApplicationTestBuilder.(WebUiAuth) -> Unit,
     ) {
         val auth = WebUiAuth(passwordHash = { hash }, hasher = hasher, clock = { 0L })
@@ -294,6 +352,7 @@ class WebUiServerTest {
             syncSession = syncSession,
             clock = { 0L },
             toolImages = toolImages,
+            upload = upload,
         )
         testApplication {
             application { server.install(this) }

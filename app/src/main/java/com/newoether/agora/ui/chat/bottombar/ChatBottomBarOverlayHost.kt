@@ -11,7 +11,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.newoether.agora.R
-import com.newoether.agora.model.AttachmentStorage
 import com.newoether.agora.model.ModelThinkingCapability
 import com.newoether.agora.model.OpenAiServiceTiers
 import com.newoether.agora.model.SelectedAttachment
@@ -311,31 +310,14 @@ internal suspend fun inspectAttachmentIngress(
     val rejected = mutableListOf<String?>()
     val attachments = uris.mapNotNull { uri ->
         val mimeType = FileValidator.resolveMimeType(context, uri.toString())
-        val route = FileValidator.routeForMimeType(mimeType)
-        val useSandbox = forcedType == null && route == FileValidator.AttachmentRoute.LOCAL_SANDBOX
-        if (useSandbox && !allowLocalSandbox) {
-            rejected += mimeType
-            return@mapNotNull null
-        }
-        val type = forcedType ?: when (route) {
-            FileValidator.AttachmentRoute.IMAGE -> "image"
-            FileValidator.AttachmentRoute.VIDEO -> "video"
-            FileValidator.AttachmentRoute.PDF -> "pdf"
-            FileValidator.AttachmentRoute.TEXT,
-            FileValidator.AttachmentRoute.LOCAL_SANDBOX -> "file"
-        }
-        SelectedAttachment(
-            uri = uri.toString(),
-            type = type,
+        FileValidator.inspectAttachment(
+            source = uri.toString(),
             fileName = FileValidator.resolveFileName(context, uri),
             mimeType = mimeType,
             fileSize = FileValidator.resolveFileSize(context, uri),
-            storage = if (useSandbox) {
-                AttachmentStorage.LOCAL_SANDBOX_PENDING
-            } else {
-                AttachmentStorage.APP_PRIVATE
-            },
-        )
+            forcedType = forcedType,
+            allowLocalSandbox = allowLocalSandbox,
+        ).also { if (it == null) rejected += mimeType }
     }
     attachments to rejected
 }

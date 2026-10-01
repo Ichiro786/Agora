@@ -69,11 +69,21 @@ internal class WebUiSync(
     private val openChatSession: (CoroutineScope) -> WebUiChatSession,
     private val projectionDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
+    private val connections = java.util.concurrent.ConcurrentHashMap<String, Pair<String, WebUiChatSession>>()
+
+    suspend fun upload(
+        login: String, connectionId: String, seq: Long, name: String, mime: String?, forcedType: String?,
+        size: Long?, input: io.ktor.utils.io.ByteReadChannel,
+    ): io.ktor.http.HttpStatusCode {
+        val session = connections[connectionId]?.takeIf { it.first == login }?.second
+            ?: return io.ktor.http.HttpStatusCode.NotFound
+        return session.upload(seq, name, mime, forcedType, size, input)
+    }
     /**
      * Serves one connection until [incoming] closes. Commands arrive as JSON text; every event
      * is handed to [send] from a single coroutine, so [send] needs no locking of its own.
      */
-    suspend fun serve(incoming: ReceiveChannel<String>, send: suspend (String) -> Unit) =
+    suspend fun serve(login: String, incoming: ReceiveChannel<String>, send: suspend (String) -> Unit) =
         coroutineScope {
             // Rendezvous: a producer waits until the sender takes its event, so a slow browser
             // slows the producers instead of growing a queue.
@@ -98,8 +108,12 @@ internal class WebUiSync(
             }
             val watched = MutableStateFlow<Set<String>>(emptySet())
             val session = openChatSession(this)
+            val connectionId = java.util.UUID.randomUUID().toString()
+            val connectionJob = coroutineContext[Job]!!
             try {
                 session.start()
+                connections[connectionId] = login to session
+                outbound.send(WebSyncEvent.Connection(connectionId))
                 launch { session.snackbars.collect { outbound.send(WebSyncEvent.Snackbar(it)) } }
                 launch { session.scrollRequests.collect { outbound.send(it) } }
                 // The session decides what is open; a runtime move (New Chat send, deletion) is
@@ -154,7 +168,14 @@ internal class WebUiSync(
                     }
                 }
             } finally {
-                session.close()
+                connections.remove(connectionId)
+                withContext(kotlinx.coroutines.NonCancellable) {
+                    session.endUploads()
+                    val children = connectionJob.children.toList()
+                    children.forEach { it.cancel() }
+                    children.forEach { it.join() }
+                    session.close()
+                }
             }
             coroutineContext.cancelChildren()
         }
@@ -390,6 +411,8 @@ internal data class WebSyncCommand(
 
 @Serializable
 internal sealed interface WebSyncEvent {
+    @Serializable @SerialName("connection")
+    data class Connection(val connectionId: String) : WebSyncEvent
     @Serializable @SerialName("conversations")
     data class Conversations(val items: List<WebConversation>) : WebSyncEvent
 

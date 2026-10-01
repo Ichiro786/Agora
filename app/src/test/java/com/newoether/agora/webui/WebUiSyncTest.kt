@@ -44,6 +44,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import io.ktor.http.HttpStatusCode
+import io.ktor.utils.io.ByteReadChannel
+import kotlinx.coroutines.cancelAndJoin
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WebUiSyncTest {
@@ -104,6 +107,7 @@ class WebUiSyncTest {
         every { composerState } returns this@WebUiSyncTest.composerState
         coEvery { start() } just Runs
         coEvery { close() } just Runs
+        coEvery { endUploads() } just Runs
         coEvery { send(any(), any(), any()) } just Runs
         coEvery { edit(any(), any(), any()) } just Runs
         coEvery { cancelWaiting(any(), any()) } just Runs
@@ -192,8 +196,25 @@ class WebUiSyncTest {
     fun closingTheConnectionClosesItsSession() = runTest {
         val incoming = Channel<String>(Channel.UNLIMITED)
         incoming.close()
-        webUiSync(StandardTestDispatcher(testScheduler)).serve(incoming) { }
+        webUiSync(StandardTestDispatcher(testScheduler)).serve("login", incoming) { }
         coVerify(exactly = 1) { session.close() }
+    }
+    @Test
+    fun uploadsRequireTheExactLoginAndLiveConnection() = runTest {
+        val sync = webUiSync(StandardTestDispatcher(testScheduler))
+        val incoming = Channel<String>()
+        val events = mutableListOf<JsonObject>()
+        val job = backgroundScope.launch { sync.serve("login", incoming) { events += Json.parseToJsonElement(it).jsonObject } }
+        runCurrent()
+        val id = events.single { it.type == "connection" }.string("connectionId")
+        coEvery { session.upload(any(), any(), any(), any(), any(), any()) } returns HttpStatusCode.Accepted
+        val bytes = ByteReadChannel(byteArrayOf(1))
+        assertEquals(HttpStatusCode.NotFound, sync.upload("other-login", id, 2, "f.txt", "text/plain", null, 1, bytes))
+        assertEquals(HttpStatusCode.NotFound, sync.upload("login", "other-connection", 2, "f.txt", "text/plain", null, 1, bytes))
+        assertEquals(HttpStatusCode.Accepted, sync.upload("login", id, 2, "f.txt", "text/plain", null, 1, bytes))
+        coVerify(exactly = 1) { session.upload(2, "f.txt", "text/plain", null, 1, bytes) }
+        job.cancelAndJoin()
+        assertEquals(HttpStatusCode.NotFound, sync.upload("login", id, 2, "f.txt", "text/plain", null, 1, bytes))
     }
     @Test
     fun acceptedScrollRequestsKeepTheMessageAndBrowserTarget() = sync { _, received ->
@@ -317,7 +338,7 @@ class WebUiSyncTest {
         val sync = webUiSync(StandardTestDispatcher(testScheduler))
         val incoming = Channel<String>(Channel.UNLIMITED)
         val sent = Channel<String>(Channel.UNLIMITED)
-        backgroundScope.launch { sync.serve(incoming) { sent.send(it) } }
+        backgroundScope.launch { sync.serve("login", incoming) { sent.send(it) } }
         runCurrent()
         block(
             { text -> incoming.send(text); runCurrent() },

@@ -32,6 +32,21 @@ import com.newoether.agora.viewmodel.resolveValidModel
 import com.newoether.agora.viewmodel.validChatModels
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
+import java.io.File
+import com.newoether.agora.model.SelectedAttachment
+import com.newoether.agora.util.AttachmentFiles
+import com.newoether.agora.util.FileValidator
+import io.ktor.http.HttpStatusCode
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import com.newoether.agora.data.repository.decodeSelectedAttachments
+import com.newoether.agora.data.repository.removedReclaimablePaths
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
@@ -79,6 +94,9 @@ internal class WebUiChatSession(
     private val transfers: ConversationSettingsTransferCoordinator,
     attachmentProcessor: AttachmentImportProcessor,
     private val scope: CoroutineScope,
+    private val uploadDirectory: File,
+    private val allowLocalSandbox: () -> Boolean = { false },
+    sandboxHomeDir: () -> File? = { null },
 ) : ChatClient {
     /** Where this session shows; [browserSeq] is the browser's last open request it follows. */
     data class OpenTarget(
@@ -102,6 +120,7 @@ internal class WebUiChatSession(
         val modelId: String = "",
         val models: Map<String, String> = emptyMap(),
         val queue: List<QueuedSend> = emptyList(),
+        val attachments: List<SelectedAttachment> = emptyList(),
     )
 
     private val target = MutableStateFlow(OpenTarget(null, browserSeq = 0L, movedByServer = false))
@@ -124,14 +143,16 @@ internal class WebUiChatSession(
         currentConversationId = openId,
         scope = scope,
     )
+    private val draftPersistence = SessionDraftPersistence()
     private val drafts = ComposerDraftController(
-        persistence = SessionDraftPersistence(),
+        persistence = draftPersistence,
         conversations = conversations,
     )
     private val composers = ConversationComposerController(
         scope = scope,
         drafts = drafts,
         processor = attachmentProcessor,
+        sandboxHomeDir = sandboxHomeDir,
     )
 
     /** Model chosen on this browser's New Chat page; null follows the default model. */
@@ -192,6 +213,8 @@ internal class WebUiChatSession(
     private val editRevision = MutableStateFlow(0L)
     private val actionId = MutableStateFlow(0L)
     private var retainedOwner: String? = null
+    private var closed = false
+    private val uploadedSources = mutableListOf<SelectedAttachment>()
     private val ownerState = MutableStateFlow<Pair<String, StateFlow<ConversationComposerSubmissionSnapshot>>?>(null)
     val composerState: Flow<ComposerState> = combine(ownerState, target) { owner, selected ->
         owner?.takeIf { it.first == (selected.conversationId ?: NEW_CHAT_WORKSPACE_ID) }?.let { it to selected }
@@ -218,6 +241,7 @@ internal class WebUiChatSession(
                             runtime?.generating?.value == true, runtime?.stopping?.value == true,
                             activeModel.value?.takeIf { it.first == selected.conversationId }?.second.orEmpty(),
                             modelLabels.value, runtime?.queuedSends?.value.orEmpty().sortedBy(QueuedSend::createdAt),
+                            draft.value.attachments,
                         )
                     }
                 }
@@ -256,7 +280,7 @@ internal class WebUiChatSession(
         if (seq != target.value.browserSeq) return@withLock
         val owner = retainedOwner ?: return@withLock
         composers.updateText(owner, text)
-        submission.submit(owner, text, emptyList())
+        submission.submit(owner, text, composers.state(owner).value.attachments.map { it.localId })
         actionId.value = commandId
     }
 
@@ -298,9 +322,77 @@ internal class WebUiChatSession(
         if (seq == target.value.browserSeq) generationStop.stop(openId.value, this)
     }
 
+    /** Pins the original Composer; HTTP work is cancelled with this connection, not the later selection. */
+    suspend fun upload(
+        seq: Long, fileName: String, mimeType: String?, forcedType: String?,
+        expectedSize: Long?, input: ByteReadChannel,
+    ): HttpStatusCode {
+        val work = scope.async {
+            val owner = ownerMutex.withLock {
+                if (closed || seq != target.value.browserSeq) return@withLock null
+                retainedOwner?.takeUnless(submission::isFrozen)?.also { composers.load(it) }
+            } ?: return@async HttpStatusCode.Conflict
+            var source: File? = null
+            var imported = false
+            try {
+                val attachment = FileValidator.inspectAttachment(
+                    "", AttachmentFiles.sanitizeFileName(fileName), mimeType, expectedSize,
+                    forcedType, allowLocalSandbox(),
+                ) ?: return@async HttpStatusCode.UnsupportedMediaType
+                withContext(Dispatchers.IO) {
+                    val file = File.createTempFile("att_webui_", ".upload", uploadDirectory).also { source = it }
+                    var size = 0L
+                    file.outputStream().use { output ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        while (true) {
+                            currentCoroutineContext().ensureActive()
+                            val count = input.readAvailable(buffer)
+                            if (count < 0) break
+                            if (count.toLong() > AttachmentFiles.MAX_ATTACHMENT_BYTES - size) {
+                                return@withContext HttpStatusCode.PayloadTooLarge
+                            }
+                            output.write(buffer, 0, count)
+                            size += count
+                        }
+                    }
+                    if (expectedSize != null && size != expectedSize) return@withContext HttpStatusCode.BadRequest
+                    val received = attachment.copy(uri = file.absolutePath, localPath = file.absolutePath, fileSize = size)
+                    ownerMutex.withLock {
+                        if (!closed && !submission.isFrozen(owner)) {
+                            imported = composers.importAttachment(owner, received)
+                            if (imported) uploadedSources += received
+                        }
+                    }
+                    if (imported) HttpStatusCode.Accepted else HttpStatusCode.Conflict
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                HttpStatusCode.InternalServerError
+            } finally {
+                withContext(NonCancellable + Dispatchers.IO) {
+                    if (!imported) source?.delete()
+                    composers.release(owner)
+                }
+            }
+        }
+        return try {
+            work.await()
+        } finally {
+            withContext(NonCancellable) { work.cancelAndJoin() }
+        }
+    }
+    suspend fun endUploads() = ownerMutex.withLock { closed = true }
+    /** Connection children settle before this call, so no importer or Send outlives reclamation. */
     suspend fun close() = withContext(NonCancellable) {
         clients.detach(this@WebUiChatSession)
         ownerMutex.withLock {
+            closed = true
+            val abandoned = draftPersistence.ownerIds().flatMap { drafts.load(it).attachments } +
+                draftPersistence.retiredAttachments
+            draftPersistence.clear()
+            drafts.reclaimAttachments(abandoned + uploadedSources)
+            uploadedSources.clear()
             retainedOwner?.let { releaseOwner(it) }
             retainedOwner = null
         }
@@ -415,15 +507,31 @@ internal class WebUiChatSession(
 /** Browser drafts: kept for the connection only, never written to the phone's Room drafts. */
 private class SessionDraftPersistence : ComposerDraftPersistence {
     private val drafts = ConcurrentHashMap<String, ConversationWorkspaceDraft>()
+    val retiredAttachments = mutableListOf<SelectedAttachment>()
+    fun ownerIds(): List<String> = drafts.keys.toList()
+    fun clear() {
+        drafts.clear()
+        retiredAttachments.clear()
+    }
 
     override suspend fun loadDraft(ownerId: String): ConversationWorkspaceDraft =
         drafts[ownerId] ?: ConversationWorkspaceDraft(text = "", attachmentsJson = null)
 
     override suspend fun updateDraft(ownerId: String, text: String, attachmentsJson: String?) {
+        // Active browser drafts are not Room references. Replaced paths remain owned until close.
+        val previous = drafts[ownerId]?.attachmentsJson.decodeSelectedAttachments().orEmpty()
+        val removed = previous.removedReclaimablePaths(attachmentsJson.decodeSelectedAttachments())
+        retiredAttachments += removed.map { SelectedAttachment(uri = it, type = "file", localPath = it) }
         drafts[ownerId] = ConversationWorkspaceDraft(text, attachmentsJson)
     }
 
     override suspend fun clearAcceptedDraft(ownerId: String) {
+        clearAcceptedDraft(ownerId, reclaimAttachments = true)
+    }
+    override suspend fun clearAcceptedDraft(ownerId: String, reclaimAttachments: Boolean) {
+        if (reclaimAttachments) {
+            retiredAttachments += drafts[ownerId]?.attachmentsJson.decodeSelectedAttachments().orEmpty()
+        }
         drafts.remove(ownerId)
     }
 }

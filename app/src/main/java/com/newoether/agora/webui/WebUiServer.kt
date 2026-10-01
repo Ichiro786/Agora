@@ -13,6 +13,9 @@ import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.install
 import io.ktor.server.request.contentType
 import io.ktor.server.request.receiveText
+import io.ktor.server.request.receiveChannel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
@@ -48,8 +51,8 @@ import kotlinx.serialization.json.Json
  * HTTP surface of the WebUI: the packaged frontend plus the session API.
  *
  * The browser is only a remote control, so every route here is either a static asset or a
- * small JSON call. Cross-site requests are refused three ways: the session cookie is
- * SameSite=Strict, every POST must carry `application/json` (which forces a CORS preflight this
+ * small JSON call or a bounded attachment stream. Cross-site requests are refused three ways: the session cookie is
+ * SameSite=Strict, POSTs require JSON or upload-only octet-stream (which forces a CORS preflight this
  * server never answers), and a present Origin header must match the Host the browser used.
  */
 internal class WebUiServer(
@@ -57,7 +60,9 @@ internal class WebUiServer(
     /** Reads a packaged frontend file by its path under the asset root, or null if absent. */
     private val readAsset: (String) -> ByteArray?,
     /** Serves one signed-in `/api/sync` connection: incoming text frames and a text sender. */
-    private val syncSession: suspend (ReceiveChannel<String>, suspend (String) -> Unit) -> Unit,
+    private val syncSession: suspend (String, ReceiveChannel<String>, suspend (String) -> Unit) -> Unit,
+    private val upload: suspend (String, String, Long, String, String?, String?, Long?, io.ktor.utils.io.ByteReadChannel) -> HttpStatusCode =
+        { _, _, _, _, _, _, _, _ -> HttpStatusCode.NotFound },
     /** CSS variables for the app's current theme; empty keeps the defaults in `style.css`. */
     private val themeCss: () -> String = { "" },
     /** The app font file served at [WebUiTheme.FONT_PATH], or null when the system font is used. */
@@ -88,6 +93,40 @@ internal class WebUiServer(
             route("/api/sync") {
                 install(syncGate)
                 webSocket { serveSync() }
+            }
+            route("/api/attachments/{connectionId}") {
+                install(syncGate)
+                post {
+                    val token = call.request.cookies[SESSION_COOKIE] ?: return@post
+                    if (!call.request.contentType().match(ContentType.Application.OctetStream)) {
+                        return@post call.respond(HttpStatusCode.UnsupportedMediaType)
+                    }
+                    val params = call.request.queryParameters
+                    val seq = params["seq"]?.toLongOrNull()?.takeIf { it >= 0 }
+                    val name = params["name"]?.takeIf { it.isNotBlank() && it.length <= 256 }
+                    val mime = params["mime"]?.takeIf { it.length <= 128 }
+                    val forced = params["type"]
+                    val rawSize = call.request.headers[HttpHeaders.ContentLength]
+                    val size = rawSize?.toLongOrNull()
+                    if (seq == null || name == null || (rawSize != null && (size == null || size < 0)) ||
+                        (forced != null && forced !in setOf("image", "video"))) {
+                        return@post call.respond(HttpStatusCode.BadRequest)
+                    }
+                    if (size != null && size > com.newoether.agora.util.AttachmentFiles.MAX_ATTACHMENT_BYTES) {
+                        return@post call.respond(HttpStatusCode.PayloadTooLarge)
+                    }
+                    coroutineScope {
+                        val requestJob = currentCoroutineContext()[kotlinx.coroutines.Job]!!
+                        val revoke = launch { auth.awaitSessionEnd(token); requestJob.cancel() }
+                        try {
+                            val status = upload(token, call.parameters["connectionId"].orEmpty(), seq, name, mime, forced, size, call.receiveChannel())
+                            call.response.header(HttpHeaders.CacheControl, "no-store")
+                            call.respond(if (auth.isValidSession(token)) status else HttpStatusCode.Forbidden)
+                        } finally {
+                            revoke.cancel()
+                        }
+                    }
+                }
             }
             route("$TOOL_IMAGE_PATH/{conversationId}/{messageId}/{detailIndex}/{imageIndex}") {
                 install(syncGate)
@@ -174,7 +213,7 @@ internal class WebUiServer(
             close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "signed_out"))
         }
         try {
-            syncSession(texts) { text -> outgoing.send(Frame.Text(text)) }
+            syncSession(token, texts) { text -> outgoing.send(Frame.Text(text)) }
         } finally {
             signOut.cancel()
         }
