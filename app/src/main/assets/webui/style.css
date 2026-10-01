@@ -344,6 +344,14 @@ p {
 }
 /* Side-by-side drawer (wider than 960 px): the chat narrows beside the open drawer. */
 .side-by-side .chat { left: calc(var(--drawer-width) * var(--drawer-progress)); }
+/* Approved static top-edge approximation; it never intercepts the message viewport's input. */
+.chat-top-blur { position: absolute; inset: 0 0 auto; height: 150px; z-index: 0; pointer-events: none; }
+.chat-top-blur span { position: absolute; inset: 0 0 auto; pointer-events: none; mask-image: linear-gradient(#000 0%, #000 50%, transparent 100%); }
+.chat-top-blur span:nth-child(1) { height: 150px; backdrop-filter: blur(1px); }
+.chat-top-blur span:nth-child(2) { height: 112px; backdrop-filter: blur(2px); }
+.chat-top-blur span:nth-child(3) { height: 75px; backdrop-filter: blur(3px); }
+.chat-top-blur span:nth-child(4) { height: 38px; backdrop-filter: blur(5px); }
+.shell:not([data-blur-effects="true"]) .chat-top-blur { display: none; }
 /* ModalDrawerSheet: surface at 1 dp tonal elevation, 24 dp end corners, 16 x 20 dp padding. */
 .drawer {
   position: absolute;

@@ -549,6 +549,7 @@ export function Shell({ onSignedOut }) {
         <${TopBar} title=${openTitle} conversationId=${state.openId} drawerOpen=${drawerOpen} menuButton=${menuButton} reduceMotion=${reduceMotion} onSignedOut=${onSignedOut} connected=${state.connected}
           onToggleDrawer=${() => settleDrawer(drawerTarget.current === 0)} />
         <${MessageList} state=${state} label=${openTitle || t.newChat} />
+        <div class="chat-top-blur" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
         <${Composer} state=${state} MoreMenu=${MoreMenu} />
         ${state.snackbar && html`<div class="chat-snackbar" role="status">${state.snackbar.message}</div>`}
       </main>

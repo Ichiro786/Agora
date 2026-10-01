@@ -924,6 +924,12 @@ conversation on its first send, the phone's selected conversation stays independ
 stop a generation the phone started. Sending during a generation queues as on the phone. The top
 gradient blur may be a visual approximation; strict pixel parity with `GradientBlur.kt` is not
 required.
+The approved browser approximation uses four masked backdrop-blur layers within the top 150px of
+the existing chat frame, outside the message alpha mask and below the top-bar and composer controls.
+It samples the composed backdrop, not Compose's foreground-only shader, and introduces no cloned
+message DOM, snapshot renderer or content cache. App Blur Effects off removes the layers; Reduced
+Motion does not change this static effect. The layers never claim pointer, keyboard, selection or
+scroll input. The bottom mask, message geometry and existing scroll owners remain unchanged.
 The browser consumes the canonical session Composer draft, submission phase and runtime activity
 through the existing sync channel. Open sequence and edit acknowledgements fence stale selections
 and pending input without a second draft-settlement owner. Text stays editable while waiting or
