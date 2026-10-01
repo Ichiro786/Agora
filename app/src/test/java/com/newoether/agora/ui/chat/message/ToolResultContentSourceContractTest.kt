@@ -260,6 +260,34 @@ class ToolResultContentSourceContractTest {
             }.forEach { (key, value) ->
                 assertFalse("$directory $key uses ASCII ellipsis", value.contains("..."))
             }
+            val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                .parse(File(resourceRoot, "$directory/tool_presentation_strings.xml"))
+            val plurals = document.getElementsByTagName("plurals")
+            assertEquals("$directory quantity keys", 14, plurals.length)
+            val quantityKeys = mutableSetOf<String>()
+            repeat(plurals.length) { index ->
+                val node = plurals.item(index)
+                val key = node.attributes.getNamedItem("name").nodeValue
+                assertTrue("$directory duplicate $key", quantityKeys.add(key))
+                val items = node.childNodes
+                var hasOther = false
+                repeat(items.length) { itemIndex ->
+                    val item = items.item(itemIndex)
+                    if (item.nodeName == "item") {
+                        if (item.attributes.getNamedItem("quantity").nodeValue == "other") hasOther = true
+                        assertEquals("$directory $key quantity placeholders",
+                            if (key == "tool_web_search_done" || key == "tool_conversation_search_done_for")
+                                setOf("%1\$d", "%2\$s") else setOf("%1\$d"), placeholders(item.textContent))
+                    }
+                }
+                assertTrue("$directory $key missing other", hasOther)
+            }
+            assertEquals("$directory quantity key parity", setOf(
+                "tool_lookup_count", "tool_listed_skills", "tool_web_search_done", "tool_web_search_result_count",
+                "tool_conversation_search_done_default", "tool_conversation_search_done_for", "tool_listed_conversations",
+                "tool_shell_list_count", "tool_shell_job_count", "tool_found_files", "tool_searched_file",
+                "tool_listed_task_count", "tool_reading_files_count", "tool_read_files_count",
+            ), quantityKeys)
         }
     }
     @Test

@@ -99,9 +99,10 @@ internal fun normalizeToolSummarySubject(
     maxCharacters: Int = MAX_TOOL_SUMMARY_SUBJECT_CHARS,
 ): String? {
     require(maxCharacters > 0)
-    return value
+    val subject = value
         ?.replace(Regex("\\s+"), " ")
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
-        ?.take(maxCharacters)
+        ?: return null
+    return if (subject.length > maxCharacters) subject.take(maxCharacters - 1) + "\u2026" else subject
 }

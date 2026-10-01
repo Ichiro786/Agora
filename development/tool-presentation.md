@@ -28,6 +28,8 @@ Execution failure is declared by provider error metadata or a structured protoco
 
 Reliable subjects and counts are shown. An unavailable count is not zero and must use a count-free default. Paths, commands, file names, IDs explicitly required by an action, and user input preserve their original case. Summary text describes lifecycle only. Result content and compact detail status must not replace it.
 
+Known counts use locale-aware Android quantity resources, including singular results. A known web result count remains visible without a query subject. Summary subjects flatten whitespace and use a maximum of 120 characters including a final Unicode ellipsis only when truncated. Full arguments and result text remain unchanged.
+
 For memory and skill reads, effective `names` takes precedence over `name` exactly as in the provider. A single target shows its name; a batch shows `Reading/Read N files`. A streaming count is reliable only once its names array is complete. Independent `file_read` calls retain separate summaries. Empty file content and an empty conversation page explicitly say that no content/messages were returned, not ordinary completion.
 
 Memory/skill rename summaries show old and new names when known; description edits name the description action. `ask_user` distinguishes waiting for answers, queued questions, answered questions and skipped questions using actual returned facts. A mixed set shows answered count against returned question count without claiming every question was answered. `stop_loop` distinguishes a new stop from an already stopped Loop.

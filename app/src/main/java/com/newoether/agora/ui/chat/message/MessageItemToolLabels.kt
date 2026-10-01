@@ -173,7 +173,7 @@ private fun Resources.runningSummary(
 ): String = when (presentation.kind) {
     ToolKind.MEMORY_LIST -> getString(R.string.tool_looking_up_memories)
     ToolKind.MEMORY_READ -> presentation.count?.takeIf { it > 1 }?.let {
-        getString(R.string.tool_reading_files_count, it)
+        getQuantityString(R.plurals.tool_reading_files_count, it, it)
     } ?: optionalSubjectSummary(
         subject,
         R.string.tool_reading_memory,
@@ -197,7 +197,7 @@ private fun Resources.runningSummary(
     ToolKind.MEMORY_UPDATE_ACTIVE -> getString(R.string.tool_updating_active)
     ToolKind.SKILL_LIST -> getString(R.string.tool_listing_skills)
     ToolKind.SKILL_READ -> presentation.count?.takeIf { it > 1 }?.let {
-        getString(R.string.tool_reading_files_count, it)
+        getQuantityString(R.plurals.tool_reading_files_count, it, it)
     } ?: optionalSubjectSummary(
         subject,
         R.string.tool_reading_skill_subject,
@@ -477,13 +477,13 @@ private fun Resources.completedSummary(
     subject: String?,
 ): String = when (presentation.kind) {
     ToolKind.MEMORY_LIST -> presentation.count?.let {
-        getString(R.string.tool_lookup_count, it)
+        getQuantityString(R.plurals.tool_lookup_count, it, it)
     } ?: getString(R.string.tool_listed_memories_default)
     ToolKind.SKILL_LIST -> presentation.count?.let {
-        getString(R.string.tool_listed_skills, it)
+        getQuantityString(R.plurals.tool_listed_skills, it, it)
     } ?: getString(R.string.tool_listed_skills_default)
     ToolKind.SKILL_READ -> presentation.count?.takeIf { it > 1 }?.let {
-        getString(R.string.tool_read_files_count, it)
+        getQuantityString(R.plurals.tool_read_files_count, it, it)
     } ?: optionalSubjectSummary(
         subject,
         R.string.tool_read_skill_done,
@@ -505,7 +505,7 @@ private fun Resources.completedSummary(
         R.string.tool_deleted_skill_default,
     )
     ToolKind.MEMORY_READ -> presentation.count?.takeIf { it > 1 }?.let {
-        getString(R.string.tool_read_files_count, it)
+        getQuantityString(R.plurals.tool_read_files_count, it, it)
     } ?: optionalSubjectSummary(
         subject,
         R.string.tool_read_memory_name,
@@ -527,10 +527,12 @@ private fun Resources.completedSummary(
         R.string.tool_delete_memory_default,
     )
     ToolKind.MEMORY_UPDATE_ACTIVE -> getString(R.string.tool_update_active_default)
-    ToolKind.WEB_SEARCH -> if (subject == null || presentation.count == null) {
-        getString(R.string.tool_web_search_done_default)
-    } else {
-        getString(R.string.tool_web_search_done, presentation.count, subject)
+    ToolKind.WEB_SEARCH -> when {
+        presentation.count == null -> getString(R.string.tool_web_search_done_default)
+        subject == null -> getQuantityString(R.plurals.tool_web_search_result_count,
+            presentation.count, presentation.count)
+        else -> getQuantityString(R.plurals.tool_web_search_done,
+            presentation.count, presentation.count, subject)
     }
     ToolKind.WEB_FETCH -> optionalSubjectSummary(
         subject,
@@ -539,18 +541,18 @@ private fun Resources.completedSummary(
     )
     ToolKind.CONVERSATION_SEARCH -> when {
         presentation.count == null -> getString(R.string.tool_conversation_search_done_no_count)
-        subject == null -> getString(
-            R.string.tool_conversation_search_done_default,
-            presentation.count,
+        subject == null -> getQuantityString(
+            R.plurals.tool_conversation_search_done_default,
+            presentation.count, presentation.count,
         )
-        else -> getString(
-            R.string.tool_conversation_search_done_for,
-            presentation.count,
+        else -> getQuantityString(
+            R.plurals.tool_conversation_search_done_for,
+            presentation.count, presentation.count,
             subject,
         )
     }
     ToolKind.CONVERSATION_LIST -> presentation.count?.let {
-        getString(R.string.tool_listed_conversations, it)
+        getQuantityString(R.plurals.tool_listed_conversations, it, it)
     } ?: getString(R.string.tool_listed_conversations_default)
     ToolKind.CONVERSATION_READ -> optionalSubjectSummary(
         subject,
@@ -558,11 +560,11 @@ private fun Resources.completedSummary(
         R.string.tool_read_conversation_done_default,
     )
     ToolKind.SHELL_LIST -> presentation.count?.let {
-        getString(R.string.tool_shell_list_count, it)
+        getQuantityString(R.plurals.tool_shell_list_count, it, it)
     } ?: getString(R.string.tool_listed_shells_default)
     ToolKind.SHELL_EXECUTE -> this.shellExecutionSummary(presentation)
     ToolKind.SHELL_JOB_LIST -> presentation.count?.let {
-        getString(R.string.tool_shell_job_count, it)
+        getQuantityString(R.plurals.tool_shell_job_count, it, it)
     } ?: getString(R.string.tool_listed_shell_jobs_default)
     ToolKind.SHELL_JOB_WAIT -> optionalSubjectSummary(
         presentation.jobId ?: subject,
@@ -595,10 +597,10 @@ private fun Resources.completedSummary(
         R.string.tool_edited_file_default,
     )
     ToolKind.FILE_GLOB -> presentation.count?.let {
-        getString(R.string.tool_found_files, it)
+        getQuantityString(R.plurals.tool_found_files, it, it)
     } ?: getString(R.string.tool_found_files_default)
     ToolKind.FILE_GREP -> presentation.count?.let {
-        getString(R.string.tool_searched_file, it)
+        getQuantityString(R.plurals.tool_searched_file, it, it)
     } ?: getString(R.string.tool_found_matches_default)
     ToolKind.IMAGE_VIEW -> optionalSubjectSummary(
         subject,
@@ -612,7 +614,7 @@ private fun Resources.completedSummary(
         R.string.tool_created_task,
     )
     ToolKind.TASK_LIST -> presentation.count?.let {
-        getString(R.string.tool_listed_task_count, it)
+        getQuantityString(R.plurals.tool_listed_task_count, it, it)
     } ?: getString(R.string.tool_listed_tasks)
     ToolKind.TASK_DELETE -> optionalSubjectSummary(
         subject,

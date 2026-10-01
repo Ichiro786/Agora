@@ -73,4 +73,46 @@
     <string name="tool_questions_asked">已提问</string>
     <string name="tool_loop_already_stopped">循环已处于停止状态</string>
     <string name="tool_ask_user_failed">询问用户失败</string>
+    <plurals name="tool_lookup_count">
+        <item quantity="other">查看了 %1$d 条已保存的记忆</item>
+    </plurals>
+    <plurals name="tool_listed_skills">
+        <item quantity="other">已列出 %1$d 个技能</item>
+    </plurals>
+    <plurals name="tool_web_search_done">
+        <item quantity="other">搜索 \"%2$s\" 找到 %1$d 条结果</item>
+    </plurals>
+    <plurals name="tool_conversation_search_done_default">
+        <item quantity="other">找到 %1$d 个对话</item>
+    </plurals>
+    <plurals name="tool_conversation_search_done_for">
+        <item quantity="other">搜索 \"%2$s\" 找到 %1$d 条对话</item>
+    </plurals>
+    <plurals name="tool_listed_conversations">
+        <item quantity="other">已列出 %1$d 个对话</item>
+    </plurals>
+    <plurals name="tool_shell_list_count">
+        <item quantity="other">列出了 %1$d 个终端</item>
+    </plurals>
+    <plurals name="tool_shell_job_count">
+        <item quantity="other">列出了 %1$d 个 Shell 任务</item>
+    </plurals>
+    <plurals name="tool_found_files">
+        <item quantity="other">找到 %1$d 个文件</item>
+    </plurals>
+    <plurals name="tool_searched_file">
+        <item quantity="other">找到 %1$d 处匹配</item>
+    </plurals>
+    <plurals name="tool_listed_task_count">
+        <item quantity="other">已列出 %1$d 个任务</item>
+    </plurals>
+    <plurals name="tool_reading_files_count">
+        <item quantity="other">正在读取 %1$d 个文件…</item>
+    </plurals>
+    <plurals name="tool_read_files_count">
+        <item quantity="other">已读取 %1$d 个文件</item>
+    </plurals>
+    <plurals name="tool_web_search_result_count">
+        <item quantity="other">找到 %1$d 条结果</item>
+    </plurals>
 </resources>

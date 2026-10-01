@@ -74,4 +74,46 @@
     <string name="tool_questions_asked">已提問</string>
     <string name="tool_loop_already_stopped">循環已處於停止狀態</string>
     <string name="tool_ask_user_failed">詢問使用者失敗</string>
+    <plurals name="tool_lookup_count">
+        <item quantity="other">檢視了 %1$d 筆已儲存的記憶</item>
+    </plurals>
+    <plurals name="tool_listed_skills">
+        <item quantity="other">已列出 %1$d 個技能</item>
+    </plurals>
+    <plurals name="tool_web_search_done">
+        <item quantity="other">搜尋 \"%2$s\" 找到 %1$d 筆結果</item>
+    </plurals>
+    <plurals name="tool_conversation_search_done_default">
+        <item quantity="other">找到 %1$d 個對話</item>
+    </plurals>
+    <plurals name="tool_conversation_search_done_for">
+        <item quantity="other">搜尋 \"%2$s\" 找到 %1$d 則對話</item>
+    </plurals>
+    <plurals name="tool_listed_conversations">
+        <item quantity="other">已列出 %1$d 個對話</item>
+    </plurals>
+    <plurals name="tool_shell_list_count">
+        <item quantity="other">列出了 %1$d 個終端機</item>
+    </plurals>
+    <plurals name="tool_shell_job_count">
+        <item quantity="other">列出了 %1$d 個 Shell 工作</item>
+    </plurals>
+    <plurals name="tool_found_files">
+        <item quantity="other">找到 %1$d 個檔案</item>
+    </plurals>
+    <plurals name="tool_searched_file">
+        <item quantity="other">找到 %1$d 處符合</item>
+    </plurals>
+    <plurals name="tool_listed_task_count">
+        <item quantity="other">已列出 %1$d 個任務</item>
+    </plurals>
+    <plurals name="tool_reading_files_count">
+        <item quantity="other">正在讀取 %1$d 個檔案…</item>
+    </plurals>
+    <plurals name="tool_read_files_count">
+        <item quantity="other">已讀取 %1$d 個檔案</item>
+    </plurals>
+    <plurals name="tool_web_search_result_count">
+        <item quantity="other">找到 %1$d 筆結果</item>
+    </plurals>
 </resources>

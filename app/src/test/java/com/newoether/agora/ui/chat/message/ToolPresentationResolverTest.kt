@@ -62,7 +62,7 @@ class ToolPresentationResolverTest {
             singleLineShellCommand(command),
         )
         assertEquals(null, singleLineShellCommand(" \n\t "))
-        assertEquals("12345", singleLineShellCommand("123456789", maxCharacters = 5))
+        assertEquals("1234\u2026", singleLineShellCommand("123456789", maxCharacters = 5))
     }
 
     @Test

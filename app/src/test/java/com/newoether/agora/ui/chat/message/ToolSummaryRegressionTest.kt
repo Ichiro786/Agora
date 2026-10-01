@@ -95,6 +95,81 @@ class ToolSummaryRegressionTest {
     }
 
     @Test
+    fun countSummariesSelectSingularAndPluralAndRetainCountsWithoutSubjects() {
+        for ((name, field, singular, plural) in listOf(
+            listOf("list_memory_files", "files", "Looked through 1 saved memory", "Looked through 2 saved memories"),
+            listOf("list_skill_files", "files", "Listed 1 skill", "Listed 2 skills"),
+            listOf("web_search", "results", "Found 1 result", "Found 2 results"),
+            listOf("search_conversations", "results", "Found 1 conversation", "Found 2 conversations"),
+            listOf("list_conversations", "conversations", "Listed 1 conversation", "Listed 2 conversations"),
+            listOf("list_shells", "devices", "Listed 1 shell", "Listed 2 shells"),
+            listOf("list_shell_jobs", "jobs", "Listed 1 shell job", "Listed 2 shell jobs"),
+            listOf("file_glob", "files", "Found 1 file", "Found 2 files"),
+            listOf("file_grep", "matches", "Found 1 match", "Found 2 matches"),
+            listOf("list_tasks", "tasks", "Listed 1 task", "Listed 2 tasks"),
+        )) {
+            val call = MessageSegment(type = "tool", toolName = name, toolState = ToolExecutionStates.SUCCEEDED)
+            assertEquals(singular, resources.toolSummary(call.copy(toolResult = """{"$field":[{}]}""")))
+            assertEquals(plural, resources.toolSummary(call.copy(toolResult = """{"$field":[{},{}]}""")))
+        }
+        for ((name, noun) in listOf("web_search" to "result", "search_conversations" to "conversation")) {
+            val call = MessageSegment(type = "tool", toolName = name, toolArgs = """{"query":"MixedCase"}""",
+                toolResult = """{"results":[{}]}""", toolState = ToolExecutionStates.SUCCEEDED)
+            assertEquals("Found 1 $noun for \"MixedCase\"", resources.toolSummary(call))
+        }
+    }
+
+    @Test
+    fun longSubjectsShowTruncationWithoutChangingTheOriginalArguments() {
+        val path = "MixedCase".repeat(20)
+        val args = """{"path":"$path"}"""
+        val segment = MessageSegment(type = "tool", toolName = "file_read", toolArgs = args,
+            toolResult = """{"content":"body"}""", toolState = ToolExecutionStates.SUCCEEDED)
+        val p = ToolPresentationResolver.resolve(segment)
+        assertEquals(path.take(119) + "\u2026", p.subject)
+        assertEquals(args, p.rawArguments)
+        assertEquals("12345", normalizeToolSummarySubject("12345", 5))
+        assertEquals("\u2026", normalizeToolSummarySubject("12", 1))
+        assertEquals("Mixed Case", normalizeToolSummarySubject(" Mixed\n Case "))
+    }
+
+    @Test
+    fun localizedQuantityRulesRenderRussianFormsAndChineseCounts() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        for ((language, count, expected) in listOf(
+            Triple("ru", 1, "Найден 1 файл"), Triple("ru", 2, "Найдены 2 файла"),
+            Triple("ru", 5, "Найдено 5 файлов"), Triple("ru", 21, "Найден 21 файл"),
+            Triple("zh", 1, "找到 1 个文件"), Triple("zh", 2, "找到 2 个文件"),
+        )) {
+            val configuration = android.content.res.Configuration(app.resources.configuration)
+            configuration.setLocale(java.util.Locale.forLanguageTag(language))
+            val localized = app.createConfigurationContext(configuration).resources
+            assertEquals(expected, localized.getQuantityString(com.newoether.agora.R.plurals.tool_found_files, count, count))
+        }
+    }
+
+    @Test
+    fun everyKnownKindAndGenericToolUsesTheCanonicalSummaryPath() {
+        val names = listOf(
+            "list_memory_files", "read_memory_file", "create_memory_file", "edit_memory_file", "delete_memory_file", "update_active_memory",
+            "list_skill_files", "read_skill_file", "create_skill_file", "edit_skill_file", "delete_skill_file",
+            "web_search", "web_fetch", "search_conversations", "list_conversations", "read_conversation",
+            "list_shells", "execute_shell_command", "list_shell_jobs", "get_shell_job", "wait_for_job", "stop_shell_job",
+            "file_read", "file_write", "file_edit", "file_glob", "file_grep", "view_image", "generate_image",
+            "create_task", "list_tasks", "delete_task", "start_loop", "stop_loop", "ask_user", "mcp_test", "unknown",
+        )
+        assertEquals(ToolKind.entries.toSet(), names.map(ToolPresentationResolver::kindForToolName).toSet())
+        for (name in names) {
+            val call = MessageSegment(type = "tool", toolName = name, toolArgs = "{}")
+            org.junit.Assert.assertTrue(resources.toolSummary(call).isNotBlank())
+            org.junit.Assert.assertTrue(resources.toolSummary(call.copy(toolResult = "{}",
+                toolState = ToolExecutionStates.SUCCEEDED)).isNotBlank())
+            assertEquals("Command timeout", resources.toolSummary(call.copy(toolResult = "Error: command timeout",
+                toolState = ToolExecutionStates.FAILED)))
+        }
+    }
+
+    @Test
     fun declaredErrorRetainsRawResultAndProvidesTheReason() {
         val text = "Error executing tool 'read_memory_file': command timeout"
         val state = finalToolState(ToolExecutionResult(text, isError = true), "read_memory_file")
