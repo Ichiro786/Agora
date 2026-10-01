@@ -95,15 +95,19 @@ class WebUiSyncTest {
 
     private val openTarget = MutableStateFlow(WebUiChatSession.OpenTarget(null, browserSeq = 0L, movedByServer = false))
     private val snackbars = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    private val scrollRequests = MutableSharedFlow<WebSyncEvent.ScrollToBottom>(extraBufferCapacity = 4)
     private val composerState = MutableSharedFlow<WebUiChatSession.ComposerState>(extraBufferCapacity = 4)
     private val session = mockk<WebUiChatSession> {
         every { openTarget } returns this@WebUiSyncTest.openTarget
         every { snackbars } returns this@WebUiSyncTest.snackbars
+        every { scrollRequests } returns this@WebUiSyncTest.scrollRequests
         every { composerState } returns this@WebUiSyncTest.composerState
         coEvery { start() } just Runs
         coEvery { close() } just Runs
-        coEvery { send(any()) } just Runs
-        every { stop() } just Runs
+        coEvery { send(any(), any(), any()) } just Runs
+        coEvery { edit(any(), any(), any()) } just Runs
+        coEvery { cancelWaiting(any(), any()) } just Runs
+        every { stop(any()) } just Runs
         coEvery { open(any(), any()) } answers {
             this@WebUiSyncTest.openTarget.value =
                 WebUiChatSession.OpenTarget(firstArg(), secondArg(), movedByServer = false)
@@ -115,8 +119,15 @@ class WebUiSyncTest {
         send("""{"type":"send","text":"hello"}""")
         send("""{"type":"stop"}""")
         coVerify(exactly = 1) { session.start() }
-        coVerify(exactly = 1) { session.send("hello") }
-        verify(exactly = 1) { session.stop() }
+        coVerify(exactly = 1) { session.send("hello", 0L, 0L) }
+        verify(exactly = 1) { session.stop(0L) }
+    }
+    @Test
+    fun draftAndCancelCommandsKeepTheirExactTargetAndActionIdentity() = sync { send, _ ->
+        send("""{"type":"draft","text":"later edit","revision":3,"seq":7}""")
+        send("""{"type":"cancel_waiting","seq":7,"actionId":9}""")
+        coVerify(exactly = 1) { session.edit("later edit", 3L, 7L) }
+        coVerify(exactly = 1) { session.cancelWaiting(7L, 9L) }
     }
 
     @Test
@@ -150,6 +161,9 @@ class WebUiSyncTest {
                     phase = ComposerSubmissionPhase.WAITING,
                     acceptedVersion = 2L,
                 ),
+                text = "canonical draft",
+                editRevision = 3L,
+                actionId = 9L,
             ),
         )
         val events = received()
@@ -157,6 +171,9 @@ class WebUiSyncTest {
         val composer = events.single { it.type == "composer" }
         assertEquals("WAITING", composer.string("phase"))
         assertEquals("2", composer.string("acceptedVersion"))
+        assertEquals("canonical draft", composer.string("text"))
+        assertEquals("3", composer.string("editRevision"))
+        assertEquals("9", composer.string("actionId"))
     }
 
     @Test
@@ -165,6 +182,15 @@ class WebUiSyncTest {
         incoming.close()
         webUiSync(StandardTestDispatcher(testScheduler)).serve(incoming) { }
         coVerify(exactly = 1) { session.close() }
+    }
+    @Test
+    fun acceptedScrollRequestsKeepTheMessageAndBrowserTarget() = sync { _, received ->
+        received()
+        scrollRequests.emit(WebSyncEvent.ScrollToBottom("a", "accepted-message", 7L))
+        val event = received().single { it.type == "scroll_to_bottom" }
+        assertEquals("a", event.string("conversationId"))
+        assertEquals("accepted-message", event.string("messageId"))
+        assertEquals("7", event.string("seq"))
     }
 
     @Test

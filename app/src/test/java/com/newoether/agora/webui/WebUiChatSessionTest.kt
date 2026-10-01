@@ -11,6 +11,9 @@ import com.newoether.agora.viewmodel.ConversationGenerationSnapshot
 import com.newoether.agora.viewmodel.ConversationGenerationState
 import com.newoether.agora.viewmodel.ConversationStateRegistry
 import com.newoether.agora.viewmodel.ForegroundSendTarget
+import com.newoether.agora.viewmodel.ForegroundSendAdmission
+import com.newoether.agora.viewmodel.SendAcceptance
+import com.newoether.agora.viewmodel.testGenerationAdmissionSnapshot
 import com.newoether.agora.viewmodel.GenerationStopAdapter
 import com.newoether.agora.viewmodel.MessageGenerationController
 import com.newoether.agora.viewmodel.NEW_CHAT_WORKSPACE_ID
@@ -25,6 +28,7 @@ import io.mockk.verify
 import java.io.File
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -52,6 +56,8 @@ class WebUiChatSessionTest {
     }
     private val state = mockk<ConversationGenerationState> {
         every { generationSnapshot } returns MutableStateFlow(ConversationGenerationSnapshot())
+        every { generating } returns MutableStateFlow(false)
+        every { stopping } returns MutableStateFlow(false)
     }
     private val registry = mockk<ConversationStateRegistry> {
         every { getOrCreate(any()) } returns state
@@ -175,6 +181,70 @@ class WebUiChatSessionTest {
         assertTrue(clients.isConversationOpen("a"))
         session.close()
         assertFalse(clients.isConversationOpen("a"))
+    }
+    @Test
+    fun draftsAreSessionLocalAndOldTargetEditsAreRejected() = runBlocking {
+        session.start()
+        session.edit("new draft", revision = 1L, seq = 0L)
+        assertEquals("new draft", session.composerState.first { it.editRevision == 1L }.text)
+        session.open("a", seq = 2L)
+        session.edit("conversation draft", revision = 1L, seq = 2L)
+        session.edit("stale", revision = 2L, seq = 0L)
+        assertEquals("conversation draft", session.composerState.first { it.seq == 2L }.text)
+        session.open(null, seq = 3L)
+        assertEquals("new draft", session.composerState.first { it.seq == 3L }.text)
+        session.open(null, seq = 4L)
+        assertEquals("new draft", session.composerState.first { it.seq == 4L }.text)
+        coVerify(exactly = 0) { conversations.updateDraft(any(), any(), any(), any()) }
+    }
+    @Test
+    fun newChatPublicationTransfersUnacceptedInputToTheCreatedOwner() = runBlocking {
+        session.start()
+        session.edit("remaining input", revision = 1L, seq = 0L)
+        assertTrue(session.publishAcceptedNewConversation("created", "m", entryId = 0L))
+        assertEquals("remaining input", session.composerState.first().text)
+        session.open(null, seq = 1L)
+        assertEquals("", session.composerState.first().text)
+    }
+    @Test
+    fun staleSendAndStopCannotTargetTheNewSelection() = runBlocking {
+        session.start()
+        session.open("a", seq = 2L)
+        session.send("stale send", seq = 1L, commandId = 7L)
+        session.stop(seq = 1L)
+        assertTrue(captures.isEmpty())
+        verify(exactly = 0) { generationStop.stop(any(), any()) }
+    }
+    @Test
+    fun canonicalAcceptanceClearsOnlyTheTapTextAndKeepsPostTapEdits() = runBlocking {
+        val entered = CompletableDeferred<Unit>()
+        val accept = CompletableDeferred<Unit>()
+        coEvery { generation.prepareForegroundSend(any(), any(), any()) } answers {
+            val target = firstArg<ForegroundSendTarget>()
+            ForegroundSendAdmission(
+                target, testGenerationAdmissionSnapshot(target.conversationId, target.runId), null, null,
+            )
+        }
+        coEvery { generation.sendMessage(any(), any(), any(), any(), any()) } coAnswers {
+            entered.complete(Unit)
+            accept.await()
+            SendAcceptance.Direct("accepted", "a").also {
+                arg<suspend (SendAcceptance) -> Unit>(3).invoke(it)
+            }
+        }
+        session.start()
+        session.open("a", seq = 1L)
+        withTimeout(TIMEOUT_MS) { session.composerState.first { it.modelValid } }
+        session.edit("tap text", revision = 1L, seq = 1L)
+        session.send("tap text", seq = 1L, commandId = 2L)
+        withTimeout(TIMEOUT_MS) { entered.await() }
+        session.edit("later edit", revision = 2L, seq = 1L)
+        accept.complete(Unit)
+        val settled = withTimeout(TIMEOUT_MS) { session.composerState.first { it.snapshot.acceptedVersion == 1L } }
+        assertEquals("later edit", settled.text)
+        assertEquals(2L, settled.editRevision)
+        assertEquals(2L, settled.actionId)
+        coVerify(exactly = 1) { generation.sendMessage(any(), "tap text", any(), any(), session) }
     }
 
     @Test

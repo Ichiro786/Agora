@@ -660,6 +660,11 @@ export function MessageList({ state, label }) {
     let frame = 0;
     let previousLayout = null;
     const pending = state.openStatus === "ready" && settledOpenId !== state.openId;
+    const request = state.scrollRequest;
+    if (request && state.openStatus === "ready" && state.path.some((entry) => entry.id === request.messageId)) {
+      pinned.current = true;
+      sync.consumeScroll(request);
+    }
     const settle = () => {
       frame = 0;
       const viewport = root.getBoundingClientRect();
@@ -695,7 +700,7 @@ export function MessageList({ state, label }) {
       cancelAnimationFrame(frame);
       inputs.forEach((type) => root.removeEventListener(type, release));
     };
-  }, [state.openId, state.openStatus, ids, state.bodies, state.streaming, settledOpenId]);
+  }, [state.openId, state.openStatus, ids, state.bodies, state.streaming, settledOpenId, state.scrollRequest]);
 
   useLayoutEffect(() => {
     const node = cover.current;

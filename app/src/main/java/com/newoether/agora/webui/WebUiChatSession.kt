@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -65,7 +66,7 @@ internal class WebUiChatSession(
     private val generationStop: GenerationStopAdapter,
     private val clients: ChatClients,
     conversations: ConversationRepository,
-    registry: ConversationStateRegistry,
+    private val registry: ConversationStateRegistry,
     executionCoordinator: ConversationExecutionCoordinator,
     settings: SettingsRepository,
     private val transfers: ConversationSettingsTransferCoordinator,
@@ -84,6 +85,13 @@ internal class WebUiChatSession(
     data class ComposerState(
         val conversationId: String?,
         val snapshot: ConversationComposerSubmissionSnapshot,
+        val seq: Long = 0L,
+        val text: String = "",
+        val editRevision: Long = 0L,
+        val actionId: Long = 0L,
+        val modelValid: Boolean = false,
+        val generating: Boolean = false,
+        val stopping: Boolean = false,
     )
 
     private val target = MutableStateFlow(OpenTarget(null, browserSeq = 0L, movedByServer = false))
@@ -94,6 +102,8 @@ internal class WebUiChatSession(
     private val newChatEntryId = AtomicLong(0L)
     private val _snackbars = MutableSharedFlow<String>(extraBufferCapacity = SNACKBAR_BUFFER)
     val snackbars: SharedFlow<String> = _snackbars.asSharedFlow()
+    private val _scrollRequests = MutableSharedFlow<WebSyncEvent.ScrollToBottom>(extraBufferCapacity = 8)
+    val scrollRequests: SharedFlow<WebSyncEvent.ScrollToBottom> = _scrollRequests.asSharedFlow()
 
     // The canonical render owner keeps this client's store equal to what the phone's store holds
     // for the same conversation; Stop snapshots in-flight rows from any showing client's store.
@@ -116,15 +126,15 @@ internal class WebUiChatSession(
 
     /** Model chosen on this browser's New Chat page; null follows the default model. */
     private val newChatModelId = MutableStateFlow<String?>(null)
-    private val activeModel: StateFlow<String> = combine(
-        openId.flatMapLatest { id ->
-            if (id == null) newChatModelId else conversations.observeConversation(id).map { it?.modelId }
-        },
-        settings.selectedModel,
-        settings.validChatModels(scope),
-    ) { referenced, fallback, valid ->
-        if (valid == null) "" else resolveValidModel(referenced, fallback, valid)
-    }.stateIn(scope, SharingStarted.Eagerly, "")
+    private val activeModel: StateFlow<Pair<String?, String>?> = openId.flatMapLatest { id ->
+        combine(
+            if (id == null) newChatModelId else conversations.observeConversation(id).map { it?.modelId },
+            settings.selectedModel,
+            settings.validChatModels(scope),
+        ) { referenced, fallback, valid ->
+            id to if (valid == null) "" else resolveValidModel(referenced, fallback, valid)
+        }
+    }.stateIn(scope, SharingStarted.Eagerly, null)
 
     private val submission = ConversationComposerSubmissionController(
         scope = scope,
@@ -137,7 +147,7 @@ internal class WebUiChatSession(
                 currentId = current,
                 isNewChatMode = current == null,
                 newChatEntryId = newChatEntryId.get(),
-                modelId = activeModel.value,
+                modelId = activeModel.value?.takeIf { it.first == current }?.second.orEmpty(),
                 captureNewChatWorkspace = {
                     NewChatWorkspaceSnapshot(
                         persisted = null,
@@ -159,10 +169,35 @@ internal class WebUiChatSession(
     )
 
     private val ownerMutex = Mutex()
+    private val editRevision = MutableStateFlow(0L)
+    private val actionId = MutableStateFlow(0L)
     private var retainedOwner: String? = null
     private val ownerState = MutableStateFlow<Pair<String, StateFlow<ConversationComposerSubmissionSnapshot>>?>(null)
-    val composerState: Flow<ComposerState> = ownerState.filterNotNull().flatMapLatest { (owner, state) ->
-        state.map { ComposerState(owner.takeUnless { it == NEW_CHAT_WORKSPACE_ID }, it) }
+    val composerState: Flow<ComposerState> = combine(ownerState, target) { owner, selected ->
+        owner?.takeIf { it.first == (selected.conversationId ?: NEW_CHAT_WORKSPACE_ID) }?.let { it to selected }
+    }.filterNotNull().flatMapLatest { (owned, _) ->
+        val (owner, state) = owned
+        val draft = ownerMutex.withLock {
+            if (retainedOwner == owner) composers.state(owner) else null
+        } ?: return@flatMapLatest flowOf()
+        val runtime = owner.takeUnless { it == NEW_CHAT_WORKSPACE_ID }?.let(registry::getOrCreate)
+        combine(draft, state, editRevision, actionId, activeModel) { _, _, _, _, _ -> Unit }
+            .combine(runtime?.generating ?: flowOf(false)) { _, _ -> Unit }
+            .combine(runtime?.stopping ?: flowOf(false)) { _, _ ->
+                ownerMutex.withLock {
+                    val selected = target.value
+                    if (retainedOwner != owner || owner != (selected.conversationId ?: NEW_CHAT_WORKSPACE_ID)) {
+                        null
+                    } else {
+                        ComposerState(
+                            selected.conversationId, state.value, selected.browserSeq, draft.value.text,
+                            editRevision.value, actionId.value,
+                            activeModel.value?.let { it.first == selected.conversationId && it.second.isNotBlank() } == true,
+                            runtime?.generating?.value == true, runtime?.stopping?.value == true,
+                        )
+                    }
+                }
+            }.filterNotNull()
     }
 
     /** Attaches to the runtime and admits the initial New Chat composer. */
@@ -176,23 +211,40 @@ internal class WebUiChatSession(
     suspend fun open(conversationId: String?, seq: Long) = ownerMutex.withLock {
         if (conversationId == null) {
             newChatEntryId.incrementAndGet()
-        } else if (conversationId == target.value.conversationId) {
-            // Already shown, for example after the browser followed a runtime move.
-            return@withLock
         }
+        editRevision.value = 0L
+        actionId.value = 0L
         target.value = OpenTarget(conversationId, seq, movedByServer = false)
         openId.value = conversationId
         retainOwnerLocked(conversationId ?: NEW_CHAT_WORKSPACE_ID)
     }
 
-    /** Sends [text] from the browser composer into whatever this session shows. */
-    suspend fun send(text: String) = ownerMutex.withLock {
+    /** Applies one ordered browser edit to the canonical composer owner. */
+    suspend fun edit(text: String, revision: Long, seq: Long) = ownerMutex.withLock {
+        if (seq != target.value.browserSeq || revision <= editRevision.value) return@withLock
+        val owner = retainedOwner ?: return@withLock
+        composers.updateText(owner, text)
+        composers.persistText(owner, text)
+        editRevision.value = revision
+    }
+
+    suspend fun send(text: String, seq: Long = target.value.browserSeq, commandId: Long = 0L) = ownerMutex.withLock {
+        if (seq != target.value.browserSeq) return@withLock
         val owner = retainedOwner ?: return@withLock
         composers.updateText(owner, text)
         submission.submit(owner, text, emptyList())
+        actionId.value = commandId
     }
 
-    fun stop() = generationStop.stop(openId.value, this)
+    suspend fun cancelWaiting(seq: Long, commandId: Long) = ownerMutex.withLock {
+        if (seq != target.value.browserSeq) return@withLock
+        retainedOwner?.let(submission::cancelWaiting)
+        actionId.value = commandId
+    }
+
+    fun stop(seq: Long = target.value.browserSeq) {
+        if (seq == target.value.browserSeq) generationStop.stop(openId.value, this)
+    }
 
     suspend fun close() = withContext(NonCancellable) {
         clients.detach(this@WebUiChatSession)
@@ -238,7 +290,12 @@ internal class WebUiChatSession(
     }
 
     // The browser's message list owns bottom following for its own sends.
-    override fun requestScrollToBottomAfter(conversationId: String, messageId: String, attachedOnly: Boolean) = Unit
+    override fun requestScrollToBottomAfter(conversationId: String, messageId: String, attachedOnly: Boolean) {
+        val selected = target.value
+        if (selected.conversationId == conversationId) {
+            _scrollRequests.tryEmit(WebSyncEvent.ScrollToBottom(conversationId, messageId, selected.browserSeq))
+        }
+    }
 
     // Send haptics belong to the phone.
     override fun onSendAccepted(conversationId: String, messageId: String) = Unit
@@ -253,7 +310,19 @@ internal class WebUiChatSession(
         entryId: Long,
     ): Boolean = ownerMutex.withLock {
         if (target.value.conversationId != null || newChatEntryId.get() != entryId) return@withLock false
-        moveByServer(conversationId)
+        val remainingText = composers.state(NEW_CHAT_WORKSPACE_ID).value.text
+        composers.load(conversationId)
+        try {
+            if (remainingText.isNotEmpty()) {
+                composers.updateText(conversationId, remainingText)
+                composers.persistText(conversationId, remainingText)
+                composers.updateText(NEW_CHAT_WORKSPACE_ID, "")
+                composers.persistText(NEW_CHAT_WORKSPACE_ID, "")
+            }
+            moveByServer(conversationId)
+        } finally {
+            composers.release(conversationId)
+        }
         true
     }
 

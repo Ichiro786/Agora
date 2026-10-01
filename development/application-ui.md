@@ -849,8 +849,8 @@ the current cover. The message viewport stays inert and the cover consumes new p
 and wheel input through its retained 200ms exit; top controls, drawer and composer retain ownership.
 Its primary ring is 48px with a 5px stroke; App Reduced Motion stops rotation but retains the fade.
 Browser visual verification must load the actual App font and theme; empty theme.css or an absent
-font resource is not font-parity evidence. Model selection, New Chat and Send remain unfinished
-chat-action work. Disabled placeholders must not be described as a completed WebUI. The reported
+font resource is not font-parity evidence. Pending chat actions must not be described as a completed
+WebUI. The reported
 green drawer-row outline is keyboard focus, not conversation selection; the report does not define
 a replacement focus style or authorize removing keyboard feedback.
 
@@ -915,6 +915,18 @@ conversation on its first send, the phone's selected conversation stays independ
 stop a generation the phone started. Sending during a generation queues as on the phone. The top
 gradient blur may be a visual approximation; strict pixel parity with `GradientBlur.kt` is not
 required.
+The browser consumes the canonical session Composer draft, submission phase and runtime activity
+through the existing sync channel. Open sequence and edit acknowledgements fence stale selections
+and pending input without a second draft-settlement owner. Text stays editable while waiting or
+submitting; accepted clearing preserves later edits and focus. Enter inserts a newline. Generating
+with an empty draft shows Stop; a nonempty draft shows Send and enters the ordinary queue. WAITING
+can be cancelled without stopping attachment imports. New Chat follows its accepted conversation
+only while its original entry remains selected, carrying any later input to that composer.
+Reconnection never automatically replays Send or Stop. An interrupted unconfirmed submission keeps
+the input and asks the reader to check the conversation before sending again.
+Runtime accepted-input scroll requests carry the exact open sequence and committed message ID.
+The existing MessageList bottom-follow owner consumes them only when that message is on the ready
+path; queue admission alone does not move the reader. User input releases bottom following as before.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.

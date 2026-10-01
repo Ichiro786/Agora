@@ -3,7 +3,7 @@ import { html } from "./html.js";
 import { t } from "./i18n.js";
 import {
   icon, ICON_ADD, ICON_ARROW_UPWARD, ICON_CALL_SPLIT, ICON_EXPAND_ALL, ICON_LOGOUT,
-  ICON_MENU, ICON_MORE_VERT, ICON_PSYCHOLOGY, ICON_REPEAT, ICON_SEARCH, ICON_SHARE,
+  ICON_MENU, ICON_MORE_VERT, ICON_PSYCHOLOGY, ICON_REPEAT, ICON_SEARCH, ICON_SHARE, ICON_STOP,
 } from "./icons.js";
 import { postJson } from "./api.js";
 import { sync, useSync } from "./sync.js";
@@ -27,9 +27,9 @@ function useMediaQuery(query) {
   return matches;
 }
 
-function DrawerButton({ className, iconPath, label }) {
+function DrawerButton({ className, iconPath, label, onClick, disabled = true }) {
   return html`
-    <button class=${`drawer-button ${className}`} type="button" disabled>
+    <button class=${`drawer-button ${className}`} type="button" disabled=${disabled} onClick=${onClick}>
       ${icon(iconPath)}<span>${label}</span>
     </button>`;
 }
@@ -54,7 +54,7 @@ function ConversationRow({ conversation, selected, onSelect }) {
 }
 
 /** ChatDrawerContent: title, search, Tasks, New Chat, then the conversation list. */
-function DrawerContent({ conversations, openId, onSelect }) {
+function DrawerContent({ conversations, openId, onSelect, connected }) {
   return html`
     <h2 class="drawer-title">${t.conversations}</h2>
     <div class="drawer-search">
@@ -62,7 +62,8 @@ function DrawerContent({ conversations, openId, onSelect }) {
       <input type="search" placeholder=${t.searchHint} aria-label=${t.searchHint} disabled />
     </div>
     <${DrawerButton} className="tonal tasks" iconPath=${ICON_REPEAT} label=${t.tasks} />
-    <${DrawerButton} className="filled new-chat" iconPath=${ICON_ADD} label=${t.newChat} />
+    <${DrawerButton} className="filled new-chat" iconPath=${ICON_ADD} label=${t.newChat}
+      disabled=${!connected} onClick=${() => onSelect(null)} />
     <div class="drawer-list" role="list" aria-label=${t.conversations}>
       ${conversations.map((conversation) => html`
         <${ConversationRow} key=${conversation.id} conversation=${conversation}
@@ -227,7 +228,7 @@ function MoreMenu({ expanded, reduceMotion, anchor, onSignOut, onClose, onExited
  * ChatTopBar: title capsule (menu + brand, or the conversation title at conversationTitleSolo)
  * and actions capsule (new chat + more).
  */
-function TopBar({ title, conversationId, drawerOpen, onToggleDrawer, menuButton, reduceMotion, onSignedOut }) {
+function TopBar({ title, conversationId, drawerOpen, onToggleDrawer, menuButton, reduceMotion, onSignedOut, connected }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [retainedMenu, setRetainedMenu] = useState(false);
   const moreButton = useRef(null);
@@ -337,7 +338,8 @@ function TopBar({ title, conversationId, drawerOpen, onToggleDrawer, menuButton,
         </div>
       </div>
       <div class="capsule actions-capsule">
-        <button class="bar-button add" type="button" aria-label=${t.newChat} disabled>
+        <button class="bar-button add" type="button" aria-label=${t.newChat} disabled=${!connected}
+          onClick=${() => sync.open(null)}>
           ${icon(ICON_ADD)}
         </button>
         <div class="menu-anchor">
@@ -355,12 +357,41 @@ function TopBar({ title, conversationId, drawerOpen, onToggleDrawer, menuButton,
 }
 
 /** ChatBottomBar: surface card with the text field, the expand button and the controls row. */
-function Composer() {
+function Composer({ state }) {
+  const field = useRef(null);
+  const phase = state.composer?.phase ?? "IDLE";
+  const waiting = phase === "WAITING";
+  const busy = state.pendingAction || phase !== "IDLE" || state.composer?.stopping;
+  const stop = state.generating && !state.text.trim();
+  const actionable = state.connected && state.composer && !state.pendingAction && !state.composer.stopping &&
+    !["loading", "failed", "deleted"].includes(state.openStatus) &&
+    (waiting || (phase === "IDLE" && (stop || (state.text.trim() && state.composer.modelValid))));
+  useLayoutEffect(() => {
+    const node = field.current;
+    const resize = () => {
+      node.style.height = "auto";
+      node.style.height = Math.min(node.scrollHeight, 6 * 23 + 24) + "px";
+    };
+    const geometry = new ResizeObserver(resize);
+    geometry.observe(node);
+    resize();
+    return () => geometry.disconnect();
+  }, [state.text]);
+  useEffect(() => {
+    if (!state.snackbar) return;
+    const id = state.snackbar.id;
+    const timer = setTimeout(() => sync.dismissSnackbar(id), 4_000);
+    return () => clearTimeout(timer);
+  }, [state.snackbar?.id]);
   return html`
     <div class="composer-host">
-      <form class="composer" onSubmit=${(event) => event.preventDefault()}>
+      <form class="composer" onSubmit=${(event) => {
+        event.preventDefault();
+        if (actionable) { if (stop && !busy) sync.stopGeneration(); else sync.submit(); }
+      }}>
         <div class="composer-field">
-          <textarea rows="1" placeholder=${t.askAgora} aria-label=${t.askAgora} disabled></textarea>
+          <textarea ref=${field} rows="1" placeholder=${t.askAgora} aria-label=${t.askAgora}
+            value=${state.text} onInput=${(event) => sync.edit(event.currentTarget.value)}></textarea>
           <button class="expand-button" type="button" aria-label=${t.expand} disabled>
             ${icon(ICON_EXPAND_ALL, "0 0 960 960")}
           </button>
@@ -375,8 +406,10 @@ function Composer() {
               ${icon(ICON_MORE_VERT)}
             </button>
           </div>
-          <button class="send-button" type="submit" aria-label=${t.send} disabled>
-            ${icon(ICON_ARROW_UPWARD)}
+          <button class="send-button" type="submit" aria-label=${waiting ? t.cancel : stop ? t.stop : t.send}
+            onPointerDown=${(event) => event.preventDefault()}
+            disabled=${!actionable} aria-busy=${busy ? "true" : null}>
+            ${busy ? html`<span class="spinner" aria-hidden="true"></span>` : icon(stop ? ICON_STOP : ICON_ARROW_UPWARD)}
           </button>
         </div>
       </form>
@@ -564,14 +597,16 @@ export function Shell({ onSignedOut }) {
         role=${sideBySide ? null : "dialog"} aria-modal=${modalOpen ? "true" : null}
         inert=${!drawerOpen}>
         <${DrawerContent} conversations=${state.conversations} openId=${state.openId}
+          connected=${state.connected}
           onSelect=${(id) => { sync.open(id); if (!sideBySide) settleDrawer(false); }} />
       </aside>
       <div class="scrim" aria-hidden="true" onClick=${() => settleDrawer(false)}></div>
       <main class="chat" inert=${modalOpen}>
-        <${TopBar} title=${openTitle} conversationId=${state.openId} drawerOpen=${drawerOpen} menuButton=${menuButton} reduceMotion=${reduceMotion} onSignedOut=${onSignedOut}
+        <${TopBar} title=${openTitle} conversationId=${state.openId} drawerOpen=${drawerOpen} menuButton=${menuButton} reduceMotion=${reduceMotion} onSignedOut=${onSignedOut} connected=${state.connected}
           onToggleDrawer=${() => settleDrawer(drawerTarget.current === 0)} />
         <${MessageList} state=${state} label=${openTitle || t.newChat} />
-        <${Composer} />
+        <${Composer} state=${state} />
+        ${state.snackbar && html`<div class="chat-snackbar" role="status">${state.snackbar.message}</div>`}
       </main>
     </div>`;
 }

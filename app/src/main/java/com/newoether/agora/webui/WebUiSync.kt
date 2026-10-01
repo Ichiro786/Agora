@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.shareIn
@@ -97,12 +98,7 @@ internal class WebUiSync(
             try {
                 session.start()
                 launch { session.snackbars.collect { outbound.send(WebSyncEvent.Snackbar(it)) } }
-                launch {
-                    session.composerState
-                        .map { WebSyncEvent.Composer(it.conversationId, it.snapshot.phase.name, it.snapshot.acceptedVersion) }
-                        .distinctUntilChanged()
-                        .collect { outbound.send(it) }
-                }
+                launch { session.scrollRequests.collect { outbound.send(it) } }
                 // The session decides what is open; a runtime move (New Chat send, deletion) is
                 // announced before any event of the new target so the browser can follow it.
                 launch {
@@ -110,8 +106,21 @@ internal class WebUiSync(
                         if (target.movedByServer) {
                             outbound.send(WebSyncEvent.Opened(target.conversationId, target.browserSeq))
                         }
-                        target.conversationId?.let { id ->
-                            openConversation(id, list.map { it.first }, watched, displayContext, outbound)
+                        coroutineScope {
+                            launch {
+                                session.composerState
+                                    .filter { it.conversationId == target.conversationId && it.seq == target.browserSeq }
+                                    .map {
+                                        WebSyncEvent.Composer(
+                                            it.conversationId, it.snapshot.phase.name, it.snapshot.acceptedVersion,
+                                            it.seq, it.text, it.editRevision, it.actionId, it.modelValid,
+                                            it.generating, it.stopping,
+                                        )
+                                    }.distinctUntilChanged().collect { outbound.send(it) }
+                            }
+                            target.conversationId?.let { id ->
+                                openConversation(id, list.map { it.first }, watched, displayContext, outbound)
+                            }
                         }
                     }
                 }
@@ -125,8 +134,10 @@ internal class WebUiSync(
                             session.open(command.conversationId, command.seq)
                         }
                         COMMAND_WATCH -> watched.value = command.messageIds.take(MAX_WATCHED).toSet()
-                        COMMAND_SEND -> session.send(command.text.orEmpty())
-                        COMMAND_STOP -> session.stop()
+                        COMMAND_DRAFT -> session.edit(command.text.orEmpty(), command.revision, command.seq)
+                        COMMAND_SEND -> session.send(command.text.orEmpty(), command.seq, command.actionId)
+                        COMMAND_CANCEL_WAITING -> session.cancelWaiting(command.seq, command.actionId)
+                        COMMAND_STOP -> session.stop(command.seq)
                     }
                 }
             } finally {
@@ -259,6 +270,8 @@ internal class WebUiSync(
         const val COMMAND_WATCH = "watch"
         const val COMMAND_SEND = "send"
         const val COMMAND_STOP = "stop"
+        const val COMMAND_DRAFT = "draft"
+        const val COMMAND_CANCEL_WAITING = "cancel_waiting"
 
         /** Upper bound on rows one browser may subscribe to at a time. */
         const val MAX_WATCHED = 48
@@ -353,6 +366,8 @@ internal data class WebSyncCommand(
     /** The browser's open-request sequence, echoed in [WebSyncEvent.Opened]. */
     val seq: Long = 0L,
     val text: String? = null,
+    val revision: Long = 0L,
+    val actionId: Long = 0L,
 )
 
 @Serializable
@@ -403,10 +418,17 @@ internal sealed interface WebSyncEvent {
 
     /** Submission phase of the composer the browser shows; [acceptedVersion] grows per accepted send. */
     @Serializable @SerialName("composer")
-    data class Composer(val conversationId: String?, val phase: String, val acceptedVersion: Long) : WebSyncEvent
+    data class Composer(
+        val conversationId: String?, val phase: String, val acceptedVersion: Long,
+        val seq: Long, val text: String, val editRevision: Long, val actionId: Long,
+        val modelValid: Boolean, val generating: Boolean, val stopping: Boolean,
+    ) : WebSyncEvent
 
     @Serializable @SerialName("snackbar")
     data class Snackbar(val message: String) : WebSyncEvent
+
+    @Serializable @SerialName("scroll_to_bottom")
+    data class ScrollToBottom(val conversationId: String, val messageId: String, val seq: Long) : WebSyncEvent
 }
 
 @Serializable

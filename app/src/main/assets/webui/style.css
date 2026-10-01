@@ -1269,3 +1269,23 @@ ul.md-list > li > .md-marker { padding-bottom: 4px; }
   color: var(--md-on-surface-variant);
 }
 .send-button svg { width: 24px; height: 24px; fill: currentColor; }
+.send-button { flex: none; transition: background-color 400ms, color 400ms; }
+.send-button:not(:disabled) { background: var(--md-primary); color: var(--md-on-primary); }
+.send-button .spinner { width: 24px; height: 24px; border-width: 3px; }
+.chat-snackbar {
+  position: absolute;
+  z-index: 5;
+  bottom: calc(var(--chat-bottom-inset) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(560px, calc(100% - 32px));
+  padding: 14px 16px;
+  border-radius: 4px;
+  background: var(--md-inverse-surface);
+  color: var(--md-inverse-on-surface);
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
