@@ -46,6 +46,7 @@ internal enum class ToolKind {
     TASK_DELETE,
     LOOP_START,
     LOOP_STOP,
+    ASK_USER,
     MCP,
     UNKNOWN,
 }
@@ -78,6 +79,11 @@ internal data class ToolPresentation(
     val exitCode: Int?,
     val jobId: String?,
     val outputLength: Int?,
+    val jobState: String? = null,
+    val operation: String? = null,
+    val destination: String? = null,
+    val outcome: String? = null,
+    val answeredCount: Int? = null,
 ) {
     /**
      * Drives the group loading indicator. BACKGROUND_RUNNING is deliberately excluded: a
@@ -115,8 +121,10 @@ internal object ToolPresentationResolver {
             segment.toolResult == null && segment.toolStructuredResult == null
         val args = if (argumentsAwaitingResult) null else parseObject(segment.toolArgs)
         val streamingHints = StreamingToolArgumentHintResolver.resolve(kind, segment.toolArgs)
+        val jobState = if (kind in setOf(ToolKind.SHELL_EXECUTE, ToolKind.SHELL_JOB_GET,
+                ToolKind.SHELL_JOB_WAIT, ToolKind.SHELL_JOB_STOP)) resultObject.string("state")?.lowercase() else null
         val background = resultEnvelope.boolean("background") == true ||
-            resultObject.string("state").equals("running", ignoreCase = true) &&
+            jobState in setOf("running", "stopping", "settling") &&
             (resultObject.string("job_id") ?: resultEnvelope.string("job_id")) != null
         val count = semanticCount(kind, resultObject)
             ?: tolerantSemanticCount(kind, segment.toolStructuredResult ?: segment.toolResult)
@@ -146,7 +154,8 @@ internal object ToolPresentationResolver {
             null
         } else {
             failureCode?.let { code ->
-                (resultObject.string("message") ?: resultEnvelope.string("message"))
+                (resultObject.string("message") ?: resultEnvelope.string("message")
+                    ?: resultObject.string("detail") ?: resultEnvelope.string("detail"))
                     ?.takeIf { it.isNotBlank() }
                     ?: code.replace('_', ' ')
             } ?: (resultObject.string("message") ?: resultEnvelope.string("message"))
@@ -162,6 +171,7 @@ internal object ToolPresentationResolver {
                 else ToolPresentationState.RUNNING
             }
             failed -> ToolPresentationState.FAILED
+            jobState == "stopped" || jobState == "interrupted" -> ToolPresentationState.STOPPED
             semanticEmpty -> ToolPresentationState.EMPTY
             background -> ToolPresentationState.BACKGROUND_RUNNING
             explicitState == ToolPresentationState.STOPPED -> ToolPresentationState.STOPPED
@@ -193,6 +203,23 @@ internal object ToolPresentationResolver {
             exitCode = exitCode,
             jobId = resultEnvelope.string("job_id") ?: resultObject.string("job_id"),
             outputLength = resultObject.string("output")?.length,
+            jobState = jobState,
+            operation = (args.string("operation") ?: streamingHints.operation)?.trim()?.lowercase(),
+            destination = normalizeToolSummarySubject(args.string("new_name") ?: streamingHints.destination),
+            outcome = when (kind) {
+                ToolKind.ASK_USER -> when {
+                    resultObject.string("delivery") == "queued" -> "queued"
+                    resultObject.boolean("answered") == true -> "answered"
+                    resultObject.boolean("answered") == false -> "skipped"
+                    resultObject.array("answers") != null -> "answers"
+                    else -> null
+                }
+                ToolKind.LOOP_STOP -> resultObject.string("status")
+                else -> null
+            },
+            answeredCount = if (kind == ToolKind.ASK_USER) resultObject.array("answers")?.count {
+                (it as? JsonObject).boolean("answered") == true
+            } else null,
         )
     }
 
@@ -202,7 +229,8 @@ internal object ToolPresentationResolver {
         envelope: JsonObject?,
     ): JsonObject? {
         if (envelope == null) return null
-        if (kind != ToolKind.SHELL_EXECUTE && kind != ToolKind.SHELL_JOB_GET && kind != ToolKind.SHELL_JOB_WAIT) return envelope
+        if (kind != ToolKind.SHELL_EXECUTE && kind != ToolKind.SHELL_JOB_GET &&
+            kind != ToolKind.SHELL_JOB_WAIT && kind != ToolKind.SHELL_JOB_STOP) return envelope
         return envelope["result"] as? JsonObject ?: envelope
     }
 
@@ -241,6 +269,7 @@ internal object ToolPresentationResolver {
         "delete_task" -> ToolKind.TASK_DELETE
         "start_loop" -> ToolKind.LOOP_START
         "stop_loop" -> ToolKind.LOOP_STOP
+        "ask_user" -> ToolKind.ASK_USER
         else -> if (name.startsWith("mcp_")) ToolKind.MCP else ToolKind.UNKNOWN
     }
 
@@ -275,6 +304,8 @@ internal object ToolPresentationResolver {
         ToolKind.FILE_GLOB -> result.arraySize("files")
         ToolKind.FILE_GREP -> result.arraySize("matches")
         ToolKind.TASK_LIST -> result.arraySize("tasks")
+        ToolKind.ASK_USER -> result.arraySize("answers") ?: result.int("questions")
+            ?: result.boolean("answered")?.let { 1 }
         else -> null
     }
 

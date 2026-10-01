@@ -8,4 +8,22 @@
     <string name="tool_read_files_count">%1$d arquivos lidos</string>
     <string name="tool_read_content_empty">Nenhum conteúdo de arquivo retornado</string>
     <string name="tool_read_conversation_empty">Nenhuma mensagem da conversa retornada</string>
+    <string name="tool_ask_user">Perguntar Ao Usuário</string>
+    <string name="tool_waiting_for_answers">Aguardando respostas…</string>
+    <string name="tool_interrupted">Interrompido</string>
+    <string name="tool_renaming_file">Renomeando %1$s para %2$s…</string>
+    <string name="tool_renamed_file">%1$s renomeado para %2$s</string>
+    <string name="tool_renaming_file_default">Renomeando arquivo…</string>
+    <string name="tool_renamed_file_default">Arquivo renomeado</string>
+    <string name="tool_describing_file">Atualizando descrição de %1$s…</string>
+    <string name="tool_described_file">Descrição de %1$s atualizada</string>
+    <string name="tool_describing_file_default">Atualizando descrição do arquivo…</string>
+    <string name="tool_described_file_default">Descrição do arquivo atualizada</string>
+    <string name="tool_questions_queued">Perguntas na fila: %1$d</string>
+    <string name="tool_questions_answered">Perguntas respondidas: %1$d</string>
+    <string name="tool_questions_skipped">Perguntas ignoradas: %1$d</string>
+    <string name="tool_questions_mixed">Perguntas respondidas: %1$d de %2$d</string>
+    <string name="tool_questions_asked">Perguntas feitas</string>
+    <string name="tool_loop_already_stopped">Loop já parado</string>
+    <string name="tool_ask_user_failed">Falha ao perguntar ao usuário</string>
 </resources>

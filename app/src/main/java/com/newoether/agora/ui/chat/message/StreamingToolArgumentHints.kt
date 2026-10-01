@@ -7,6 +7,8 @@ internal data class StreamingToolArgumentHints(
     val subject: String?,
     val server: String?,
     val count: Int? = null,
+    val operation: String? = null,
+    val destination: String? = null,
 )
 
 /**
@@ -44,7 +46,7 @@ internal object StreamingToolArgumentHintResolver {
         val subject = when (kind) {
             ToolKind.MEMORY_READ,
             ToolKind.SKILL_READ -> if (namesSelected) {
-                names.singleOrNull()?.takeIf { namesArray?.complete == true }
+                names.singleOrNull()?.takeIf { namesArray.complete }
             } else root.scalar("name")
             ToolKind.MEMORY_CREATE,
             ToolKind.MEMORY_EDIT,
@@ -77,7 +79,9 @@ internal object StreamingToolArgumentHintResolver {
         return StreamingToolArgumentHints(
             subject = normalizeToolSummarySubject(subject),
             server = normalizeToolSummarySubject(root.scalar("server")),
-            count = if (namesSelected && namesArray?.complete == true) names.size else null,
+            count = if (namesSelected && namesArray.complete) names.size else null,
+            operation = root.scalar("operation"),
+            destination = normalizeToolSummarySubject(root.scalar("new_name")),
         )
     }
 

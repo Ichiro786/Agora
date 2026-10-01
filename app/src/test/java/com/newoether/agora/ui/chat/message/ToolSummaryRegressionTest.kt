@@ -107,6 +107,67 @@ class ToolSummaryRegressionTest {
     }
 
     @Test
+    fun jobLifecycleUsesExistingStopModelWithoutClaimingCompletion() {
+        for (name in listOf("execute_shell_command", "get_shell_job", "wait_for_job", "stop_shell_job")) {
+            for (state in listOf("running", "stopping", "settling", "stopped", "interrupted")) {
+                for (nested in listOf(false, true)) {
+                    val raw = """{"job_id":"ID","state":"$state"}"""
+                    val result = if (nested) """{"job_id":"ID","result":$raw}""" else raw
+                    val wire = finalToolState(ToolExecutionResult(result), name)
+                    val segment = MessageSegment(type = "tool", toolName = name, toolResult = result, toolState = wire)
+                    val summary = resources.toolSummary(segment)
+                    if (state == "stopped" || state == "interrupted") {
+                        assertEquals(ToolExecutionStates.STOPPED, wire)
+                        assertEquals(if (state == "interrupted") "Interrupted" else if (name == "execute_shell_command") "Stopped" else "Tool execution stopped", summary)
+                    } else {
+                        assertEquals(ToolExecutionStates.BACKGROUND_RUNNING, wire)
+                        assertEquals("Running in background", summary)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun editOperationAndQuestionResultsUseConcreteOutcomeWording() {
+        for (name in listOf("edit_memory_file", "edit_skill_file")) {
+            val rename = MessageSegment(type = "tool", toolName = name,
+                toolArgs = """{"name":"Old.md","operation":"rename","new_name":"New.md"}""",
+                toolResult = "updated", toolState = ToolExecutionStates.SUCCEEDED)
+            assertEquals("Renamed Old.md to New.md", resources.toolSummary(rename))
+            assertEquals("Renaming Old.md to New.md\u2026", resources.toolSummary(rename.copy(toolResult = null, toolState = ToolExecutionStates.RUNNING)))
+            assertEquals("Updated description of Old.md", resources.toolSummary(rename.copy(toolArgs = """{"name":"Old.md","operation":"describe"}""")))
+        }
+        val ask = MessageSegment(type = "tool", toolName = "ask_user", toolState = ToolExecutionStates.RUNNING)
+        assertEquals("Waiting for answers\u2026", resources.toolSummary(ask))
+        for ((result, expected) in listOf(
+            """{"delivery":"queued","questions":2}""" to "Queued questions: 2",
+            """{"answered":true}""" to "Answered questions: 1",
+            """{"answered":false}""" to "Skipped questions: 1",
+            """{"answers":[{"answered":true},{"answered":false}]}""" to "Answered questions: 1 of 2",
+        )) assertEquals(expected, resources.toolSummary(ask.copy(toolResult = result, toolState = ToolExecutionStates.SUCCEEDED)))
+        assertEquals("Loop already stopped", resources.toolSummary(MessageSegment(type = "tool", toolName = "stop_loop",
+            toolResult = """{"status":"already_stopped"}""", toolState = ToolExecutionStates.SUCCEEDED)))
+    }
+
+    @Test
+    fun completedWaitRetainsItsActionAndQuestionGroupsDoNotInventAnswers() {
+        val wait = MessageSegment(type = "tool", toolName = "wait_for_job",
+            toolResult = """{"job_id":"ID","state":"succeeded","exit_code":7}""",
+            toolState = ToolExecutionStates.SUCCEEDED)
+        assertEquals("Waited for shell job ID", resources.toolSummary(wait))
+        for ((answers, expected) in listOf(
+            """[{"answered":true},{"answered":true}]""" to "Answered questions: 2",
+            """[{"answered":false},{"answered":false}]""" to "Skipped questions: 2",
+        )) assertEquals(expected, resources.toolSummary(MessageSegment(type = "tool", toolName = "ask_user",
+            toolResult = """{"answers":$answers}""", toolState = ToolExecutionStates.SUCCEEDED)))
+        val error = MessageSegment(type = "tool", toolName = "ask_user",
+            toolResult = """{"error":"bad_arguments","detail":"arguments are not a JSON object."}""",
+            toolState = ToolExecutionStates.FAILED)
+        assertEquals("Arguments are not a JSON object", resources.toolSummary(error))
+    }
+
+    @Test
     fun reasonSummaryPreservesIdentifiersAndOnlyCapitalizesNaturalLanguage() {
         assertEquals("Command timeout", toolFailureReasonSummary("Error: command timeout."))
         assertEquals("Permission denied: /tmp/MixedCase", toolFailureReasonSummary("permission denied: /tmp/MixedCase"))

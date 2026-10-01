@@ -56,4 +56,22 @@
     <string name="tool_read_files_count">Đã đọc %1$d tệp</string>
     <string name="tool_read_content_empty">Không có nội dung tệp được trả về</string>
     <string name="tool_read_conversation_empty">Không có tin nhắn hội thoại được trả về</string>
+    <string name="tool_ask_user">Hỏi Người Dùng</string>
+    <string name="tool_waiting_for_answers">Đang chờ câu trả lời…</string>
+    <string name="tool_interrupted">Bị gián đoạn</string>
+    <string name="tool_renaming_file">Đang đổi tên %1$s thành %2$s…</string>
+    <string name="tool_renamed_file">Đã đổi tên %1$s thành %2$s</string>
+    <string name="tool_renaming_file_default">Đang đổi tên tệp…</string>
+    <string name="tool_renamed_file_default">Đã đổi tên tệp</string>
+    <string name="tool_describing_file">Đang cập nhật mô tả của %1$s…</string>
+    <string name="tool_described_file">Đã cập nhật mô tả của %1$s</string>
+    <string name="tool_describing_file_default">Đang cập nhật mô tả tệp…</string>
+    <string name="tool_described_file_default">Đã cập nhật mô tả tệp</string>
+    <string name="tool_questions_queued">Câu hỏi trong hàng đợi: %1$d</string>
+    <string name="tool_questions_answered">Câu hỏi đã trả lời: %1$d</string>
+    <string name="tool_questions_skipped">Câu hỏi đã bỏ qua: %1$d</string>
+    <string name="tool_questions_mixed">Câu hỏi đã trả lời: %1$d trên %2$d</string>
+    <string name="tool_questions_asked">Đã đặt câu hỏi</string>
+    <string name="tool_loop_already_stopped">Vòng lặp đã dừng trước đó</string>
+    <string name="tool_ask_user_failed">Không thể hỏi người dùng</string>
 </resources>

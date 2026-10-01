@@ -56,4 +56,22 @@
     <string name="tool_read_files_count">파일 %1$d개 읽음</string>
     <string name="tool_read_content_empty">반환된 파일 내용 없음</string>
     <string name="tool_read_conversation_empty">반환된 대화 메시지 없음</string>
+    <string name="tool_ask_user">사용자에게 질문</string>
+    <string name="tool_waiting_for_answers">답변 대기 중…</string>
+    <string name="tool_interrupted">중단됨</string>
+    <string name="tool_renaming_file">%1$s을(를) %2$s(으)로 이름 변경 중…</string>
+    <string name="tool_renamed_file">%1$s을(를) %2$s(으)로 이름 변경함</string>
+    <string name="tool_renaming_file_default">파일 이름 변경 중…</string>
+    <string name="tool_renamed_file_default">파일 이름 변경함</string>
+    <string name="tool_describing_file">%1$s 설명 업데이트 중…</string>
+    <string name="tool_described_file">%1$s 설명 업데이트함</string>
+    <string name="tool_describing_file_default">파일 설명 업데이트 중…</string>
+    <string name="tool_described_file_default">파일 설명 업데이트함</string>
+    <string name="tool_questions_queued">대기열에 추가된 질문: %1$d개</string>
+    <string name="tool_questions_answered">답변한 질문: %1$d개</string>
+    <string name="tool_questions_skipped">건너뛴 질문: %1$d개</string>
+    <string name="tool_questions_mixed">답변한 질문: %2$d개 중 %1$d개</string>
+    <string name="tool_questions_asked">질문함</string>
+    <string name="tool_loop_already_stopped">루프가 이미 중지됨</string>
+    <string name="tool_ask_user_failed">사용자에게 질문하지 못함</string>
 </resources>

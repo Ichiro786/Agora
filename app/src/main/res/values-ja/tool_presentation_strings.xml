@@ -56,4 +56,22 @@
     <string name="tool_read_files_count">%1$d 個のファイルを読み取り済み</string>
     <string name="tool_read_content_empty">ファイルの内容は返されませんでした</string>
     <string name="tool_read_conversation_empty">会話のメッセージは返されませんでした</string>
+    <string name="tool_ask_user">ユーザーに質問</string>
+    <string name="tool_waiting_for_answers">回答を待機中…</string>
+    <string name="tool_interrupted">中断された</string>
+    <string name="tool_renaming_file">%1$s を %2$s に名前変更中…</string>
+    <string name="tool_renamed_file">%1$s を %2$s に名前変更した</string>
+    <string name="tool_renaming_file_default">ファイル名を変更中…</string>
+    <string name="tool_renamed_file_default">ファイル名を変更した</string>
+    <string name="tool_describing_file">%1$s の説明を更新中…</string>
+    <string name="tool_described_file">%1$s の説明を更新した</string>
+    <string name="tool_describing_file_default">ファイルの説明を更新中…</string>
+    <string name="tool_described_file_default">ファイルの説明を更新した</string>
+    <string name="tool_questions_queued">質問をキューに追加：%1$d 件</string>
+    <string name="tool_questions_answered">回答済みの質問：%1$d 件</string>
+    <string name="tool_questions_skipped">スキップした質問：%1$d 件</string>
+    <string name="tool_questions_mixed">回答済みの質問：%2$d 件中 %1$d 件</string>
+    <string name="tool_questions_asked">質問した</string>
+    <string name="tool_loop_already_stopped">ループはすでに停止している</string>
+    <string name="tool_ask_user_failed">ユーザーへの質問に失敗した</string>
 </resources>

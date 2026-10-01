@@ -56,4 +56,22 @@
     <string name="tool_read_files_count">%1$d Dateien gelesen</string>
     <string name="tool_read_content_empty">Kein Dateiinhalt zurückgegeben</string>
     <string name="tool_read_conversation_empty">Keine Gesprächsnachrichten zurückgegeben</string>
+    <string name="tool_ask_user">Benutzer Fragen</string>
+    <string name="tool_waiting_for_answers">Warte auf Antworten…</string>
+    <string name="tool_interrupted">Unterbrochen</string>
+    <string name="tool_renaming_file">Benenne %1$s in %2$s um…</string>
+    <string name="tool_renamed_file">%1$s in %2$s umbenannt</string>
+    <string name="tool_renaming_file_default">Benenne Datei um…</string>
+    <string name="tool_renamed_file_default">Datei umbenannt</string>
+    <string name="tool_describing_file">Aktualisiere Beschreibung von %1$s…</string>
+    <string name="tool_described_file">Beschreibung von %1$s aktualisiert</string>
+    <string name="tool_describing_file_default">Aktualisiere Dateibeschreibung…</string>
+    <string name="tool_described_file_default">Dateibeschreibung aktualisiert</string>
+    <string name="tool_questions_queued">Fragen eingereiht: %1$d</string>
+    <string name="tool_questions_answered">Fragen beantwortet: %1$d</string>
+    <string name="tool_questions_skipped">Fragen übersprungen: %1$d</string>
+    <string name="tool_questions_mixed">Fragen beantwortet: %1$d von %2$d</string>
+    <string name="tool_questions_asked">Fragen gestellt</string>
+    <string name="tool_loop_already_stopped">Schleife bereits gestoppt</string>
+    <string name="tool_ask_user_failed">Benutzer konnte nicht gefragt werden</string>
 </resources>

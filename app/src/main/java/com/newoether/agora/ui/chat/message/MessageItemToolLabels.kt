@@ -135,6 +135,7 @@ private fun Resources.toolBaseDisplayName(
     ToolKind.TASK_DELETE -> getString(R.string.tool_delete_task)
     ToolKind.LOOP_START -> getString(R.string.tool_start_loop)
     ToolKind.LOOP_STOP -> getString(R.string.tool_stop_loop)
+    ToolKind.ASK_USER -> getString(R.string.tool_ask_user)
     ToolKind.MCP -> "MCP"
     ToolKind.UNKNOWN -> if (toolName == "code_execution") {
         getString(R.string.code_execution)
@@ -157,15 +158,8 @@ internal fun Resources.toolSummary(presentation: ToolPresentation): String {
     val subject = presentation.subject
     return when (presentation.state) {
         ToolPresentationState.FAILED -> failedSummary(presentation, subject)
-        ToolPresentationState.STOPPED -> getString(R.string.tool_execution_stopped)
-        ToolPresentationState.BACKGROUND_RUNNING -> {
-            val job = presentation.jobId ?: subject
-            if (job == null) {
-                getString(R.string.tool_background_job_running_default)
-            } else {
-                getString(R.string.tool_background_job_running, job)
-            }
-        }
+        ToolPresentationState.STOPPED -> stoppedToolSummary(presentation)
+        ToolPresentationState.BACKGROUND_RUNNING -> getString(R.string.tool_background_job_running_default)
         ToolPresentationState.CALLING,
         ToolPresentationState.RUNNING -> runningSummary(presentation, subject)
         ToolPresentationState.EMPTY -> emptySummary(presentation, subject)
@@ -190,7 +184,7 @@ private fun Resources.runningSummary(
         R.string.tool_saving_memory,
         R.string.tool_progress_saving,
     )
-    ToolKind.MEMORY_EDIT -> optionalSubjectSummary(
+    ToolKind.MEMORY_EDIT -> editActionSummary(presentation, subject, active = true) ?: optionalSubjectSummary(
         subject,
         R.string.tool_updating_memory,
         R.string.tool_progress_updating,
@@ -214,7 +208,7 @@ private fun Resources.runningSummary(
         R.string.tool_creating_skill_subject,
         R.string.tool_progress_creating,
     )
-    ToolKind.SKILL_EDIT -> optionalSubjectSummary(
+    ToolKind.SKILL_EDIT -> editActionSummary(presentation, subject, active = true) ?: optionalSubjectSummary(
         subject,
         R.string.tool_editing_skill_subject,
         R.string.tool_progress_editing,
@@ -315,6 +309,7 @@ private fun Resources.runningSummary(
     )
     ToolKind.LOOP_START -> getString(R.string.tool_progress_starting)
     ToolKind.LOOP_STOP -> getString(R.string.tool_progress_stopping)
+    ToolKind.ASK_USER -> getString(R.string.tool_waiting_for_answers)
     ToolKind.MCP,
     ToolKind.UNKNOWN -> getString(R.string.tool_calling_ellipsis)
 }
@@ -354,7 +349,7 @@ internal fun Resources.shellToolSummary(presentation: ToolPresentation): String 
         )
         is ShellPresentationStatus.Background ->
             getString(R.string.tool_background_job_running_default)
-        ShellPresentationStatus.Stopped -> getString(R.string.tool_state_stopped)
+        ShellPresentationStatus.Stopped -> stoppedToolSummary(presentation)
         is ShellPresentationStatus.Failed -> shellFailureSummary(status)
         is ShellPresentationStatus.Exit -> status.code?.let { code ->
             getString(R.string.tool_shell_returned_code, code)
@@ -387,7 +382,7 @@ internal fun Resources.shellExecutionSummary(presentation: ToolPresentation): St
         ShellPresentationStatus.Executing -> getString(R.string.tool_state_executing)
         is ShellPresentationStatus.Background ->
             getString(R.string.tool_background_job_running_default)
-        ShellPresentationStatus.Stopped -> getString(R.string.tool_state_stopped)
+        ShellPresentationStatus.Stopped -> stoppedToolSummary(presentation)
         is ShellPresentationStatus.Failed -> status.code?.let { code ->
             getString(R.string.tool_shell_detail_returned_code, code)
         } ?: getString(R.string.tool_state_failed)
@@ -409,6 +404,36 @@ private fun Resources.optionalSubjectSummary(
     getString(withoutSubject)
 } else {
     getString(withSubject, subject)
+}
+
+internal fun Resources.stoppedToolSummary(presentation: ToolPresentation): String =
+    getString(if (presentation.jobState == "interrupted") R.string.tool_interrupted
+        else if (presentation.kind == ToolKind.SHELL_EXECUTE) R.string.tool_state_stopped
+        else R.string.tool_execution_stopped)
+
+private fun Resources.editActionSummary(presentation: ToolPresentation, subject: String?, active: Boolean): String? =
+    when (presentation.operation) {
+        "rename" -> if (subject != null && presentation.destination != null) {
+            getString(if (active) R.string.tool_renaming_file else R.string.tool_renamed_file,
+                subject, presentation.destination)
+        } else getString(if (active) R.string.tool_renaming_file_default else R.string.tool_renamed_file_default)
+        "describe" -> optionalSubjectSummary(subject,
+            if (active) R.string.tool_describing_file else R.string.tool_described_file,
+            if (active) R.string.tool_describing_file_default else R.string.tool_described_file_default)
+        else -> null
+    }
+
+private fun Resources.questionOutcomeSummary(presentation: ToolPresentation): String = when (presentation.outcome) {
+    "queued" -> presentation.count?.let { getString(R.string.tool_questions_queued, it) }
+        ?: getString(R.string.tool_questions_asked)
+    "answered" -> getString(R.string.tool_questions_answered, 1)
+    "skipped" -> getString(R.string.tool_questions_skipped, 1)
+    "answers" -> when (presentation.answeredCount) {
+        presentation.count -> getString(R.string.tool_questions_answered, presentation.count)
+        0 -> getString(R.string.tool_questions_skipped, presentation.count)
+        else -> getString(R.string.tool_questions_mixed, presentation.answeredCount, presentation.count)
+    }
+    else -> getString(R.string.tool_questions_asked)
 }
 
 private fun Resources.emptySummary(
@@ -469,7 +494,7 @@ private fun Resources.completedSummary(
         R.string.tool_created_skill,
         R.string.tool_created_skill_default,
     )
-    ToolKind.SKILL_EDIT -> optionalSubjectSummary(
+    ToolKind.SKILL_EDIT -> editActionSummary(presentation, subject, active = false) ?: optionalSubjectSummary(
         subject,
         R.string.tool_edited_skill,
         R.string.tool_edited_skill_default,
@@ -491,7 +516,7 @@ private fun Resources.completedSummary(
         R.string.tool_save_memory_name,
         R.string.tool_save_memory_default,
     )
-    ToolKind.MEMORY_EDIT -> optionalSubjectSummary(
+    ToolKind.MEMORY_EDIT -> editActionSummary(presentation, subject, active = false) ?: optionalSubjectSummary(
         subject,
         R.string.tool_edit_memory_name,
         R.string.tool_edit_memory_default,
@@ -595,7 +620,9 @@ private fun Resources.completedSummary(
         R.string.tool_deleted_task,
     )
     ToolKind.LOOP_START -> getString(R.string.tool_started_loop)
-    ToolKind.LOOP_STOP -> getString(R.string.tool_stopped_loop)
+    ToolKind.LOOP_STOP -> getString(if (presentation.outcome == "already_stopped")
+        R.string.tool_loop_already_stopped else R.string.tool_stopped_loop)
+    ToolKind.ASK_USER -> questionOutcomeSummary(presentation)
     ToolKind.MCP,
     ToolKind.UNKNOWN -> getString(R.string.tool_done)
 }
@@ -643,6 +670,7 @@ private fun Resources.failedSummary(
             getString(R.string.tool_list_failed_default)
         ToolKind.LOOP_START -> getString(R.string.tool_loop_start_failed)
         ToolKind.LOOP_STOP -> getString(R.string.tool_loop_stop_failed)
+        ToolKind.ASK_USER -> getString(R.string.tool_ask_user_failed)
         ToolKind.MCP, ToolKind.UNKNOWN -> reason ?: getString(R.string.tool_call_failed)
     }
 }

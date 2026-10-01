@@ -56,4 +56,22 @@
     <string name="tool_read_files_count">Прочитано файлов: %1$d</string>
     <string name="tool_read_content_empty">Содержимое файлов не возвращено</string>
     <string name="tool_read_conversation_empty">Сообщения беседы не возвращены</string>
+    <string name="tool_ask_user">Спросить Пользователя</string>
+    <string name="tool_waiting_for_answers">Ожидание ответов…</string>
+    <string name="tool_interrupted">Прервано</string>
+    <string name="tool_renaming_file">Переименование %1$s в %2$s…</string>
+    <string name="tool_renamed_file">%1$s переименован в %2$s</string>
+    <string name="tool_renaming_file_default">Переименование файла…</string>
+    <string name="tool_renamed_file_default">Файл переименован</string>
+    <string name="tool_describing_file">Обновление описания %1$s…</string>
+    <string name="tool_described_file">Описание %1$s обновлено</string>
+    <string name="tool_describing_file_default">Обновление описания файла…</string>
+    <string name="tool_described_file_default">Описание файла обновлено</string>
+    <string name="tool_questions_queued">Вопросы в очереди: %1$d</string>
+    <string name="tool_questions_answered">Отвеченные вопросы: %1$d</string>
+    <string name="tool_questions_skipped">Пропущенные вопросы: %1$d</string>
+    <string name="tool_questions_mixed">Отвеченные вопросы: %1$d из %2$d</string>
+    <string name="tool_questions_asked">Вопросы заданы</string>
+    <string name="tool_loop_already_stopped">Цикл уже остановлен</string>
+    <string name="tool_ask_user_failed">Не удалось спросить пользователя</string>
 </resources>

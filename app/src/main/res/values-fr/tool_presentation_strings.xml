@@ -8,4 +8,22 @@
     <string name="tool_read_files_count">%1$d fichiers lus</string>
     <string name="tool_read_content_empty">Aucun contenu de fichier renvoyé</string>
     <string name="tool_read_conversation_empty">Aucun message de conversation renvoyé</string>
+    <string name="tool_ask_user">Interroger L’utilisateur</string>
+    <string name="tool_waiting_for_answers">En attente des réponses…</string>
+    <string name="tool_interrupted">Interrompu</string>
+    <string name="tool_renaming_file">Renommage de %1$s en %2$s…</string>
+    <string name="tool_renamed_file">%1$s renommé en %2$s</string>
+    <string name="tool_renaming_file_default">Renommage du fichier…</string>
+    <string name="tool_renamed_file_default">Fichier renommé</string>
+    <string name="tool_describing_file">Mise à jour de la description de %1$s…</string>
+    <string name="tool_described_file">Description de %1$s mise à jour</string>
+    <string name="tool_describing_file_default">Mise à jour de la description du fichier…</string>
+    <string name="tool_described_file_default">Description du fichier mise à jour</string>
+    <string name="tool_questions_queued">Questions en attente : %1$d</string>
+    <string name="tool_questions_answered">Questions répondues : %1$d</string>
+    <string name="tool_questions_skipped">Questions ignorées : %1$d</string>
+    <string name="tool_questions_mixed">Questions répondues : %1$d sur %2$d</string>
+    <string name="tool_questions_asked">Questions posées</string>
+    <string name="tool_loop_already_stopped">Boucle déjà arrêtée</string>
+    <string name="tool_ask_user_failed">Impossible d’interroger l’utilisateur</string>
 </resources>

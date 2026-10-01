@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 
 internal data class AuthorizedToolCall(
@@ -276,23 +277,27 @@ internal fun finalToolState(result: ToolExecutionResult, toolName: String): Stri
     val resultObject = runCatching {
         Json.parseToJsonElement(protocol.orEmpty()).jsonObject
     }.getOrNull()
-    val errorCode = (resultObject?.get("error") as? JsonPrimitive)?.content
+    val jobTool = toolName in setOf("execute_shell_command", "get_shell_job", "wait_for_job", "stop_shell_job")
+    val payload = if (jobTool) resultObject?.get("result") as? JsonObject ?: resultObject else resultObject
+    val errorCode = (payload?.get("error") as? JsonPrimitive)?.content
+        ?: (resultObject?.get("error") as? JsonPrimitive)?.content
     if (errorCode == "no_results") return ToolExecutionStates.EMPTY
-    val failedFlag = (resultObject?.get("failed") as? JsonPrimitive)?.content == "true"
+    val failedFlag = (payload?.get("failed") as? JsonPrimitive)?.content == "true" ||
+        (resultObject?.get("failed") as? JsonPrimitive)?.content == "true"
     if (result.isError || failedFlag || !errorCode.isNullOrBlank()) {
         return ToolExecutionStates.FAILED
     }
     if (result.text.isEmpty() && result.structuredContent == null && result.images.isEmpty()) {
         return ToolExecutionStates.EMPTY
     }
+    val jobState = if (jobTool) (payload?.get("state") as? JsonPrimitive)?.content?.lowercase() else null
+    if (jobState == "stopped" || jobState == "interrupted") return ToolExecutionStates.STOPPED
     val isBackground = (resultObject?.get("background") as? JsonPrimitive)
         ?.content
         ?.toBooleanStrictOrNull() == true ||
         (
-            (resultObject?.get("state") as? JsonPrimitive)
-                ?.content
-                ?.equals("running", ignoreCase = true) == true &&
-                resultObject.get("job_id") != null
+            jobState in setOf("running", "stopping", "settling") &&
+                (payload?.get("job_id") ?: resultObject?.get("job_id")) != null
             )
     return if (isBackground) ToolExecutionStates.BACKGROUND_RUNNING
     else ToolExecutionStates.SUCCEEDED

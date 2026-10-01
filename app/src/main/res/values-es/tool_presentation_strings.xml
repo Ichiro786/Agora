@@ -8,4 +8,22 @@
     <string name="tool_read_files_count">Se leyeron %1$d archivos</string>
     <string name="tool_read_content_empty">No se devolvió contenido de archivo</string>
     <string name="tool_read_conversation_empty">No se devolvieron mensajes de conversación</string>
+    <string name="tool_ask_user">Preguntar Al Usuario</string>
+    <string name="tool_waiting_for_answers">Esperando respuestas…</string>
+    <string name="tool_interrupted">Interrumpido</string>
+    <string name="tool_renaming_file">Renombrando %1$s a %2$s…</string>
+    <string name="tool_renamed_file">%1$s renombrado a %2$s</string>
+    <string name="tool_renaming_file_default">Renombrando archivo…</string>
+    <string name="tool_renamed_file_default">Archivo renombrado</string>
+    <string name="tool_describing_file">Actualizando descripción de %1$s…</string>
+    <string name="tool_described_file">Descripción de %1$s actualizada</string>
+    <string name="tool_describing_file_default">Actualizando descripción del archivo…</string>
+    <string name="tool_described_file_default">Descripción del archivo actualizada</string>
+    <string name="tool_questions_queued">Preguntas en cola: %1$d</string>
+    <string name="tool_questions_answered">Preguntas respondidas: %1$d</string>
+    <string name="tool_questions_skipped">Preguntas omitidas: %1$d</string>
+    <string name="tool_questions_mixed">Preguntas respondidas: %1$d de %2$d</string>
+    <string name="tool_questions_asked">Preguntas realizadas</string>
+    <string name="tool_loop_already_stopped">El bucle ya estaba detenido</string>
+    <string name="tool_ask_user_failed">No se pudo preguntar al usuario</string>
 </resources>

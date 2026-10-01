@@ -225,6 +225,10 @@ class ToolResultContentSourceContractTest {
         assertTrue(shellSummary.contains("R.string.tool_background_job_running_default"))
         assertFalse(shellSummary.contains("status.jobId"))
         assertFalse(shellSummary.contains("tool_background_job_running,"))
+        val generalSummary = source.substringAfter("internal fun Resources.toolSummary(presentation:")
+            .substringBefore("private fun Resources.runningSummary")
+        assertFalse(generalSummary.contains("presentation.jobId"))
+        assertFalse(generalSummary.contains("tool_background_job_running,"))
     }
 
     @Test

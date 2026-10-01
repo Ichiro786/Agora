@@ -58,4 +58,22 @@
     <string name="tool_read_files_count">Read %1$d files</string>
     <string name="tool_read_content_empty">No file content returned</string>
     <string name="tool_read_conversation_empty">No conversation messages returned</string>
+    <string name="tool_ask_user">Ask User</string>
+    <string name="tool_waiting_for_answers">Waiting for answers…</string>
+    <string name="tool_interrupted">Interrupted</string>
+    <string name="tool_renaming_file">Renaming %1$s to %2$s…</string>
+    <string name="tool_renamed_file">Renamed %1$s to %2$s</string>
+    <string name="tool_renaming_file_default">Renaming file…</string>
+    <string name="tool_renamed_file_default">Renamed file</string>
+    <string name="tool_describing_file">Updating description of %1$s…</string>
+    <string name="tool_described_file">Updated description of %1$s</string>
+    <string name="tool_describing_file_default">Updating file description…</string>
+    <string name="tool_described_file_default">Updated file description</string>
+    <string name="tool_questions_queued">Queued questions: %1$d</string>
+    <string name="tool_questions_answered">Answered questions: %1$d</string>
+    <string name="tool_questions_skipped">Skipped questions: %1$d</string>
+    <string name="tool_questions_mixed">Answered questions: %1$d of %2$d</string>
+    <string name="tool_questions_asked">Asked questions</string>
+    <string name="tool_loop_already_stopped">Loop already stopped</string>
+    <string name="tool_ask_user_failed">Failed to ask user</string>
 </resources>

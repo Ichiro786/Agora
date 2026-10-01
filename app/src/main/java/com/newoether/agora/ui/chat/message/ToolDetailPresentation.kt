@@ -78,7 +78,7 @@ private fun Resources.toolDetailBody(presentation: ToolPresentation): ToolDetail
         ToolPresentationState.FAILED -> ToolDetailBody.Failed(
             presentation.errorMessage ?: getString(R.string.tool_call_failed), presentation.liveOutput,
         )
-        ToolPresentationState.STOPPED -> ToolDetailBody.Stopped(getString(R.string.tool_execution_stopped))
+        ToolPresentationState.STOPPED -> ToolDetailBody.Stopped(stoppedToolSummary(presentation))
         ToolPresentationState.EMPTY,
         ToolPresentationState.COMPLETED -> completedToolDetailBody(presentation)
     }
