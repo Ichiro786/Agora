@@ -160,7 +160,7 @@ class ToolSummaryRegressionTest {
     @Test
     fun everyKnownKindAndGenericToolUsesTheCanonicalSummaryPath() {
         val names = listOf(
-            "list_memory_files", "read_memory_file", "create_memory_file", "edit_memory_file", "delete_memory_file", "update_active_memory",
+            "list_memory_files", "read_memory_file", "create_memory_file", "edit_memory_file", "delete_memory_file", "read_active_memory", "update_active_memory",
             "list_skill_files", "read_skill_file", "create_skill_file", "edit_skill_file", "delete_skill_file",
             "web_search", "web_fetch", "search_conversations", "list_conversations", "read_conversation",
             "list_shells", "execute_shell_command", "list_shell_jobs", "get_shell_job", "wait_for_job", "stop_shell_job",

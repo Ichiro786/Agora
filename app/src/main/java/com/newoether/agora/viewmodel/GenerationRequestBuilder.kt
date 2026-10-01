@@ -644,12 +644,17 @@ class GenerationRequestBuilder(
             ?: conversation?.systemPromptId
             ?: promptSettings.activeSystemPromptId
         val entry = promptSettings.systemPrompts.find { it.id == targetPromptId }
+        // The active-memory access switch only governs the tools. The prompt always carries the
+        // stored active memory so turning the tools off cannot erase context. It is frozen here,
+        // once per Run, rather than re-read on every Provider pass.
+        val activeMemory = withContext(Dispatchers.IO) { memoryManager.getActiveMemory() }
         GenerationPromptTemplate(
             systemItems = entry?.resolvedSystemItems?.toList().orEmpty(),
             userItems = entry?.resolvedUserItems?.toList()
                 ?: PredefinedVariables.normalizeMessageTemplate(emptyList()),
             assistantItems = entry?.resolvedAssistantItems?.toList()
                 ?: PredefinedVariables.normalizeMessageTemplate(emptyList()),
+            activeMemory = activeMemory,
         )
     }
 
@@ -689,10 +694,7 @@ class GenerationRequestBuilder(
         activeModel: String,
     ): ResolvedPrompt = withContext(Dispatchers.Default) {
         coroutineScope {
-            // The active-memory access switch only governs the update tool. The prompt always
-            // carries the stored active memory so turning the tool off cannot erase context.
             val includeSkillCatalog = settings.accessSkills.value
-            val activeMemoryDeferred = async(Dispatchers.IO) { memoryManager.getActiveMemory() }
             val skillCatalogDeferred = async {
                 if (includeSkillCatalog) skillManager.catalog() else ""
             }
@@ -702,7 +704,7 @@ class GenerationRequestBuilder(
             val runtimeValues = buildPromptRuntimeValues(
                 now = java.util.Date(),
                 modelId = modelId,
-                activeMemory = activeMemoryDeferred.await(),
+                activeMemory = promptTemplate.activeMemory,
                 skillCatalog = skillCatalogDeferred.await()
                     .takeIf { includeSkillCatalog }
                     .orEmpty(),

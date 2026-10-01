@@ -374,6 +374,26 @@ class GenerationRequestBuilderProviderDisplayTest {
         assertFalse(snapshot.context.accessActiveMemory)
         verify { fixture.memoryManager.getActiveMemory() }
     }
+    @Test
+    fun `active memory is frozen for every provider pass of one run`() = runTest {
+        val fixture = RequestBuilderFixture(
+            providerName = Constants.PROVIDER_OPENAI,
+            lowContextModeEnabled = false,
+        )
+        val snapshot = fixture.builder.captureAdmissionSnapshot(
+            conversationId = "conversation",
+            runId = "run",
+            modelId = fixture.modelId,
+        )
+        val resolver = requireNotNull(snapshot.config.requestResolver)
+        // A tool call edits active memory mid-run; later passes must keep the captured text.
+        every { fixture.memoryManager.getActiveMemory() } returns "edited mid-run"
+        val config = com.newoether.agora.api.ProviderConfig(apiKey = "key", modelId = "model")
+        val first = resolver.resolve(emptyList(), config)
+        val second = resolver.resolve(emptyList(), config)
+        assertEquals(RequestBuilderFixture.RESOLVED_SYSTEM_PROMPT, first.systemPrompt)
+        assertEquals(first.systemPrompt, second.systemPrompt)
+    }
 
     @Test
     fun `remote and ollama ignore a true low context conversation override`() = runTest {

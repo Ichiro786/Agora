@@ -121,6 +121,15 @@ class MemoryToolProvider(
             tools.add(
                 ToolDefinition(
                     function = ToolFunction(
+                        name = "read_active_memory",
+                        description = "Read the current stored active memory. The copy in the system prompt is captured once per turn, so edits made during this turn appear here but not in the prompt until the next turn.",
+                        parameters = ToolParameters(properties = emptyMap())
+                    )
+                )
+            )
+            tools.add(
+                ToolDefinition(
+                    function = ToolFunction(
                         name = "update_active_memory",
                         description = "Update the active memory context. Modes: 'replace' (overwrite with 'content'), 'append' (add 'content' to end), 'prepend' (add 'content' to beginning), 'patch' (find 'old_string' exactly once and replace with 'new_string'). Default is replace.",
                         parameters = ToolParameters(
@@ -262,6 +271,8 @@ class MemoryToolProvider(
 
             "delete_memory_file" -> memoryManager.deleteFile(arg("name"))
 
+            "read_active_memory" -> memoryManager.getActiveMemory()
+
             "update_active_memory" -> {
                 val mode = arg("mode").ifBlank { "replace" }
                 val oldStr = arg("old_string").ifBlank { null }
@@ -285,6 +296,7 @@ class MemoryToolProvider(
         "create_memory_file",
         "edit_memory_file",
         "delete_memory_file",
+        "read_active_memory",
         "update_active_memory"
     )
 }
