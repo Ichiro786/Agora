@@ -16,6 +16,8 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.http.content.OutgoingContent
+import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readFully
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
@@ -220,6 +222,7 @@ class WebUiServerTest {
                 client.post("/api/attachments/tab?seq=2&name=f.txt&mime=text/plain") {
                     if (cookie) header(HttpHeaders.Cookie, "${WebUiServer.SESSION_COOKIE}=$token")
                     if (origin != null) header(HttpHeaders.Origin, origin)
+                    header(HttpHeaders.Host, "localhost")
                     contentType(type)
                     setBody(byteArrayOf(1))
                 }
@@ -253,8 +256,11 @@ class WebUiServerTest {
             suspend fun request(query: String, size: Long? = null) = client.post("/api/attachments/tab?$query") {
                 header(HttpHeaders.Cookie, "${WebUiServer.SESSION_COOKIE}=$token")
                 contentType(ContentType.Application.OctetStream)
-                if (size != null) header(HttpHeaders.ContentLength, size.toString())
-                setBody("hello".toByteArray())
+                setBody(object : OutgoingContent.ReadChannelContent() {
+                    override val contentLength: Long = size ?: 5L
+                    override val contentType = ContentType.Application.OctetStream
+                    override fun readFrom() = ByteReadChannel("hello".toByteArray())
+                })
             }
             assertEquals(HttpStatusCode.BadRequest, request("seq=bad&name=notes.txt").status)
             assertEquals(HttpStatusCode.BadRequest, request("seq=7&name=notes.txt&type=pdf").status)

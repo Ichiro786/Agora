@@ -55,7 +55,7 @@ class DirectAcceptedInputEffectExecutorTest {
     fun diagnosticFailureDoesNotPreventDurableAcceptanceOrGeneration() = runBlocking {
         every { Log.i("SendDiagnostics", any()) } throws IllegalStateException("logger unavailable")
         val fixture = Fixture()
-        val state = ConversationGenerationState(CONVERSATION_ID)
+        val state = ConversationGenerationState(CONVERSATION_ID, reclaimQueuedAttachments = {})
         val effect = claimDirectEffect(state)
         coEvery { fixture.graphWriter.commit(any(), any()) } returns fixture.commit
         coEvery { fixture.boundLauncher.launch(any(), state) } just Runs
@@ -70,7 +70,7 @@ class DirectAcceptedInputEffectExecutorTest {
     @Test
     fun durableCommitPrecedesAcceptanceProjectionAndBoundLaunch() = runBlocking {
         val fixture = Fixture()
-        val state = ConversationGenerationState(CONVERSATION_ID)
+        val state = ConversationGenerationState(CONVERSATION_ID, reclaimQueuedAttachments = {})
         val effect = claimDirectEffect(state)
         val graphRequest = io.mockk.slot<AcceptedInputGraphWriter.Request>()
         coEvery { fixture.graphWriter.commit(capture(graphRequest), any()) } coAnswers {
@@ -132,7 +132,7 @@ class DirectAcceptedInputEffectExecutorTest {
     @Test
     fun uncommittedFailureReturnsNullAndDoesNotLaunchProvider() = runBlocking {
         val fixture = Fixture()
-        val state = ConversationGenerationState(CONVERSATION_ID)
+        val state = ConversationGenerationState(CONVERSATION_ID, reclaimQueuedAttachments = {})
         val effect = claimDirectEffect(state)
         coEvery { fixture.graphWriter.commit(any(), any()) } throws
             IllegalStateException("Room unavailable")
@@ -163,7 +163,7 @@ class DirectAcceptedInputEffectExecutorTest {
     @Test
     fun cancellationAfterDurableCommitReconcilesIdentity() = runBlocking {
         val fixture = Fixture()
-        val state = ConversationGenerationState(CONVERSATION_ID)
+        val state = ConversationGenerationState(CONVERSATION_ID, reclaimQueuedAttachments = {})
         val effect = claimDirectEffect(state)
         coEvery { fixture.graphWriter.commit(any(), any()) } coAnswers {
             fixture.events += "room-commit"
@@ -211,7 +211,7 @@ class DirectAcceptedInputEffectExecutorTest {
     @Test
     fun newConversationPublishesOnlyAfterDurableCommit() = runBlocking {
         val fixture = Fixture()
-        val state = ConversationGenerationState(CONVERSATION_ID)
+        val state = ConversationGenerationState(CONVERSATION_ID, reclaimQueuedAttachments = {})
         val effect = claimDirectEffect(state)
         val graphRequest = io.mockk.slot<AcceptedInputGraphWriter.Request>()
         coEvery { fixture.graphWriter.commit(capture(graphRequest), any()) } coAnswers {
@@ -255,7 +255,7 @@ class DirectAcceptedInputEffectExecutorTest {
         val fixture = Fixture(
             applyCommittedError = IllegalStateException("DataStore unavailable"),
         )
-        val state = ConversationGenerationState(CONVERSATION_ID)
+        val state = ConversationGenerationState(CONVERSATION_ID, reclaimQueuedAttachments = {})
         val effect = claimDirectEffect(state)
         coEvery { fixture.graphWriter.commit(any(), any()) } coAnswers {
             fixture.events += "room-commit"
@@ -293,7 +293,7 @@ class DirectAcceptedInputEffectExecutorTest {
     @Test
     fun frozenAdmissionSnapshotIsUsedWithoutRecapturingMutableSettings() = runBlocking {
         val fixture = Fixture()
-        val state = ConversationGenerationState(CONVERSATION_ID)
+        val state = ConversationGenerationState(CONVERSATION_ID, reclaimQueuedAttachments = {})
         val effect = claimDirectEffect(state)
         coEvery { fixture.graphWriter.commit(any(), any()) } returns fixture.commit
         coEvery { fixture.boundLauncher.launch(any(), state) } just Runs
@@ -324,7 +324,7 @@ class DirectAcceptedInputEffectExecutorTest {
             selectNewConversation = false,
             conversationOpen = false,
         )
-        val state = ConversationGenerationState(CONVERSATION_ID)
+        val state = ConversationGenerationState(CONVERSATION_ID, reclaimQueuedAttachments = {})
         val effect = claimDirectEffect(state)
         coEvery { fixture.graphWriter.commit(any(), any()) } returns fixture.commit
         coEvery { fixture.boundLauncher.launch(any(), state) } just Runs

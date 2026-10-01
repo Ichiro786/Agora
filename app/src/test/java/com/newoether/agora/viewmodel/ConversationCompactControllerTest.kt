@@ -57,7 +57,7 @@ class ConversationCompactControllerTest {
         val manager = mockk<GenerationManager>()
         val launcher = mockk<StandardGenerationContinuationLauncher>()
         val requestBuilder = mockk<GenerationRequestBuilder>()
-        val state = ConversationGenerationState("conversation")
+        val state = ConversationGenerationState("conversation", reclaimQueuedAttachments = {})
         val source = sourceEntity()
         val pathRequest = slot<GenerationApiPathRequest>()
         val launchRequest = slot<StandardGenerationContinuationRequest>()
@@ -128,7 +128,7 @@ class ConversationCompactControllerTest {
         val manager = mockk<GenerationManager>()
         val launcher = mockk<StandardGenerationContinuationLauncher>()
         val requestBuilder = mockk<GenerationRequestBuilder>()
-        val state = ConversationGenerationState("conversation")
+        val state = ConversationGenerationState("conversation", reclaimQueuedAttachments = {})
         val source = sourceEntity()
         val launchRequest = slot<StandardGenerationContinuationRequest>()
         var compactMessageId: String? = null
@@ -221,7 +221,7 @@ class ConversationCompactControllerTest {
         val manager = mockk<GenerationManager>()
         val launcher = mockk<StandardGenerationContinuationLauncher>()
         val requestBuilder = mockk<GenerationRequestBuilder>()
-        val state = ConversationGenerationState("conversation")
+        val state = ConversationGenerationState("conversation", reclaimQueuedAttachments = {})
         val source = sourceEntity()
         val target = compactEntity(parentId = source.id)
         val suffix = sourceEntity(
@@ -306,7 +306,7 @@ class ConversationCompactControllerTest {
         val operation = FakeCompactOperation(automaticNeeded = true)
         val manager = mockk<GenerationManager>()
         val launcher = mockk<StandardGenerationContinuationLauncher>()
-        val state = ConversationGenerationState("conversation")
+        val state = ConversationGenerationState("conversation", reclaimQueuedAttachments = {})
         val source = sourceEntity()
         stubSelectedPath(
             conversations,
@@ -348,7 +348,7 @@ class ConversationCompactControllerTest {
         val operation = FakeCompactOperation(automaticNeeded = true)
         val manager = mockk<GenerationManager>()
         val launcher = mockk<StandardGenerationContinuationLauncher>()
-        val state = ConversationGenerationState("conversation")
+        val state = ConversationGenerationState("conversation", reclaimQueuedAttachments = {})
         val source = sourceEntity()
         stubSelectedPath(
             conversations,
@@ -384,7 +384,7 @@ class ConversationCompactControllerTest {
         val conversations = mockk<ConversationRepository>()
         val operation = FakeCompactOperation(automaticNeeded = false)
         val launcher = mockk<StandardGenerationContinuationLauncher>()
-        val state = ConversationGenerationState("conversation")
+        val state = ConversationGenerationState("conversation", reclaimQueuedAttachments = {})
 
         val started = controller(
             conversations,
@@ -435,7 +435,7 @@ class ConversationCompactControllerTest {
         val manager = mockk<GenerationManager>()
         val launcher = mockk<StandardGenerationContinuationLauncher>()
         val requestBuilder = mockk<GenerationRequestBuilder>()
-        val state = ConversationGenerationState("conversation")
+        val state = ConversationGenerationState("conversation", reclaimQueuedAttachments = {})
         val source = sourceEntity()
         var compactMessageId: String? = null
 

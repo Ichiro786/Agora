@@ -143,7 +143,7 @@ internal class WebUiChatSession(
         currentConversationId = openId,
         scope = scope,
     )
-    private val draftPersistence = SessionDraftPersistence()
+    private val draftPersistence = SessionDraftPersistence(conversations)
     private val drafts = ComposerDraftController(
         persistence = draftPersistence,
         conversations = conversations,
@@ -328,6 +328,7 @@ internal class WebUiChatSession(
         expectedSize: Long?, input: ByteReadChannel,
     ): HttpStatusCode {
         val work = scope.async {
+            val transportOwner = Any()
             val owner = ownerMutex.withLock {
                 if (closed || seq != target.value.browserSeq) return@withLock null
                 retainedOwner?.takeUnless(submission::isFrozen)?.also { composers.load(it) }
@@ -340,7 +341,10 @@ internal class WebUiChatSession(
                     forcedType, allowLocalSandbox(),
                 ) ?: return@async HttpStatusCode.UnsupportedMediaType
                 withContext(Dispatchers.IO) {
-                    val file = File.createTempFile("att_webui_", ".upload", uploadDirectory).also { source = it }
+                    val file = File(uploadDirectory, "att_webui_${java.util.UUID.randomUUID()}.upload").also {
+                        AttachmentFiles.retainLivePath(transportOwner, it.absolutePath)
+                        source = it
+                    }
                     var size = 0L
                     file.outputStream().use { output ->
                         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -371,6 +375,7 @@ internal class WebUiChatSession(
                 HttpStatusCode.InternalServerError
             } finally {
                 withContext(NonCancellable + Dispatchers.IO) {
+                    AttachmentFiles.releaseLivePaths(transportOwner)
                     if (!imported) source?.delete()
                     composers.release(owner)
                 }
@@ -388,13 +393,12 @@ internal class WebUiChatSession(
         clients.detach(this@WebUiChatSession)
         ownerMutex.withLock {
             closed = true
-            val abandoned = draftPersistence.ownerIds().flatMap { drafts.load(it).attachments } +
-                draftPersistence.retiredAttachments
+            val abandoned = draftPersistence.ownerIds().flatMap { drafts.load(it).attachments }
             draftPersistence.clear()
-            drafts.reclaimAttachments(abandoned + uploadedSources)
-            uploadedSources.clear()
             retainedOwner?.let { releaseOwner(it) }
             retainedOwner = null
+            drafts.reclaimAttachments(abandoned + uploadedSources)
+            uploadedSources.clear()
         }
     }
 
@@ -505,24 +509,26 @@ internal class WebUiChatSession(
 }
 
 /** Browser drafts: kept for the connection only, never written to the phone's Room drafts. */
-private class SessionDraftPersistence : ComposerDraftPersistence {
+private class SessionDraftPersistence(private val conversations: ConversationRepository) : ComposerDraftPersistence {
     private val drafts = ConcurrentHashMap<String, ConversationWorkspaceDraft>()
-    val retiredAttachments = mutableListOf<SelectedAttachment>()
     fun ownerIds(): List<String> = drafts.keys.toList()
     fun clear() {
+        AttachmentFiles.releaseLivePaths(this)
         drafts.clear()
-        retiredAttachments.clear()
     }
 
     override suspend fun loadDraft(ownerId: String): ConversationWorkspaceDraft =
         drafts[ownerId] ?: ConversationWorkspaceDraft(text = "", attachmentsJson = null)
 
     override suspend fun updateDraft(ownerId: String, text: String, attachmentsJson: String?) {
-        // Active browser drafts are not Room references. Replaced paths remain owned until close.
+        // The canonical sweeper retains debt while another live owner still protects the path.
         val previous = drafts[ownerId]?.attachmentsJson.decodeSelectedAttachments().orEmpty()
         val removed = previous.removedReclaimablePaths(attachmentsJson.decodeSelectedAttachments())
-        retiredAttachments += removed.map { SelectedAttachment(uri = it, type = "file", localPath = it) }
+        if (removed.isNotEmpty()) conversations.deleteUnreferencedDraftAttachmentFiles(
+            removed.map { SelectedAttachment(uri = it, type = "file", localPath = it) },
+        )
         drafts[ownerId] = ConversationWorkspaceDraft(text, attachmentsJson)
+        retainDraftFiles()
     }
 
     override suspend fun clearAcceptedDraft(ownerId: String) {
@@ -530,8 +536,15 @@ private class SessionDraftPersistence : ComposerDraftPersistence {
     }
     override suspend fun clearAcceptedDraft(ownerId: String, reclaimAttachments: Boolean) {
         if (reclaimAttachments) {
-            retiredAttachments += drafts[ownerId]?.attachmentsJson.decodeSelectedAttachments().orEmpty()
+            conversations.deleteUnreferencedDraftAttachmentFiles(
+                drafts[ownerId]?.attachmentsJson.decodeSelectedAttachments().orEmpty(),
+            )
         }
         drafts.remove(ownerId)
+        retainDraftFiles()
+    }
+    private fun retainDraftFiles() {
+        val attachments = drafts.values.flatMap { it.attachmentsJson.decodeSelectedAttachments().orEmpty() }
+        AttachmentFiles.setLivePaths(this, AttachmentFiles.ownedPaths(attachments))
     }
 }

@@ -202,7 +202,11 @@ class AppContainer(
 
     /** Foreground generation slots survive Activity/ViewModel recreation within this process. */
     val conversationStateRegistry: ConversationStateRegistry by lazy {
-        ConversationStateRegistry()
+        ConversationStateRegistry { attachments ->
+            appScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                conversationRepository.deleteUnreferencedDraftAttachmentFiles(attachments)
+            }
+        }
     }
 
     val mcpRegistry: McpRegistry by lazy {

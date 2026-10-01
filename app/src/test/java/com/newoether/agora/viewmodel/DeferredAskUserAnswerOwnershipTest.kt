@@ -21,7 +21,7 @@ class DeferredAskUserAnswerOwnershipTest {
     @Test
     fun oneSendOfNonBlockingAnswersQueuesOneMessage() {
         val askUser = AskUserController()
-        val registry = ConversationStateRegistry()
+        val registry = ConversationStateRegistry {}
         DeferredAskUserAnswerDelivery(
             askUser = askUser,
             registry = registry,

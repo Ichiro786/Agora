@@ -553,7 +553,16 @@ identity. Late Close/Navigate callbacks from an earlier request cannot change th
 Multi-item and PDF pagers keep their composition while each child resolves its media type.
 
 Attachment cleanup verifies current message, conversation-draft and New Chat draft references and
-deletes an unowned file inside the same Room transaction. Reconciliation must repeat this atomic
+deletes an unowned file inside the same Room transaction. Exact process-local producer, Composer,
+session-draft and pending/claimed queue references are registered in AttachmentFiles before file
+creation or publication and checked atomically at unlink. Producers release after canonical draft
+handoff or settled cancellation; shared owners release only their own paths. Queue ownership remains
+live through failed claims and releases only after durable Room commit or exact-item disposal.
+Composer scope completion releases remaining references after child work settles; process restart
+cannot restore live references. Exact cleanup debt blocked only by a live reference remains pending
+in the existing maintenance worker; Room ownership or successful unlink completes that debt.
+Session draft replacement schedules removed paths through the same repository, without retaining
+obsolete artifacts until disconnect. Reconciliation must repeat this atomic
 check immediately before unlinking each candidate. Candidate queries use the covering attachment
 index; canonical full paths determine ownership. Unreadable candidate metadata prevents deletion.
 Draft persistence schedules removed durable paths once; transient removals remain explicitly owned
@@ -942,6 +951,8 @@ the size hint. Incomplete transport files are deleted; accepted sources enter th
 classification, staging and Composer processing owners. Connection close settles its children,
 removes its lookup and reclaims abandoned session attachments through the existing reference-aware
 cleanup. Queued or sent attachments keep their canonical ownership. Reconnect never replays uploads.
+Session-local draft retention uses the shared AttachmentFiles lifecycle in section23; it never
+persists a browser draft into the phone's Room draft merely to protect files.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
 app starts it again from `MainActivity.onResume`; it is never started from the background.

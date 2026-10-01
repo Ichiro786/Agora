@@ -80,6 +80,7 @@ class WebUiChatSessionTest {
         every { generating } returns MutableStateFlow(false)
         every { stopping } returns MutableStateFlow(false)
         every { queuedSends } returns MutableStateFlow(emptyList())
+        every { discardQueuedSend(any()) } just Runs
     }
     private val registry = mockk<ConversationStateRegistry> {
         every { getOrCreate(any()) } returns state
@@ -156,6 +157,7 @@ class WebUiChatSessionTest {
         val attachment = composer.attachments.single()
         assertEquals("hello", attachment.preparedText)
         assertTrue(File(attachment.localPath!!).isFile)
+        assertFalse(AttachmentFiles.deleteIfUnowned(File(attachment.localPath!!)))
         assertEquals("notes.txt", attachment.fileName)
         session.send("with file")
         withTimeout(TIMEOUT_MS) { while (prepared.isEmpty()) kotlinx.coroutines.delay(10) }
@@ -164,6 +166,7 @@ class WebUiChatSessionTest {
         scope.coroutineContext[Job]!!.cancelAndJoin()
         session.close()
         coVerify { conversations.deleteUnreferencedDraftAttachmentFiles(match { files -> files.any { it.localPath == attachment.localPath } }) }
+        assertTrue(AttachmentFiles.deleteIfUnowned(File(attachment.localPath!!)))
     }
     @Test
     fun aSelectedOwnerSwitchCannotRedirectAnAdmittedUpload() = runBlocking {
@@ -189,7 +192,10 @@ class WebUiChatSessionTest {
         session.start()
         val pending = async { session.upload(0, "notes.txt", "text/plain", null, null, ByteChannel(autoFlush = true)) }
         withTimeout(TIMEOUT_MS) { while (uploadDirectory.listFiles().orEmpty().isEmpty()) kotlinx.coroutines.delay(10) }
+        val transport = uploadDirectory.listFiles()!!.single()
+        assertFalse(AttachmentFiles.deleteIfUnowned(transport))
         pending.cancelAndJoin()
+        assertTrue(AttachmentFiles.deleteIfUnowned(transport))
         assertTrue(uploadDirectory.listFiles().orEmpty().isEmpty())
         assertEquals(HttpStatusCode.BadRequest, session.upload(0, "short.txt", "text/plain", null, 3, ByteReadChannel(byteArrayOf(1))))
         assertTrue(uploadDirectory.listFiles().orEmpty().isEmpty())

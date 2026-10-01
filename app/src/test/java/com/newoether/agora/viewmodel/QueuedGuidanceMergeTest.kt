@@ -67,7 +67,7 @@ class QueuedGuidanceMergeTest {
 
     @Test
     fun mergeFailureRestoresTheExactOriginalLeaseBatch() {
-        val store = GuidanceLeaseStore { "lease" }
+        val store = GuidanceLeaseStore({ com.newoether.agora.util.AttachmentFiles.deleteBacking(it) }) { "lease" }
         val first = queued("one", "first").copy(preparedAttachmentMetaJson = "{")
         val second = queued("two", "second")
         store.enqueue(first)
