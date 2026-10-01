@@ -47,6 +47,54 @@ class ToolSummaryRegressionTest {
     }
 
     @Test
+    fun batchReadsAndNamesPrecedenceUseAllEffectiveTargets() {
+        for (name in listOf("read_memory_file", "read_skill_file")) {
+            val batch = MessageSegment(type = "tool", toolName = name,
+                toolArgs = """{"name":"ignored.md","names":["a.md","b.md"]}""",
+                toolResult = "body", toolState = ToolExecutionStates.SUCCEEDED)
+            val presentation = ToolPresentationResolver.resolve(batch)
+            assertEquals(2, presentation.count)
+            assertNull(presentation.subject)
+            assertEquals("Read 2 files", resources.toolSummary(batch))
+            assertEquals("Reading 2 files\u2026", resources.toolSummary(batch.copy(toolResult = null, toolState = ToolExecutionStates.RUNNING)))
+            val single = batch.copy(toolArgs = """{"name":"ignored.md","names":["actual.md"]}""")
+            assertEquals("Read actual.md", resources.toolSummary(single))
+            assertEquals("Read ignored.md", resources.toolSummary(batch.copy(toolArgs = """{"name":"ignored.md","names":[]}""")))
+        }
+    }
+
+    @Test
+    fun partialReadArraysDoNotInventACompletedCountOrFirstFileSubject() {
+        for (name in listOf("read_memory_file", "read_skill_file")) {
+            val segment = MessageSegment(type = "tool", toolName = name,
+                toolArgs = """{"names":["a.md","b""", toolState = ToolExecutionStates.RUNNING)
+            val p = ToolPresentationResolver.resolve(segment)
+            assertNull(p.subject)
+            assertNull(p.count)
+            assertEquals("Reading\u2026", resources.toolSummary(segment))
+        }
+        for (name in listOf("read_skill_file", "create_skill_file", "edit_skill_file", "delete_skill_file")) {
+            val p = ToolPresentationResolver.resolve(MessageSegment(type = "tool", toolName = name,
+                toolArgs = """{"name":"Known.md","content":"""", toolState = ToolExecutionStates.RUNNING))
+            assertEquals("Known.md", p.subject)
+        }
+    }
+
+    @Test
+    fun emptyReadsAndEmptyConversationPageDoNotClaimNormalCompletion() {
+        for (name in listOf("read_memory_file", "read_skill_file")) {
+            val empty = MessageSegment(type = "tool", toolName = name, toolArgs = """{"name":"empty.md"}""",
+                toolResult = "", toolState = ToolExecutionStates.EMPTY)
+            assertEquals("Read empty.md \u00b7 empty", resources.toolSummary(empty))
+        }
+        val page = MessageSegment(type = "tool", toolName = "read_conversation",
+            toolResult = """{"title":"A","messages":[],"total_messages":20,"offset":30}""",
+            toolState = ToolExecutionStates.SUCCEEDED)
+        assertEquals(ToolPresentationState.EMPTY, ToolPresentationResolver.resolve(page).state)
+        assertEquals("No conversation messages returned", resources.toolSummary(page))
+    }
+
+    @Test
     fun declaredErrorRetainsRawResultAndProvidesTheReason() {
         val text = "Error executing tool 'read_memory_file': command timeout"
         val state = finalToolState(ToolExecutionResult(text, isError = true), "read_memory_file")

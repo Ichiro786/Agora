@@ -54,4 +54,8 @@
     <string name="tool_list_failed_default">Failed to list items</string>
     <string name="tool_loop_start_failed">Failed to start loop</string>
     <string name="tool_loop_stop_failed">Failed to stop loop</string>
+    <string name="tool_reading_files_count">Reading %1$d files…</string>
+    <string name="tool_read_files_count">Read %1$d files</string>
+    <string name="tool_read_content_empty">No file content returned</string>
+    <string name="tool_read_conversation_empty">No conversation messages returned</string>
 </resources>

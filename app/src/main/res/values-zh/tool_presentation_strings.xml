@@ -51,4 +51,8 @@
     <string name="tool_list_failed_default">列出项目失败</string>
     <string name="tool_loop_start_failed">启动循环失败</string>
     <string name="tool_loop_stop_failed">停止循环失败</string>
+    <string name="tool_reading_files_count">正在读取 %1$d 个文件…</string>
+    <string name="tool_read_files_count">已读取 %1$d 个文件</string>
+    <string name="tool_read_content_empty">未返回文件内容</string>
+    <string name="tool_read_conversation_empty">未返回对话消息</string>
 </resources>

@@ -52,4 +52,8 @@
     <string name="tool_list_failed_default">تعذر سرد العناصر</string>
     <string name="tool_loop_start_failed">تعذر بدء الحلقة</string>
     <string name="tool_loop_stop_failed">تعذر إيقاف الحلقة</string>
+    <string name="tool_reading_files_count">جارٍ قراءة %1$d ملفات…</string>
+    <string name="tool_read_files_count">تمت قراءة %1$d ملفات</string>
+    <string name="tool_read_content_empty">لم يتم إرجاع محتوى ملفات</string>
+    <string name="tool_read_conversation_empty">لم يتم إرجاع رسائل محادثة</string>
 </resources>

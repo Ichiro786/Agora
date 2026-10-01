@@ -120,6 +120,9 @@ internal object ToolPresentationResolver {
             (resultObject.string("job_id") ?: resultEnvelope.string("job_id")) != null
         val count = semanticCount(kind, resultObject)
             ?: tolerantSemanticCount(kind, segment.toolStructuredResult ?: segment.toolResult)
+            ?: if (kind == ToolKind.MEMORY_READ || kind == ToolKind.SKILL_READ) {
+                selectedReadNames(kind, args)?.size ?: streamingHints.count
+            } else null
         // Failure semantics are authoritative. A Conch error envelope, an explicit `failed` flag, a
         // FAILED wire state must never render as an empty or
         // completed card just because the payload has no readable content field. The one exception
@@ -266,6 +269,7 @@ internal object ToolPresentationResolver {
         ToolKind.WEB_SEARCH -> result.arraySize("results")
         ToolKind.CONVERSATION_SEARCH -> result.arraySize("results")
         ToolKind.CONVERSATION_LIST -> result.arraySize("conversations")
+        ToolKind.CONVERSATION_READ -> result.arraySize("messages")
         ToolKind.SHELL_LIST -> result.arraySize("devices")
         ToolKind.SHELL_JOB_LIST -> result.arraySize("jobs")
         ToolKind.FILE_GLOB -> result.arraySize("files")
@@ -310,14 +314,14 @@ internal object ToolPresentationResolver {
         result: JsonObject?,
     ): String? = when (kind) {
         ToolKind.MEMORY_READ,
+        ToolKind.SKILL_READ -> selectedReadNames(kind, arguments)?.singleOrNull()
+            ?: arguments.string("name").takeIf { selectedReadNames(kind, arguments) == null }
         ToolKind.MEMORY_CREATE,
         ToolKind.MEMORY_EDIT,
         ToolKind.MEMORY_DELETE,
-        ToolKind.SKILL_READ,
         ToolKind.SKILL_CREATE,
         ToolKind.SKILL_EDIT,
         ToolKind.SKILL_DELETE -> arguments.string("name")
-            ?: arguments.array("names")?.singleOrNull()?.primitiveContent()
         ToolKind.WEB_SEARCH,
         ToolKind.CONVERSATION_SEARCH -> arguments.string("query")
         ToolKind.WEB_FETCH -> arguments.string("url")
@@ -343,6 +347,16 @@ internal object ToolPresentationResolver {
             ?: arguments.string("name")
             ?: arguments.string("task_id")
         else -> null
+    }
+
+    private fun selectedReadNames(kind: ToolKind, arguments: JsonObject?): List<String>? {
+        val array = arguments.array("names") ?: return null
+        val names = array.mapNotNull { it.primitiveContent()?.takeIf { name ->
+            if (kind == ToolKind.MEMORY_READ) name.isNotEmpty() else name.isNotBlank()
+        } }
+        return names.takeIf {
+            if (kind == ToolKind.MEMORY_READ) array.isNotEmpty() else names.isNotEmpty()
+        }
     }
 
     private fun JsonObject?.string(key: String): String? =

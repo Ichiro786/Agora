@@ -52,4 +52,8 @@
     <string name="tool_list_failed_default">項目を一覧表示できませんでした</string>
     <string name="tool_loop_start_failed">ループを開始できませんでした</string>
     <string name="tool_loop_stop_failed">ループを停止できませんでした</string>
+    <string name="tool_reading_files_count">%1$d 個のファイルを読み取り中…</string>
+    <string name="tool_read_files_count">%1$d 個のファイルを読み取り済み</string>
+    <string name="tool_read_content_empty">ファイルの内容は返されませんでした</string>
+    <string name="tool_read_conversation_empty">会話のメッセージは返されませんでした</string>
 </resources>

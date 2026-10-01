@@ -178,7 +178,9 @@ private fun Resources.runningSummary(
     subject: String?,
 ): String = when (presentation.kind) {
     ToolKind.MEMORY_LIST -> getString(R.string.tool_looking_up_memories)
-    ToolKind.MEMORY_READ -> optionalSubjectSummary(
+    ToolKind.MEMORY_READ -> presentation.count?.takeIf { it > 1 }?.let {
+        getString(R.string.tool_reading_files_count, it)
+    } ?: optionalSubjectSummary(
         subject,
         R.string.tool_reading_memory,
         R.string.tool_progress_reading,
@@ -200,7 +202,9 @@ private fun Resources.runningSummary(
     )
     ToolKind.MEMORY_UPDATE_ACTIVE -> getString(R.string.tool_updating_active)
     ToolKind.SKILL_LIST -> getString(R.string.tool_listing_skills)
-    ToolKind.SKILL_READ -> optionalSubjectSummary(
+    ToolKind.SKILL_READ -> presentation.count?.takeIf { it > 1 }?.let {
+        getString(R.string.tool_reading_files_count, it)
+    } ?: optionalSubjectSummary(
         subject,
         R.string.tool_reading_skill_subject,
         R.string.tool_progress_reading,
@@ -411,6 +415,11 @@ private fun Resources.emptySummary(
     presentation: ToolPresentation,
     subject: String?,
 ): String = when (presentation.kind) {
+    ToolKind.MEMORY_READ,
+    ToolKind.SKILL_READ -> optionalSubjectSummary(
+        subject, R.string.tool_read_file_empty, R.string.tool_read_content_empty,
+    )
+    ToolKind.CONVERSATION_READ -> getString(R.string.tool_read_conversation_empty)
     ToolKind.MEMORY_LIST -> getString(R.string.tool_no_memories)
     ToolKind.SKILL_LIST -> getString(R.string.tool_no_skills)
     ToolKind.WEB_SEARCH -> optionalSubjectSummary(
@@ -448,7 +457,9 @@ private fun Resources.completedSummary(
     ToolKind.SKILL_LIST -> presentation.count?.let {
         getString(R.string.tool_listed_skills, it)
     } ?: getString(R.string.tool_listed_skills_default)
-    ToolKind.SKILL_READ -> optionalSubjectSummary(
+    ToolKind.SKILL_READ -> presentation.count?.takeIf { it > 1 }?.let {
+        getString(R.string.tool_read_files_count, it)
+    } ?: optionalSubjectSummary(
         subject,
         R.string.tool_read_skill_done,
         R.string.tool_read_skill_done_default,
@@ -468,7 +479,9 @@ private fun Resources.completedSummary(
         R.string.tool_deleted_skill,
         R.string.tool_deleted_skill_default,
     )
-    ToolKind.MEMORY_READ -> optionalSubjectSummary(
+    ToolKind.MEMORY_READ -> presentation.count?.takeIf { it > 1 }?.let {
+        getString(R.string.tool_read_files_count, it)
+    } ?: optionalSubjectSummary(
         subject,
         R.string.tool_read_memory_name,
         R.string.tool_read_memory_success,

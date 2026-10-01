@@ -52,4 +52,8 @@
     <string name="tool_list_failed_default">Không thể liệt kê mục</string>
     <string name="tool_loop_start_failed">Không thể bắt đầu vòng lặp</string>
     <string name="tool_loop_stop_failed">Không thể dừng vòng lặp</string>
+    <string name="tool_reading_files_count">Đang đọc %1$d tệp…</string>
+    <string name="tool_read_files_count">Đã đọc %1$d tệp</string>
+    <string name="tool_read_content_empty">Không có nội dung tệp được trả về</string>
+    <string name="tool_read_conversation_empty">Không có tin nhắn hội thoại được trả về</string>
 </resources>

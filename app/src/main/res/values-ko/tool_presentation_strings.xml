@@ -52,4 +52,8 @@
     <string name="tool_list_failed_default">항목 나열 실패</string>
     <string name="tool_loop_start_failed">루프 시작 실패</string>
     <string name="tool_loop_stop_failed">루프 중지 실패</string>
+    <string name="tool_reading_files_count">파일 %1$d개 읽는 중…</string>
+    <string name="tool_read_files_count">파일 %1$d개 읽음</string>
+    <string name="tool_read_content_empty">반환된 파일 내용 없음</string>
+    <string name="tool_read_conversation_empty">반환된 대화 메시지 없음</string>
 </resources>

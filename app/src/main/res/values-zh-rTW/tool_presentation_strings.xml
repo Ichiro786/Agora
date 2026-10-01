@@ -52,4 +52,8 @@
     <string name="tool_list_failed_default">無法列出項目</string>
     <string name="tool_loop_start_failed">無法啟動循環</string>
     <string name="tool_loop_stop_failed">無法停止循環</string>
+    <string name="tool_reading_files_count">正在讀取 %1$d 個檔案…</string>
+    <string name="tool_read_files_count">已讀取 %1$d 個檔案</string>
+    <string name="tool_read_content_empty">未傳回檔案內容</string>
+    <string name="tool_read_conversation_empty">未傳回對話訊息</string>
 </resources>

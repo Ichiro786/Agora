@@ -52,4 +52,8 @@
     <string name="tool_list_failed_default">Не удалось перечислить элементы</string>
     <string name="tool_loop_start_failed">Не удалось запустить цикл</string>
     <string name="tool_loop_stop_failed">Не удалось остановить цикл</string>
+    <string name="tool_reading_files_count">Чтение файлов: %1$d…</string>
+    <string name="tool_read_files_count">Прочитано файлов: %1$d</string>
+    <string name="tool_read_content_empty">Содержимое файлов не возвращено</string>
+    <string name="tool_read_conversation_empty">Сообщения беседы не возвращены</string>
 </resources>
