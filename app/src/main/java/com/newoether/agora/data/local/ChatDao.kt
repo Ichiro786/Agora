@@ -618,9 +618,16 @@ interface ChatDao :
     suspend fun getLastMessageForConversation(conversationId: String): MessageEntity?
 
     /** Message invalidations for task execution summaries. Unlike getExecutionsForTask(),
-     * this Flow observes the messages table, so terminal status/snippet changes are emitted. */
-    @Query("SELECT m.* FROM messages m INNER JOIN conversations c ON m.conversationId = c.id WHERE c.taskId = :taskId ORDER BY m.timestamp ASC")
-    fun observeExecutionMessagesForTask(taskId: String): Flow<List<MessageEntity>>
+     * this Flow observes the messages table, so terminal status/snippet changes are emitted.
+     * Only the summary columns and a bounded text prefix are read: a full message row can
+     * exceed the CursorWindow and crash the execution list. */
+    @Query(
+        "SELECT m.id, m.conversationId, m.participant, m.status, m.timestamp, " +
+            "substr(m.text, 1, $EXECUTION_PREVIEW_MAX_CHARS) AS preview " +
+            "FROM messages m INNER JOIN conversations c ON m.conversationId = c.id " +
+            "WHERE c.taskId = :taskId AND m.participant IN ('MODEL', 'ERROR') ORDER BY m.timestamp ASC",
+    )
+    fun observeExecutionMessagesForTask(taskId: String): Flow<List<ExecutionMessageSummaryRow>>
 
     // Embeddings
     @Insert

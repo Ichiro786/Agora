@@ -126,7 +126,7 @@ class ConversationRepository(
         chatDao.getExecutionsForTask(taskId).map { entities -> entities.map { it.toConversation() } }
 
     /** Observes message-level changes for every execution belonging to [taskId]. */
-    fun observeExecutionMessagesForTask(taskId: String): Flow<List<MessageEntity>> =
+    fun observeExecutionMessagesForTask(taskId: String): Flow<List<com.newoether.agora.data.local.ExecutionMessageSummaryRow>> =
         chatDao.observeExecutionMessagesForTask(taskId)
 
     suspend fun getConversation(id: String): ChatEntity? =

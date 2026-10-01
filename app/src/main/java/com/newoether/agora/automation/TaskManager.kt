@@ -119,7 +119,7 @@ class TaskManager(
             val last = latestByConversation[conversation.id]
             ExecutionSummary(
                 conversation = conversation,
-                preview = last?.text.orEmpty(),
+                preview = last?.preview.orEmpty(),
                 status = last?.status,
                 timestamp = last?.timestamp ?: 0L,
             )
