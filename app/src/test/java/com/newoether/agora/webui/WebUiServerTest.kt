@@ -378,6 +378,50 @@ class WebUiServerTest {
     }
 
     @Test
+    fun attachmentPreviewStreamsBoundedOpenAndSuffixRangesThroughTheSameOwner() {
+        val file = temporary.newFile("range.mp4").apply { writeText("0123456789") }
+        var settled = 0
+        webUi(previewAttachment = { _, _, _, _, _, _, consume ->
+            try { consume(file, "video/mp4"); true } finally { settled++ }
+        }) { auth ->
+            val token = sessionToken()
+            suspend fun request(range: String, signedIn: Boolean = true, ifRange: String? = null) = client.get("/api/attachments/tab/pick/source/0?seq=7") {
+                if (signedIn) header(HttpHeaders.Cookie, "${WebUiServer.SESSION_COOKIE}=$token")
+                header(HttpHeaders.Range, range)
+                ifRange?.let { header(HttpHeaders.IfRange, it) }
+            }
+            assertEquals(HttpStatusCode.Forbidden, request("bytes=2-4", false).status)
+            assertEquals(0, settled)
+            for ((range, expected, header) in listOf(
+                Triple("bytes=2-4", "234", "bytes 2-4/10"),
+                Triple("bytes=7-", "789", "bytes 7-9/10"),
+                Triple("bytes=-2", "89", "bytes 8-9/10"),
+                Triple("bytes=8-99", "89", "bytes 8-9/10"),
+            )) {
+                val response = request(range)
+                assertEquals(HttpStatusCode.PartialContent, response.status)
+                assertEquals(expected, response.bodyAsText())
+                assertEquals(header, response.headers[HttpHeaders.ContentRange])
+                assertEquals(expected.length.toString(), response.headers[HttpHeaders.ContentLength])
+                assertEquals("bytes", response.headers[HttpHeaders.AcceptRanges])
+                assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+            }
+            val unsatisfiable = request("bytes=10-")
+            assertEquals(HttpStatusCode.RequestedRangeNotSatisfiable, unsatisfiable.status)
+            assertEquals("bytes */10", unsatisfiable.headers[HttpHeaders.ContentRange])
+            for (ignored in listOf("bytes=bad", "bytes=0-1,8-9", "items=0-1")) {
+                val response = request(ignored)
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals("0123456789", response.bodyAsText())
+            }
+            assertEquals("0123456789", request("bytes=2-4", ifRange = "unknown").bodyAsText())
+            assertEquals(9, settled)
+            auth.logout(token)
+            assertEquals(HttpStatusCode.Forbidden, request("bytes=2-4").status)
+            assertEquals(9, settled)
+        }
+    }
+    @Test
     fun revocationCancelsTheAdmittedPreviewAndSettlesItsOwner() {
         val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
         val settled = kotlinx.coroutines.CompletableDeferred<Unit>()
@@ -390,6 +434,7 @@ class WebUiServerTest {
                 val request = async {
                     runCatching { client.get("/api/attachments/tab/pick/source/0?seq=7") {
                         header(HttpHeaders.Cookie, "${WebUiServer.SESSION_COOKIE}=$token")
+                        header(HttpHeaders.Range, "bytes=0-")
                     } }
                 }
                 kotlinx.coroutines.withTimeout(5000) { entered.await() }

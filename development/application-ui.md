@@ -959,6 +959,9 @@ retry/removal, PDF page selection and video slicing use the same Composer owners
 Preview requests identify the authenticated live connection, captured selection sequence, attachment
 ID and artifact index, never a browser-supplied private file path. Files outside app-private storage,
 Local Sandbox assets, stale selections, unavailable attachments and revoked sessions are refused.
+The same preview stream supports one HTTP byte range for native video playback and seeking. Range
+responses preserve authentication, file pinning, recorded-size bounds and revocation cancellation;
+they do not buffer a complete file or introduce another download endpoint.
 Composer presentation lives in composer.js; shell.js remains the chat frame and popup presenter.
 While the server runs, a specialUse foreground service (`webui/WebUiService.kt`) shows an ongoing
 notification with a Stop action; Stop turns the WebUI setting off. If WebUI was left on, opening the
