@@ -14,6 +14,8 @@ import io.mockk.slot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -71,6 +73,56 @@ class StandardGenerationContinuationLauncherTest {
         Unit
     }
 
+    @Test
+    fun callerHeldAutomationLeaseLetsCompactStartWithoutReacquiringTheLock() = runBlocking {
+        val conversations = mockk<ConversationRepository>()
+        val boundLauncher = mockk<BoundRunGenerationLauncher>()
+        val state = ConversationGenerationState("conversation", reclaimQueuedAttachments = {})
+        val coordinator = ConversationExecutionCoordinator()
+        val parent = MessageEntity(
+            id = "parent", conversationId = "conversation", text = "source",
+            participant = Participant.MODEL, status = MessageStatus.SUCCESS,
+            timestamp = 100L, runId = "origin-run", runSequence = 0,
+        )
+        coEvery { conversations.getMessage(parent.id) } returns parent
+        coEvery { conversations.restoreBranchSelections("conversation") } returns emptyMap()
+        coEvery {
+            conversations.createRunWithMessages(any(), any(), any(), any(), any(), any())
+        } answers { RunGraphCommit(arg(1), arg(2), emptyMap()) }
+        // The blocked launch is cancelled before it can commit any Run.
+        coEvery { conversations.getRun(any()) } returns null
+        coEvery { boundLauncher.launch(any(), state) } returns Unit
+        val launcher = StandardGenerationContinuationLauncher(
+            conversations = conversations,
+            executionCoordinator = coordinator,
+            terminalSettlement = mockk(),
+            boundRunGenerationLauncher = { boundLauncher },
+            toUiMessage = ::toUiMessage,
+            isConversationOpen = { false },
+            projectGraph = { _, _, _, _ -> },
+        )
+        fun request(alreadyHoldsLock: Boolean) = StandardGenerationContinuationRequest(
+            conversationId = "conversation", parentMessageId = parent.id,
+            snapshot = testGenerationAdmissionSnapshot(selectedModelId = "provider:compact"),
+            requestKind = "compact", conversationModelId = null,
+            modelMessageId = "compact_summary", touchConversationOnAdmission = false,
+            alreadyHoldsConversationLock = alreadyHoldsLock,
+        )
+        coordinator.withAutomationConversationLock("conversation") {
+            // Re-acquiring the non-reentrant lease inside the holder never reaches the boundary.
+            val blocked = requireNotNull(launcher.launch(request(false), state))
+            assertNull(withTimeoutOrNull(300L) { blocked.started.await() })
+            blocked.job.cancel()
+            blocked.job.join()
+            state.awaitSendAvailable()
+            // The Task path declares the held lease and starts immediately.
+            val launch = requireNotNull(launcher.launch(request(true), state))
+            assertTrue(withTimeout(5_000L) { launch.started.await() })
+            launch.job.join()
+        }
+        state.dispose()
+        Unit
+    }
     @Test
     fun createsFreshRunAndAssistantUnderDurableBoundary() = runBlocking {
         val conversations = mockk<ConversationRepository>()

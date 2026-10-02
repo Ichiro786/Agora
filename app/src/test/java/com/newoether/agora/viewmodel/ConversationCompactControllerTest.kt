@@ -107,6 +107,22 @@ class ConversationCompactControllerTest {
             launchRequest.captured.snapshot.config.initialUserPrompt,
         )
         assertTrue(launchRequest.captured.queueDrainRequiresSuccess)
+        assertFalse(launchRequest.captured.alreadyHoldsConversationLock)
+        controller(
+            conversations,
+            operation,
+            requestBuilder,
+            manager,
+            launcher,
+        ).startAutomaticStandard(
+            conversationId = "conversation",
+            contextLimit = 4096,
+            config = automaticConfig(),
+            state = state,
+            alreadyHoldsConversationLock = true,
+        )
+        // Headless Task callers forward their held automation lease to the ordinary launcher.
+        assertTrue(launchRequest.captured.alreadyHoldsConversationLock)
         assertFalse(launchRequest.captured.snapshot.config.thinkingEnabled)
         assertFalse(launchRequest.captured.snapshot.context.webSearchEnabled)
         assertFalse(launchRequest.captured.snapshot.context.shellEnabled)

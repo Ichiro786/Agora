@@ -396,6 +396,8 @@ class TaskExecutionEngine(
                     contextLimit = generationSnapshot.config.maxContextWindow,
                     config = automaticCompactConfig,
                     state = generationState,
+                    // runOnce already holds this conversation's automation lease.
+                    alreadyHoldsConversationLock = true,
                 ) ?: return Result.Failure("Compact generation did not start")
             } else {
                 null
