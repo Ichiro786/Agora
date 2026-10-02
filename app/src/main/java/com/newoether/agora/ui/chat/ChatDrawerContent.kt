@@ -707,8 +707,8 @@ internal fun ChatDrawerContent(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(32.dp),
-                                        strokeWidth = 3.dp,
+                                        modifier = Modifier.size(36.dp),
+                                        strokeWidth = 4.dp,
                                     )
                                 }
                             }

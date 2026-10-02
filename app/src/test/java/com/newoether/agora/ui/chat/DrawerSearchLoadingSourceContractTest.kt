@@ -49,8 +49,8 @@ class DrawerSearchLoadingSourceContractTest {
         assertTrue(drawer.contains("visible = !isConversationListLoading"))
         assertTrue(drawer.split("enter = fadeIn(tween(180))").size - 1 == 2)
         assertTrue(drawer.split("exit = fadeOut(tween(180))").size - 1 == 2)
-        assertTrue(drawer.contains("modifier = Modifier.size(32.dp)"))
-        assertTrue(drawer.contains("strokeWidth = 3.dp"))
+        assertTrue(drawer.contains("modifier = Modifier.size(36.dp)"))
+        assertTrue(drawer.contains("strokeWidth = 4.dp"))
         assertTrue(drawer.contains("Crossfade("))
         assertTrue(
             drawer.contains("targetState = search.results.takeIf { search.isActive }"),
