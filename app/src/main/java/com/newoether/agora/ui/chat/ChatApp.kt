@@ -295,6 +295,7 @@ fun ChatApp(
         imeBottomPx = imeBottomPx,
         viewModel = viewModel,
         haptics = haptics,
+        chatPresented = topLevelPresentation == TopLevelPresentation.CHAT,
     )
 
     val composerOwnerId = if (isNewChatMode) com.newoether.agora.viewmodel.NEW_CHAT_WORKSPACE_ID else currentConversationId ?: com.newoether.agora.viewmodel.NEW_CHAT_WORKSPACE_ID
