@@ -49,8 +49,10 @@ class ContextCompositionBarTest {
             }
         }
         compose.onNodeWithText(resources.getString(R.string.context_part_used)).assertExists()
+        // Free is the budget left above the total; it needs no category or threshold data.
+        compose.onNodeWithText(resources.getString(R.string.context_part_free)).assertExists()
         val categories = listOf(R.string.context_part_reserved, R.string.context_part_system,
-            R.string.context_part_tools, R.string.context_part_messages, R.string.context_part_free)
+            R.string.context_part_tools, R.string.context_part_messages)
         categories.forEach { compose.onNodeWithText(resources.getString(it)).assertDoesNotExist() }
         val view = compose.activity.window.decorView
         val bitmap = android.graphics.Bitmap.createBitmap(view.width, view.height, android.graphics.Bitmap.Config.ARGB_8888)
@@ -87,6 +89,8 @@ class ContextCompositionBarTest {
             }
         }
         compose.onNodeWithText("0").assertExists()
+        // With nothing reserved, an empty window is entirely free.
+        compose.onNodeWithText(com.newoether.agora.model.ContextBudget.compactLabel(100_000)).assertExists()
         compose.runOnIdle { total = 120_000 }
         compose.onNodeWithText("117.2K").assertExists()
     }

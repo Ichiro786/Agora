@@ -81,16 +81,22 @@ internal fun ContextCompositionBar(
     val messages = messageTokens.coerceAtLeast(0)
     if (!showBreakdown) {
         val total = system + tools + messages
+        // No compaction threshold is known here, so nothing is reserved and the remainder is free.
+        val free = (budget - total).coerceAtLeast(0)
         val primary = MaterialTheme.colorScheme.primary
+        val freeColor = MaterialTheme.colorScheme.surfaceVariant
         Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
             SegmentedBar(
                 fractions = listOf(total.toFloat() / budget),
                 colors = listOf(primary),
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                trackColor = freeColor,
                 reservedFraction = 0f,
                 reservedColor = MaterialTheme.colorScheme.outline,
             )
-            LegendRow(primary, stringResource(R.string.context_part_used), total)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                LegendRow(primary, stringResource(R.string.context_part_used), total)
+                LegendRow(freeColor, stringResource(R.string.context_part_free), free)
+            }
         }
         return
     }
